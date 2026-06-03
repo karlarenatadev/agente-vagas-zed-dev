@@ -1,81 +1,172 @@
-# Course Analysis Skill - Busca de Cursos
+# Course Analysis Skill - Busca de Cursos e Materiais
 
-## Visão Geral
+## Visao Geral
 
-Esta skill define o fluxo completo que o Curator deve seguir para buscar cursos online, analisar relevância e retornar recomendações curadas.
+Esta skill define o fluxo completo que o Curator deve seguir para buscar cursos, videos e materiais online que ajudem o usuario a preencher lacunas de habilidades identificadas nas vagas.
 
-## Pré-requisitos
+O objetivo nao e limitar a recomendacao a uma plataforma. O Curator deve priorizar materiais acessiveis, com bom custo-beneficio, incluindo:
 
-- Firecrawl CLI instalado e configurado
-- `FIRECRAWL_API_KEY` definida no ambiente
-- Arquivo `data/job-search-results.md` existente com habilidades faltantes
-- Arquivo `data/user-profile.md` existente e populado
+1. cursos gratuitos;
+2. videos ou playlists no YouTube;
+3. documentacao oficial;
+4. cursos pagos com preco acessivel;
+5. formacoes premium, quando forem claramente relevantes.
+
+## Pre-requisitos
+
+1. Firecrawl CLI instalado e configurado.
+2. `FIRECRAWL_API_KEY` definida no ambiente.
+3. Arquivo `data/job-search-results.md` existente com habilidades faltantes.
+4. Arquivo `data/user-profile.md` existente e populado.
 
 ## Fluxo de Trabalho Passo a Passo
 
-### 1. Leitura de Resultados de Busca
+### 1. Validar dados de entrada
 
-Leia o arquivo `data/job-search-results.md` usando `read_file` para obter:
-- Todas as habilidades faltantes de todas as vagas
-- Extraia uma lista única (sem duplicatas) de habilidades faltantes
+Use `find_path` para verificar se `data/job-search-results.md` existe.
 
-### 2. Leitura do Perfil do Usuário
+Se o arquivo nao existir ou estiver vazio, retorne:
 
-Leia o arquivo `data/user-profile.md` usando `read_file` para obter:
-- `Área de interesse`
-- `Nível de experiência`
+```
+## RESPOSTA: CURATOR
+### estado
+erro
 
-### 3. Descoberta de Cursos (Firecrawl Search)
+### resumo
+Ainda nao tenho lacunas de habilidades para transformar em trilha de estudos.
 
-Para cada habilidade faltante (ou para as principais 3-5 habilidades), execute:
+### dados
 
-```bash
-firecrawl search "site:alura.com.br [habilidade_faltante] curso" --json
+### erros
+data/job-search-results.md ausente ou vazio. Peca ao usuario para buscar vagas primeiro pela opcao A.
 ```
 
-**Exemplo**:
+### 2. Extrair habilidades faltantes
+
+Leia `data/job-search-results.md` e extraia todas as linhas `habilidades_faltantes:`.
+
+Regras:
+
+1. separar habilidades por virgula ou ponto e virgula;
+2. remover valores vazios;
+3. ignorar `Nenhuma`, `Nao informado` e `Não informado`;
+4. deduplicar sem perder o texto original;
+5. priorizar habilidades que aparecem em mais vagas;
+6. limitar a 3-5 habilidades principais para nao sobrecarregar o usuario.
+
+### 3. Ler perfil do usuario
+
+Leia `data/user-profile.md` e extraia:
+
+1. `Area de interesse` ou `Área de interesse`;
+2. `Nivel de experiencia` ou `Nível de experiência`;
+3. `Habilidades atuais`;
+4. `Objetivo de carreira`.
+
+Use esses campos para contextualizar a busca. Exemplo: para uma pessoa junior, priorize conteudo introdutorio e projetos guiados.
+
+### 4. Buscar materiais com Firecrawl
+
+Para cada habilidade faltante, execute buscas nesta ordem:
+
+1. Gratuito ou rapido:
+
 ```bash
-firecrawl search "site:alura.com.br Machine Learning curso" --json
-firecrawl search "site:alura.com.br Tableau curso" --json
+firecrawl search "[habilidade] curso gratuito iniciante youtube portugues" --json
 ```
 
-**Saída esperada**: JSON com campos: `url`, `titulo`, `descricao` para cada resultado.
+2. Documentacao oficial ou tutorial:
 
-**Tratamento de erro**: Se o comando falhar, tente busca genérica sem `site:`:
 ```bash
-firecrawl search "curso [habilidade_faltante] alura" --json
+firecrawl search "[habilidade] documentacao oficial tutorial" --json
 ```
 
-### 4. Extração de Detalhes Completos (Firecrawl Scrape)
+3. Curso pago acessivel:
 
-Para cada URL de curso nos resultados da busca (máximo 5 URLs por habilidade):
+```bash
+firecrawl search "[habilidade] curso barato alura udemy coursera" --json
+```
+
+4. Fallback amplo:
+
+```bash
+firecrawl search "[habilidade] curso tutorial projeto" --json
+```
+
+Se uma busca falhar, registre o erro parcial e tente a proxima busca da mesma habilidade. Nao interrompa todo o fluxo por uma unica falha.
+
+## Fontes recomendadas
+
+Priorize fontes com boa utilidade para alguem em evolucao de carreira:
+
+1. YouTube: videos, playlists e aulas praticas gratuitas.
+2. Documentacao oficial: guias, quickstarts e tutoriais mantidos pela ferramenta.
+3. Alura: cursos e formacoes em portugues.
+4. Udemy: cursos pagos com preco acessivel, quando o resultado indicar relevancia.
+5. Coursera ou edX: cursos gratuitos para assistir ou com certificado opcional pago.
+6. FreeCodeCamp, Microsoft Learn, Google Cloud Skills Boost, Kaggle Learn e Mozilla MDN, quando aplicavel.
+
+## Extracao de Detalhes
+
+Para URLs promissoras, execute:
 
 ```bash
 firecrawl scrape <url> --format markdown
 ```
 
-**Tratamento de falha**: Se o scrape falhar para uma URL específica, use o `titulo` e `descricao` do resultado da busca como fallback.
+Extraia, quando disponivel:
 
-### 5. Análise de Relevância
+1. nome do material;
+2. plataforma;
+3. preco ou tipo: gratuito, acessivel, premium ou certificado opcional;
+4. duracao;
+5. nivel;
+6. habilidade abordada;
+7. link.
 
-A partir da descrição completa do curso (markdown do scrape ou descrição da busca), verifique:
-- Se o curso aborda a habilidade faltante
-- Nível do curso (iniciante, intermediário, avançado)
-- Duração estimada
-- Requisitos prévios
+Se o scrape falhar para uma URL especifica, use titulo e descricao da busca como fallback e registre o erro parcial.
 
-**Regra**: Use correspondência de strings case-insensitive.
+## Classificacao de Nivel
 
-### 6. Seleção e Classificação
+Use correspondencia case-insensitive.
 
-- Selecione cursos que abordem as habilidades faltantes
-- Classifique por nível (iniciante → intermediário → avançado)
-- Priorize cursos da Alura (conforme solicitado no menu)
-- Limite a até 5 cursos no total
+1. `iniciante`: titulo ou descricao contem Introducao, Introdução, Primeiros Passos, Fundamentos, Basico, Básico, Para Iniciantes, Beginner ou Getting Started.
+2. `intermediario`: titulo ou descricao contem Intermediario, Intermediário, Projeto, Pipeline, Pratico, Prático, Hands-on ou implica conhecimento previo.
+3. `avancado`: titulo ou descricao contem Avancado, Avançado, Profundo, Expert, Arquitetura, Especialista ou Advanced.
 
-### 7. Formatação da Resposta
+Se nao houver sinal claro, use `iniciante` para usuarios junior e `intermediario` para usuarios pleno/senior.
 
-Retorne até 5 cursos no formato de Envelope de Resposta:
+## Criterios de Seleção
+
+Para cada habilidade, tente retornar ate 2 recomendacoes:
+
+1. uma opcao gratuita ou rapida;
+2. uma opcao paga acessivel ou premium, se houver boa correspondencia.
+
+Limite total: ate 8 recomendacoes.
+
+Priorize:
+
+1. conteudo em portugues quando a qualidade for equivalente;
+2. conteudo gratuito para o primeiro passo;
+3. materiais com projeto pratico;
+4. links de fonte confiavel;
+5. aderencia direta a habilidade faltante.
+
+Nunca invente nome, duracao, preco ou link. Se nao houver dado, use `Nao informado`.
+
+## Ordenacao
+
+Ordene a trilha por:
+
+1. nivel: iniciante, intermediario, avancado;
+2. custo: gratuito, acessivel, premium;
+3. recorrencia da habilidade nas vagas;
+4. aderencia ao perfil do usuario.
+
+## Formato de Resposta
+
+Retorne sempre o Envelope de Resposta:
 
 ```
 ## RESPOSTA: CURATOR
@@ -83,79 +174,37 @@ Retorne até 5 cursos no formato de Envelope de Resposta:
 sucesso
 
 ### resumo
-Encontrei [X] cursos que abordam suas lacunas de habilidades. Aqui estão as recomendações curadas e ordenadas por nível.
+Encontrei [X] materiais para desenvolver as principais lacunas das vagas. Priorizei opcoes gratuitas, acessiveis e praticas para reduzir atrito de aprendizado.
 
 ### dados
-1. nome_curso: [título do curso]
-   duracao: [ex: 20 horas]
+1. nome_curso: [titulo do curso, video ou material]
+   plataforma: [YouTube | Alura | Udemy | Coursera | Documentacao Oficial | outra]
+   preco: [gratuito | acessivel | premium | certificado opcional | Nao informado]
+   duracao: [ex: 20 horas | 45 minutos | Nao informado]
    nivel: [iniciante | intermediario | avancado]
    aborda_habilidade: [nome da habilidade]
    link: [URL]
 
-2. nome_curso: [próximo título]
-   ...
+2. nome_curso: [proximo material]
+   plataforma: [plataforma]
+   preco: [preco]
+   duracao: [duracao]
+   nivel: [nivel]
+   aborda_habilidade: [habilidade]
+   link: [URL]
 
 Ordem sugerida:
-1. [nome do curso]
-2. [nome do curso]
-3. [nome do curso]
+1. [nome do primeiro material]
+2. [nome do segundo material]
 
 ### erros
-[Vazio se sucesso]
+[Nenhum erro parcial ou lista numerada de falhas por habilidade/fonte]
 ```
-
-## Comandos Firecrawl para Cursos
-
-### Search Específico (Alura)
-```bash
-firecrawl search "site:alura.com.br [habilidade] curso" --json
-```
-- Busca apenas no site da Alura
-- Retorna cursos relevantes
-
-### Search Genérico (Fallback)
-```bash
-firecrawl search "curso [habilidade] alura" --json
-```
-- Busca mais ampla se a busca específica falhar
-
-### Scrape
-```bash
-firecrawl scrape <url> --format markdown
-```
-- Retorna markdown limpo da página do curso
-- Útil para obter descrição completa, currículo, nível e duração
-
-## Regras de Formatação de Saída
-
-- Nunca use tabelas markdown
-- Use listas numeradas com pares chave-valor
-- Campos obrigatórios: nome_curso, duracao, nivel, aborda_habilidade, link
-- Se não conseguir extrair algum campo, use "Não informado"
-- Sempre inclua a seção "Ordem sugerida" com a sequência recomendada de cursos
 
 ## Tratamento de Erros
 
-| Erro | Ação |
-|------|------|
-| `firecrawl search` falha | Tente busca genérica sem `site:`, ou reporte erro |
-| `firecrawl scrape` falha em URL | Use fallback (título/descrição da busca), anote a falha |
-| Nenhum resultado encontrado | Tente termos alternativos para a habilidade |
-| Falha ao ler `job-search-results.md` | Retorne `estado: erro` indicando arquivo faltante |
-
-## Fallback para Habilidades sem Cursos na Alura
-
-Se não encontrar cursos na Alura para uma habilidade específica:
-1. Tente buscar em outras plataformas (Coursera, Udemy, etc.)
-2. Se não encontrar nada, pule essa habilidade e continue com as restantes
-3. No resumo, mencione quais habilidades não tiveram cursos encontrados
-
-## Exemplo de Execução Completa
-
-1. Ler `data/job-search-results.md` → Habilidades faltantes: Tableau, Machine Learning, pandas, numpy
-2. Para cada habilidade, executar: `firecrawl search "site:alura.com.br [habilidade] curso" --json`
-3. Para cada URL no resultado, executar: `firecrawl scrape <url> --format markdown`
-4. Analisar: Verificar se o curso aborda a habilidade, extrair nível e duração
-5. Selecionar: Escolher até 5 melhores cursos
-6. Classificar: Ordenar por nível (iniciante → avançado)
-7. Formatar: Retornar cursos formatados com ordem sugerida
+1. Se `data/job-search-results.md` nao existir, retorne `estado: erro` e peca busca de vagas primeiro.
+2. Se uma busca falhar para uma habilidade, tente a proxima query da mesma habilidade.
+3. Se todas as buscas de uma habilidade falharem, registre a habilidade em `erros` e continue com as demais.
+4. Se nenhum material for encontrado para nenhuma habilidade, retorne `estado: erro`.
+5. Se houver resultados parciais, retorne `estado: sucesso`, mostre os resultados disponiveis e liste falhas em `erros`.
