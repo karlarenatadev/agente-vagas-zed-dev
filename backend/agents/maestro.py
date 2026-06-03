@@ -432,13 +432,22 @@ class MaestroAgent(BaseAgent):
         yield "__STATE__:agent_running:coach\n"
 
         coach = CoachAgent()
+        result_chunks = []
         async for token in coach.run({
             "step": 1,
             "profile": profile,
             "interview_context": self.interview_context,
             "history": [],
         }):
+            result_chunks.append(token)
             yield token
+
+        coach_output = "".join(result_chunks)
+        question = self._extract_coach_section(coach_output, "pergunta_atual") or self._strip_coach_text(coach_output)
+        self._update_interview_session(
+            [{"role": "assistant", "step": 1, "content": question}],
+            1,
+        )
 
         yield f"\n__STATE__:coach:1:{self.interview_context}"
 
@@ -463,13 +472,28 @@ class MaestroAgent(BaseAgent):
             yield "__STATE__:agent_running:coach\n"
 
             coach = CoachAgent()
+            result_chunks = []
             async for token in coach.run({
                 "step": 6,
                 "profile": profile,
                 "interview_context": self.interview_context,
                 "history": history,
             }):
+                result_chunks.append(token)
                 yield token
+
+            coach_output = "".join(result_chunks)
+            feedback = self._extract_coach_section(coach_output, "feedback_anterior")
+            score = self._extract_coach_section(coach_output, "pontuacao_final")
+            improvements = self._extract_coach_section(coach_output, "areas_de_melhoria")
+            if feedback:
+                history.append({"role": "feedback", "step": current_q_num, "content": feedback})
+            self._update_interview_session(
+                history,
+                current_q_num,
+                final_score=score,
+                improvements=improvements,
+            )
 
             yield "\n\n"
             async for token in self._show_menu():
@@ -481,13 +505,24 @@ class MaestroAgent(BaseAgent):
             yield "__STATE__:agent_running:coach\n"
 
             coach = CoachAgent()
+            result_chunks = []
             async for token in coach.run({
                 "step": next_step,
                 "profile": profile,
                 "interview_context": self.interview_context,
                 "history": history,
             }):
+                result_chunks.append(token)
                 yield token
+
+            coach_output = "".join(result_chunks)
+            feedback = self._extract_coach_section(coach_output, "feedback_anterior")
+            question = self._extract_coach_section(coach_output, "pergunta_atual")
+            if feedback:
+                history.append({"role": "feedback", "step": current_q_num, "content": feedback})
+            if question:
+                history.append({"role": "assistant", "step": next_step, "content": question})
+            self._update_interview_session(history, next_step)
 
             yield f"\n__STATE__:coach:{next_step}:{self.interview_context}"
 
@@ -496,6 +531,15 @@ class MaestroAgent(BaseAgent):
         history = []
         for line in session.splitlines():
             line = line.strip()
+            feedback_match = re.match(r"Feedback\s+(\d+):\s*(.*)", line)
+            if feedback_match:
+                history.append({
+                    "role": "feedback",
+                    "step": int(feedback_match.group(1)),
+                    "content": feedback_match.group(2),
+                })
+                continue
+
             match = re.match(r"(P|R)(\d+):\s*(.*)", line)
             if match:
                 role = "assistant" if match.group(1) == "P" else "user"
@@ -504,15 +548,46 @@ class MaestroAgent(BaseAgent):
                 history.append({"role": role, "step": step, "content": content})
         return history
 
-    def _update_interview_session(self, history: list[dict], current_step: int) -> None:
+    def _update_interview_session(
+        self,
+        history: list[dict],
+        current_step: int,
+        final_score: str | None = None,
+        improvements: str | None = None,
+    ) -> None:
         """Atualiza o arquivo de sessão com o histórico atual."""
         lines = [f"Contexto da Vaga: {self.interview_context}",
                  f"Número da Pergunta: {current_step}",
                  "Histórico de Perguntas e Respostas:"]
         for item in history:
-            prefix = "P" if item["role"] == "assistant" else "R"
-            lines.append(f"  {prefix}{item['step']}: {item['content']}")
+            if item["role"] == "feedback":
+                lines.append(f"  Feedback {item['step']}: {item['content']}")
+            else:
+                prefix = "P" if item["role"] == "assistant" else "R"
+                lines.append(f"  {prefix}{item['step']}: {item['content']}")
+        if final_score:
+            lines.extend(["", f"PontuaÃ§Ã£o Final: {final_score}"])
+        if improvements:
+            lines.extend(["Ãreas de Melhoria:", improvements])
         self._write_file(config.INTERVIEW_FILE, "\n".join(lines))
+
+    def _extract_coach_section(self, text: str, section: str) -> str:
+        pattern = rf"###\s+{re.escape(section)}\s*\n(.*?)(?=\n###\s+|\Z)"
+        match = re.search(pattern, text, flags=re.DOTALL | re.IGNORECASE)
+        if not match:
+            return ""
+        return self._strip_coach_text(match.group(1))
+
+    def _strip_coach_text(self, text: str) -> str:
+        lines = []
+        for line in text.strip().splitlines():
+            clean = line.strip()
+            if not clean or clean.startswith("## RESPOSTA:") or clean.startswith("###"):
+                continue
+            if clean.lower() in {"sucesso", "erro"}:
+                continue
+            lines.append(clean)
+        return " ".join(lines).strip()
 
     # ─── Reset ────────────────────────────────────────────────────────────────
 

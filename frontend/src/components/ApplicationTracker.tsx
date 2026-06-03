@@ -276,20 +276,22 @@ export function ApplicationTracker({ isOpen, onClose }: Props) {
   const [filter, setFilter] = useState<ApplicationStatus | 'todas'>('todas')
   const [loading, setLoading] = useState(true)
 
-  const load = async () => {
-    try {
-      const res = await fetch('/api/applications/')
-      const data = await res.json()
-      setApplications(data)
-    } catch {
-      setApplications([])
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
-    if (isOpen) load()
+    if (!isOpen) return
+
+    const load = async () => {
+      try {
+        const res = await fetch('/api/applications/')
+        const data = await res.json()
+        setApplications(data)
+      } catch {
+        setApplications([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    load()
   }, [isOpen])
 
   const handleStatusChange = async (id: string, status: ApplicationStatus) => {

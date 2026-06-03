@@ -35,9 +35,11 @@ INTERVIEW_FILE = DATA_DIR / "interview-session.md"
 MAESTRO_PERSONA = PERSONAS_DIR / "maestro.md"
 SCOUT_PERSONA = PERSONAS_DIR / "scout.md"
 CURATOR_PERSONA = PERSONAS_DIR / "curator.md"
+COACH_PERSONA = PERSONAS_DIR / "coach.md"
 
 # Skills
 DISPATCH_SKILL = SKILLS_DIR / "dispatch.md"
 FIRECRAWL_SKILL = SKILLS_DIR / "firecrawl.md"
 JOB_SEARCH_SKILL = SKILLS_DIR / "job-search.md"
 COURSE_ANALYSIS_SKILL = SKILLS_DIR / "course-analysis.md"
+INTERVIEW_SIM_SKILL = SKILLS_DIR / "interview-sim.md"
