@@ -1,16 +1,15 @@
-/**
- * Hook WebSocket com reconexão segura.
- *
- * Correções aplicadas:
- * - Flag `destroyed` impede reconexão após unmount do componente
- * - `reconnectTimer` é limpo no cleanup para não vazar timers
- * - `connect` usa ref em vez de useCallback para evitar ciclo de deps no StrictMode
- */
-
 import { useEffect, useRef, useState } from 'react'
-import type { ChatMessage, SessionState, WsIncoming, WsOutgoing } from '../types'
+import type {
+  AgentName,
+  ChatMessage,
+  ConnectionStatus,
+  LoadingState,
+  SessionState,
+  WsIncoming,
+  WsOutgoing,
+} from '../types'
 
-const WS_URL = 'ws://localhost:8000/ws/chat'
+const INTERNAL_AGENT_RUNNING = '__STATE__:agent_running:'
 
 const INITIAL_SESSION: SessionState = {
   mode: 'init',
@@ -20,40 +19,80 @@ const INITIAL_SESSION: SessionState = {
   interview_context: '',
 }
 
+const INITIAL_LOADING: LoadingState = {
+  scout: false,
+  curator: false,
+  coach: false,
+  maestro: false,
+}
+
 function generateId(): string {
   return Math.random().toString(36).slice(2, 10)
 }
 
+function getWebSocketUrl(): string {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${protocol}//${window.location.host}/ws/chat`
+}
+
+function agentFromSession(session: SessionState): AgentName {
+  if (session.active_agent) return session.active_agent
+  if (session.mode === 'scout') return 'Scout'
+  if (session.mode === 'curator') return 'Curator'
+  if (session.mode === 'coach') return 'Coach'
+  return 'Maestro'
+}
+
+function loadingKeyToAgent(key: keyof LoadingState): AgentName {
+  const map: Record<keyof LoadingState, AgentName> = {
+    scout: 'Scout',
+    curator: 'Curator',
+    coach: 'Coach',
+    maestro: 'Maestro',
+  }
+
+  return map[key]
+}
+
 export function useWebSocket() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [session, setSession] = useState<SessionState>(INITIAL_SESSION)
+  const [session, setSession] = useState<SessionState>(() => {
+    const saved = localStorage.getItem('recoloca-session')
+    return saved ? JSON.parse(saved) : INITIAL_SESSION
+  })
+  const [loadingState, setLoadingState] = useState<LoadingState>(INITIAL_LOADING)
   const [isConnected, setIsConnected] = useState(false)
   const [isStreaming, setIsStreaming] = useState(false)
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting')
+  const [activeAgent, setActiveAgent] = useState<AgentName>(() => agentFromSession(session))
 
-  const wsRef             = useRef<WebSocket | null>(null)
-  const streamingIdRef    = useRef<string | null>(null)
+  const wsRef = useRef<WebSocket | null>(null)
+  const streamingIdRef = useRef<string | null>(null)
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const destroyedRef      = useRef(false)   // true após unmount — bloqueia reconexão
-  const sessionRef        = useRef(session) // ref espelho para usar dentro de callbacks sem deps
+  const destroyedRef = useRef(false)
+  const sessionRef = useRef(session)
+  const hasConnectedRef = useRef(false)
+  const activeAgentRef = useRef<AgentName>('Maestro')
 
-  // Mantém sessionRef sincronizado
-  useEffect(() => { sessionRef.current = session }, [session])
+  useEffect(() => {
+    sessionRef.current = session
+    activeAgentRef.current = agentFromSession(session)
+  }, [session])
 
-  // ── Conexão ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    localStorage.setItem('recoloca-session', JSON.stringify(session))
+  }, [session])
 
   useEffect(() => {
     destroyedRef.current = false
 
     function connect() {
-      // Não reconecta se o componente foi desmontado
       if (destroyedRef.current) return
 
-      // Não abre nova conexão se já existe uma aberta ou abrindo
       const ws = wsRef.current
       if (ws) {
         if (ws.readyState === WebSocket.OPEN) return
         if (ws.readyState === WebSocket.CONNECTING) {
-          // Fecha silenciosamente antes de recriar
           ws.onclose = null
           ws.onerror = null
           ws.close()
@@ -61,24 +100,33 @@ export function useWebSocket() {
         }
       }
 
-      const socket = new WebSocket(WS_URL)
+      setConnectionStatus(hasConnectedRef.current ? 'reconnecting' : 'connecting')
+
+      const socket = new WebSocket(getWebSocketUrl())
       wsRef.current = socket
 
       socket.onopen = () => {
-        if (destroyedRef.current) { socket.close(); return }
+        if (destroyedRef.current) {
+          socket.close()
+          return
+        }
+
+        hasConnectedRef.current = true
         setIsConnected(true)
+        setConnectionStatus('connected')
       }
 
       socket.onclose = () => {
-        if (destroyedRef.current) return   // componente desmontado — não reagenda
+        if (destroyedRef.current) return
+
         setIsConnected(false)
-        // Reagenda reconexão com backoff fixo de 2s
+        setConnectionStatus(hasConnectedRef.current ? 'reconnecting' : 'offline')
         reconnectTimerRef.current = setTimeout(connect, 2000)
       }
 
       socket.onerror = () => {
-        // onerror sempre precede onclose — apenas marca offline
         setIsConnected(false)
+        setConnectionStatus(hasConnectedRef.current ? 'reconnecting' : 'offline')
       }
 
       socket.onmessage = (event) => {
@@ -87,12 +135,25 @@ export function useWebSocket() {
         let data: WsIncoming
         try {
           data = JSON.parse(event.data)
-        } catch {
+        } catch (error) {
+          console.error('Mensagem WebSocket inválida:', error)
           return
         }
 
         if (data.type === 'token') {
           const token = data.content as string
+
+          if (token.startsWith(INTERNAL_AGENT_RUNNING)) {
+            const key = token.replace(INTERNAL_AGENT_RUNNING, '').trim() as keyof LoadingState
+            if (key in INITIAL_LOADING) {
+              const agent = loadingKeyToAgent(key)
+              activeAgentRef.current = agent
+              setActiveAgent(agent)
+              setLoadingState(prev => ({ ...prev, [key]: true }))
+            }
+            setIsStreaming(true)
+            return
+          }
 
           setMessages(prev => {
             const streamId = streamingIdRef.current
@@ -100,13 +161,14 @@ export function useWebSocket() {
             if (!streamId) {
               const newId = generateId()
               streamingIdRef.current = newId
+
               return [
                 ...prev,
                 {
                   id: newId,
                   role: 'agent',
                   content: token,
-                  agent: 'Maestro',
+                  agent: activeAgentRef.current,
                   timestamp: new Date(),
                   isStreaming: true,
                 },
@@ -115,7 +177,7 @@ export function useWebSocket() {
 
             return prev.map(msg =>
               msg.id === streamId
-                ? { ...msg, content: msg.content + token }
+                ? { ...msg, content: msg.content + token, agent: activeAgentRef.current }
                 : msg
             )
           })
@@ -124,33 +186,41 @@ export function useWebSocket() {
         }
 
         else if (data.type === 'state') {
-          setSession(data.content as SessionState)
+          const nextSession = data.content as SessionState
+          const nextAgent = agentFromSession(nextSession)
+
+          activeAgentRef.current = nextAgent
+          setActiveAgent(nextAgent)
+          setSession(nextSession)
         }
 
         else if (data.type === 'done') {
-          // Fecha a mensagem em streaming atual e reseta o ID
-          // para que a próxima resposta abra uma nova bolha
           const sid = streamingIdRef.current
           streamingIdRef.current = null
+
           if (sid) {
             setMessages(prev =>
               prev.map(msg => msg.id === sid ? { ...msg, isStreaming: false } : msg)
             )
           }
+
+          setLoadingState(INITIAL_LOADING)
           setIsStreaming(false)
         }
 
         else if (data.type === 'error') {
+          console.error('Erro recebido do WebSocket:', data.content)
           setMessages(prev => [
             ...prev,
             {
               id: generateId(),
               role: 'system',
-              content: `⚠ Erro: ${data.content as string}`,
+              content: 'Não consegui completar a resposta agora. Verifique a conexão e tente novamente.',
               timestamp: new Date(),
             },
           ])
           streamingIdRef.current = null
+          setLoadingState(INITIAL_LOADING)
           setIsStreaming(false)
         }
       }
@@ -158,7 +228,6 @@ export function useWebSocket() {
 
     connect()
 
-    // Cleanup: marca como destruído, cancela timer e fecha socket
     return () => {
       destroyedRef.current = true
 
@@ -168,14 +237,12 @@ export function useWebSocket() {
       }
 
       if (wsRef.current) {
-        wsRef.current.onclose = null  // remove handler antes de fechar para não disparar reconexão
+        wsRef.current.onclose = null
         wsRef.current.close()
         wsRef.current = null
       }
     }
-  }, []) // array vazio — roda só uma vez
-
-  // ── Envio de mensagem ──────────────────────────────────────────────────
+  }, [])
 
   function sendMessage(content: string) {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
@@ -200,5 +267,14 @@ export function useWebSocket() {
     wsRef.current.send(JSON.stringify(payload))
   }
 
-  return { messages, session, isConnected, isStreaming, sendMessage }
+  return {
+    messages,
+    session,
+    isConnected,
+    isStreaming,
+    loadingState,
+    connectionStatus,
+    activeAgent,
+    sendMessage,
+  }
 }

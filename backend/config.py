@@ -30,6 +30,10 @@ PROFILE_FILE = DATA_DIR / "user-profile.md"
 JOB_RESULTS_FILE = DATA_DIR / "job-search-results.md"
 COURSE_RECS_FILE = DATA_DIR / "course-recommendations.md"
 INTERVIEW_FILE = DATA_DIR / "interview-session.md"
+RESUME_ANALYSIS_FILE = DATA_DIR / "resume-analysis.md"
+
+# Upload de currículo
+MAX_RESUME_UPLOAD_SIZE = 5 * 1024 * 1024
 
 # Personas
 MAESTRO_PERSONA = PERSONAS_DIR / "maestro.md"

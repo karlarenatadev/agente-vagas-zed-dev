@@ -1,4 +1,4 @@
-// ── Tipos do sistema import vagas ────────────────────────────────────
+// Tipos do sistema import vagas
 
 export type AgentName = 'Maestro' | 'Scout' | 'Curator' | 'Coach'
 
@@ -19,9 +19,17 @@ export interface SessionState {
   coach_step: number
   interview_context: string
   active_agent?: AgentName
+  loading?: LoadingState
 }
 
 export type MessageRole = 'user' | 'agent' | 'system'
+
+export interface LoadingState {
+  scout: boolean
+  curator: boolean
+  coach: boolean
+  maestro: boolean
+}
 
 export interface ChatMessage {
   id: string
@@ -44,7 +52,29 @@ export interface UserProfile {
   'Concluído'?: string
 }
 
-// ── Tracker de candidaturas ───────────────────────────────────────────
+export interface ResumeAnalysis {
+  detected_name: string
+  professional_summary: string
+  probable_areas: string[]
+  estimated_level: string
+  technical_skills: string[]
+  soft_skills: string[]
+  experience_summary: string
+  education_summary: string
+  suggested_target_roles: string[]
+  strengths: string[]
+  improvement_points: string[]
+  fields_to_confirm: string[]
+}
+
+export interface ResumeUploadResponse {
+  success: boolean
+  message: string
+  analysis?: ResumeAnalysis
+  profile_updated?: boolean
+}
+
+// Tracker de candidaturas
 
 export type ApplicationStatus =
   | 'salva'
@@ -66,12 +96,14 @@ export interface JobApplication {
   habilidades_faltantes?: string
   contagem_correspondencia?: string
   status: ApplicationStatus
-  data_salva: string        // ISO date
-  data_aplicacao?: string   // ISO date
+  data_salva: string
+  data_aplicacao?: string
   notas?: string
 }
 
-// ── WebSocket ─────────────────────────────────────────────────────────
+// WebSocket
+
+export type ConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'offline'
 
 export type WsMessageType = 'token' | 'state' | 'done' | 'error'
 

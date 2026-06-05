@@ -7,7 +7,9 @@ Uso: python mock_server.py
 
 import asyncio
 import json
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from pathlib import Path
+from fastapi import FastAPI, File, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
@@ -401,6 +403,105 @@ async def get_profile():
 @app.get("/api/profile/quiz-status")
 async def quiz_status():
     return {"exists": True, "completed": True}
+
+
+@app.post("/api/resume/upload")
+async def upload_resume_mock(file: UploadFile = File(...)):
+    filename = file.filename or ""
+    extension = Path(filename).suffix.lower()
+    if extension not in {".txt", ".pdf", ".docx"}:
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "message": "Formato inválido. Envie um arquivo PDF, DOCX ou TXT."},
+        )
+
+    content = await file.read(5 * 1024 * 1024 + 1)
+    if len(content) > 5 * 1024 * 1024:
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "message": "Arquivo grande demais. O limite é de 5 MB."},
+        )
+    if not content:
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "message": "O arquivo está vazio. Envie um currículo com texto legível."},
+        )
+
+    analysis = {
+        "detected_name": "não identificado",
+        "professional_summary": "Perfil com indícios de atuação em Ciência de Dados, nível Júnior, com habilidades em Python, SQL, Power BI e Git.",
+        "probable_areas": ["Ciência de Dados"],
+        "estimated_level": "Júnior",
+        "technical_skills": ["Python", "SQL", "Power BI", "Git"],
+        "soft_skills": ["comunicação", "trabalho em equipe", "proatividade"],
+        "experience_summary": "Projetos acadêmicos e pessoais com análise de dados, dashboards e automação de relatórios.",
+        "education_summary": "Formação ou cursos na área de dados precisam ser confirmados no quiz.",
+        "suggested_target_roles": ["Analista de Dados Júnior", "Estagiária em Dados", "Assistente de BI"],
+        "strengths": ["Habilidades técnicas alinhadas a vagas iniciais de dados.", "Boa base para dashboards e análise exploratória."],
+        "improvement_points": ["Confirmar nível, localização e objetivo de carreira no quiz.", "Detalhar experiências com resultados mensuráveis."],
+        "fields_to_confirm": ["Localização", "Preferência de trabalho", "Objetivo de carreira"],
+    }
+
+    data_dir = Path(__file__).parent.parent / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    (data_dir / "resume-analysis.md").write_text(
+        """Nome detectado: não identificado
+
+Resumo profissional:
+Perfil com indícios de atuação em Ciência de Dados, nível Júnior, com habilidades em Python, SQL, Power BI e Git.
+
+Áreas prováveis:
+- Ciência de Dados
+
+Nível estimado:
+Júnior
+
+Habilidades técnicas detectadas:
+- Python
+- SQL
+- Power BI
+- Git
+
+Soft skills detectadas:
+- comunicação
+- trabalho em equipe
+- proatividade
+
+Experiências detectadas:
+Projetos acadêmicos e pessoais com análise de dados, dashboards e automação de relatórios.
+
+Formação detectada:
+Formação ou cursos na área de dados precisam ser confirmados no quiz.
+
+Funções alvo sugeridas:
+- Analista de Dados Júnior
+- Estagiária em Dados
+- Assistente de BI
+
+Pontos fortes:
+- Habilidades técnicas alinhadas a vagas iniciais de dados.
+- Boa base para dashboards e análise exploratória.
+
+Pontos de melhoria:
+- Confirmar nível, localização e objetivo de carreira no quiz.
+- Detalhar experiências com resultados mensuráveis.
+
+Campos que precisam de confirmação no quiz:
+- Localização
+- Preferência de trabalho
+- Objetivo de carreira
+
+Concluído: true
+""",
+        encoding="utf-8",
+    )
+
+    return {
+        "success": True,
+        "message": "Currículo analisado com sucesso.",
+        "analysis": analysis,
+        "profile_updated": False,
+    }
 
 
 # ── Candidaturas (mock em memória) ────────────────────────────────────────────

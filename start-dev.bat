@@ -21,11 +21,11 @@ if not exist "%FRONTEND%\package.json" (
 start "Backend - import vagas" cmd /k "cd /d ""%BACKEND%"" && call .venv\Scripts\activate.bat && python run.py"
 start "Frontend - import vagas" cmd /k "cd /d ""%FRONTEND%"" && npm run dev"
 
-echo Backend iniciando em http://localhost:8000
-echo Frontend iniciando em http://localhost:5173
+echo Backend iniciando em http://127.0.0.1:8000
+echo Frontend iniciando em http://127.0.0.1:5173
 echo.
 timeout /t 3 /nobreak >nul
-start "" "http://localhost:5173"
+start "" "http://127.0.0.1:5173"
 
 echo Feche as duas janelas abertas para parar os servidores.
 

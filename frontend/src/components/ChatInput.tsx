@@ -1,6 +1,6 @@
 import { type KeyboardEvent, useRef, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowUp } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { ArrowUp, GraduationCap, RefreshCcw, Search, UserRoundCheck } from 'lucide-react'
 import type { SessionMode } from '../types'
 
 interface Props {
@@ -10,10 +10,38 @@ interface Props {
 }
 
 const MENU_ACTIONS = [
-  { key: 'A', label: 'Buscar Vagas',     icon: '⚔',  color: '#a78bfa', bg: 'rgba(124,58,237,0.1)',  border: 'rgba(124,58,237,0.25)' },
-  { key: 'B', label: 'Cursos',           icon: '📚', color: '#22d3ee', bg: 'rgba(34,211,238,0.08)', border: 'rgba(34,211,238,0.2)' },
-  { key: 'C', label: 'Entrevista',       icon: '🎯', color: '#34d399', bg: 'rgba(52,211,153,0.08)', border: 'rgba(52,211,153,0.2)' },
-  { key: 'D', label: 'Refazer Quiz',     icon: '↺',  color: '#fbbf24', bg: 'rgba(251,191,36,0.08)', border: 'rgba(251,191,36,0.2)' },
+  {
+    key: 'A',
+    title: 'Buscar vagas',
+    agent: 'Scout',
+    description: 'Encontra vagas compatíveis e calcula match com suas habilidades.',
+    icon: Search,
+    className: 'menu-scout',
+  },
+  {
+    key: 'B',
+    title: 'Encontrar cursos',
+    agent: 'Curator',
+    description: 'Recomenda materiais para preencher lacunas técnicas.',
+    icon: GraduationCap,
+    className: 'menu-curator',
+  },
+  {
+    key: 'C',
+    title: 'Simular entrevista',
+    agent: 'Coach',
+    description: 'Treina perguntas técnicas e comportamentais com feedback.',
+    icon: UserRoundCheck,
+    className: 'menu-coach',
+  },
+  {
+    key: 'D',
+    title: 'Refazer perfil',
+    agent: 'Maestro',
+    description: 'Atualiza área, nível, preferências e habilidades.',
+    icon: RefreshCcw,
+    className: 'menu-maestro',
+  },
 ]
 
 export function ChatInput({ onSend, disabled, mode }: Props) {
@@ -25,140 +53,106 @@ export function ChatInput({ onSend, disabled, mode }: Props) {
   const handleSend = () => {
     const trimmed = value.trim()
     if (!trimmed || disabled) return
+
     onSend(trimmed)
     setValue('')
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
   }
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
+  const handleQuickSend = (message: string) => {
+    if (!disabled) onSend(message)
+  }
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
+      handleSend()
+    }
   }
 
   const handleInput = () => {
-    const el = textareaRef.current
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, 128)}px`
+    const element = textareaRef.current
+    if (!element) return
+
+    element.style.height = 'auto'
+    element.style.height = `${Math.min(element.scrollHeight, 128)}px`
   }
 
   return (
-    <div style={{
-      padding: '16px 24px 20px',
-      backgroundColor: 'var(--bg-surface)',
-      borderTop: '1px solid var(--border-subtle)',
-    }}>
-      {/* ── Ações rápidas do menu ── */}
+    <footer className="chat-input-shell">
       <AnimatePresence>
         {isMenu && (
-          <motion.div
+          <motion.section
+            className="menu-actions"
+            aria-label="Ações principais"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            style={{ overflow: 'hidden', marginBottom: '12px' }}
           >
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {MENU_ACTIONS.map(({ key, label, icon, color, bg, border }) => (
-                <motion.button
-                  key={key}
-                  whileHover={{ scale: 1.03, y: -1 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => !disabled && onSend(key)}
-                  disabled={disabled}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '7px',
-                    padding: '7px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    background: bg,
-                    border: `1px solid ${border}`,
-                    color,
-                    fontSize: '13px', fontWeight: 600,
-                    fontFamily: 'var(--font-sans)',
-                    cursor: disabled ? 'not-allowed' : 'pointer',
-                    opacity: disabled ? 0.45 : 1,
-                    transition: 'opacity 0.15s',
-                  }}
-                >
-                  <span style={{ fontSize: '14px' }}>{icon}</span>
-                  <span>{label}</span>
-                  <span style={{ fontSize: '10px', opacity: 0.55, fontFamily: 'var(--font-mono)' }}>[{key}]</span>
-                </motion.button>
-              ))}
+            <div className="menu-actions-header">
+              <strong>Menu principal</strong>
+              <span>Escolha um card ou digite A, B, C ou D.</span>
             </div>
-          </motion.div>
+
+            <div className="menu-action-grid">
+              {MENU_ACTIONS.map(item => {
+                const Icon = item.icon
+
+                return (
+                  <motion.button
+                    key={item.key}
+                    type="button"
+                    className={`menu-action-card ${item.className}`}
+                    disabled={disabled}
+                    onClick={() => handleQuickSend(item.key)}
+                    whileHover={disabled ? undefined : { y: -2 }}
+                    whileTap={disabled ? undefined : { scale: 0.98 }}
+                    aria-label={`${item.key}: ${item.title} com agente ${item.agent}`}
+                  >
+                    <span className="menu-card-key">{item.key}</span>
+                    <span className="menu-card-icon">
+                      <Icon size={18} aria-hidden="true" />
+                    </span>
+                    <span className="menu-card-copy">
+                      <strong>{item.title}</strong>
+                      <small>Agente: {item.agent}</small>
+                      <em>{item.description}</em>
+                    </span>
+                  </motion.button>
+                )
+              })}
+            </div>
+          </motion.section>
         )}
       </AnimatePresence>
 
-      {/* ── Campo de input ── */}
-      <div
-        style={{
-          display: 'flex', alignItems: 'flex-end', gap: '10px',
-          padding: '12px 14px',
-          borderRadius: 'var(--radius-lg)',
-          background: 'var(--bg-elevated)',
-          border: `1px solid ${hasValue ? 'var(--border-focus)' : 'var(--border-default)'}`,
-          boxShadow: hasValue ? '0 0 0 3px rgba(124,58,237,0.08)' : 'none',
-          transition: 'border-color 0.2s, box-shadow 0.2s',
-        }}
-      >
+      <div className={`composer ${hasValue ? 'has-value' : ''}`}>
         <textarea
           ref={textareaRef}
           value={value}
-          onChange={e => setValue(e.target.value)}
+          onChange={event => setValue(event.target.value)}
           onKeyDown={handleKeyDown}
           onInput={handleInput}
           disabled={disabled}
-          placeholder={disabled ? 'Aguardando resposta...' : 'Escreva sua mensagem...'}
+          placeholder={disabled ? 'Aguardando resposta...' : 'Escreva sua mensagem para o Maestro...'}
           rows={1}
-          style={{
-            flex: 1,
-            resize: 'none',
-            background: 'transparent',
-            border: 'none',
-            outline: 'none',
-            fontSize: '14px',
-            color: 'var(--text-primary)',
-            fontFamily: 'var(--font-sans)',
-            lineHeight: '1.55',
-            caretColor: 'var(--violet-light)',
-          }}
+          aria-label="Mensagem para o Maestro"
         />
 
-        {/* Botão enviar */}
         <motion.button
-          whileHover={hasValue && !disabled ? { scale: 1.08 } : {}}
-          whileTap={hasValue && !disabled ? { scale: 0.92 } : {}}
+          className="send-button"
+          type="button"
+          whileHover={hasValue && !disabled ? { scale: 1.05 } : undefined}
+          whileTap={hasValue && !disabled ? { scale: 0.94 } : undefined}
           onClick={handleSend}
           disabled={disabled || !hasValue}
-          style={{
-            width: '32px', height: '32px',
-            borderRadius: 'var(--radius-md)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: hasValue && !disabled
-              ? 'linear-gradient(135deg, var(--violet) 0%, #5b21b6 100%)'
-              : 'var(--bg-overlay)',
-            border: 'none',
-            cursor: hasValue && !disabled ? 'pointer' : 'not-allowed',
-            transition: 'background 0.2s',
-            flexShrink: 0,
-            boxShadow: hasValue && !disabled ? '0 0 12px rgba(124,58,237,0.35)' : 'none',
-          }}
+          aria-label="Enviar mensagem"
         >
-          <ArrowUp
-            size={15}
-            color={hasValue && !disabled ? 'white' : 'var(--text-ghost)'}
-            strokeWidth={2.5}
-          />
+          <ArrowUp size={17} strokeWidth={2.5} aria-hidden="true" />
         </motion.button>
       </div>
 
-      {/* ── Hint ── */}
-      <p style={{
-        fontSize: '11px', color: 'var(--text-ghost)',
-        textAlign: 'center', marginTop: '8px',
-        fontFamily: 'var(--font-mono)',
-      }}>
-        Enter para enviar · Shift+Enter para nova linha
-      </p>
-    </div>
+      <p className="composer-hint">Enter envia. Shift+Enter cria uma nova linha.</p>
+    </footer>
   )
 }

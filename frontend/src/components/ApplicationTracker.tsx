@@ -26,7 +26,9 @@ function StatusBadge({ status, onClick }: { status: ApplicationStatus; onClick?:
   const cfg = STATUS_CONFIG[status]
   return (
     <button
+      type="button"
       onClick={onClick}
+      aria-label={onClick ? `Alterar status da candidatura. Status atual: ${cfg.label}` : cfg.label}
       style={{
         display: 'inline-flex', alignItems: 'center', gap: '4px',
         padding: '3px 10px',
@@ -76,6 +78,7 @@ function StatusDropdown({
         const cfg = STATUS_CONFIG[s]
         return (
           <button
+            type="button"
             key={s}
             onClick={() => { onSelect(s); onClose() }}
             style={{
@@ -159,6 +162,7 @@ function ApplicationCard({
               href={app.link}
               target="_blank"
               rel="noopener noreferrer"
+              aria-label={`Abrir vaga ${app.titulo} em nova aba`}
               style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
             >
               <ExternalLink size={13} />
@@ -166,7 +170,9 @@ function ApplicationCard({
           )}
           {/* Deletar */}
           <button
+            type="button"
             onClick={() => onDelete(app.id)}
+            aria-label={`Remover candidatura ${app.titulo}`}
             style={{ color: 'var(--text-ghost)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '2px' }}
           >
             <X size={13} />
@@ -224,6 +230,7 @@ function ApplicationCard({
               value={notes}
               onChange={e => setNotes(e.target.value)}
               placeholder="Adicione notas sobre esta vaga..."
+              aria-label={`Notas sobre ${app.titulo}`}
               rows={2}
               style={{
                 width: '100%', resize: 'none',
@@ -237,17 +244,19 @@ function ApplicationCard({
               }}
             />
             <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
-              <button onClick={saveNotes} style={{ fontSize: '11px', color: 'var(--emerald)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+              <button type="button" onClick={saveNotes} style={{ fontSize: '11px', color: 'var(--emerald)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
                 Salvar
               </button>
-              <button onClick={() => { setNotes(app.notas ?? ''); setEditingNotes(false) }} style={{ fontSize: '11px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+              <button type="button" onClick={() => { setNotes(app.notas ?? ''); setEditingNotes(false) }} style={{ fontSize: '11px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
                 Cancelar
               </button>
             </div>
           </div>
         ) : (
           <button
+            type="button"
             onClick={() => setEditingNotes(true)}
+            aria-label={notes ? `Editar notas sobre ${app.titulo}` : `Adicionar nota sobre ${app.titulo}`}
             style={{
               fontSize: '11px',
               color: notes ? 'var(--text-secondary)' : 'var(--text-ghost)',
@@ -294,6 +303,17 @@ export function ApplicationTracker({ isOpen, onClose }: Props) {
     load()
   }, [isOpen])
 
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
+
   const handleStatusChange = async (id: string, status: ApplicationStatus) => {
     await fetch(`/api/applications/${id}`, {
       method: 'PATCH',
@@ -323,7 +343,9 @@ export function ApplicationTracker({ isOpen, onClose }: Props) {
       {isOpen && (
         <>
           {/* Backdrop */}
-          <motion.div
+          <motion.button
+            type="button"
+            aria-label="Fechar painel de candidaturas"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -332,11 +354,17 @@ export function ApplicationTracker({ isOpen, onClose }: Props) {
               position: 'fixed', inset: 0, zIndex: 40,
               background: 'rgba(0,0,0,0.6)',
               backdropFilter: 'blur(4px)',
+              border: 0,
+              padding: 0,
+              cursor: 'pointer',
             }}
           />
 
           {/* Painel lateral direito */}
           <motion.aside
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="applications-title"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
@@ -358,7 +386,7 @@ export function ApplicationTracker({ isOpen, onClose }: Props) {
               flexShrink: 0,
             }}>
               <div>
-                <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '16px', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+                <h2 id="applications-title" style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '16px', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
                   Candidaturas
                 </h2>
                 <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
@@ -366,7 +394,9 @@ export function ApplicationTracker({ isOpen, onClose }: Props) {
                 </p>
               </div>
               <button
+                type="button"
                 onClick={onClose}
+                aria-label="Fechar painel de candidaturas"
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', padding: '4px' }}
               >
                 <X size={18} />
@@ -381,7 +411,9 @@ export function ApplicationTracker({ isOpen, onClose }: Props) {
               flexShrink: 0,
             }}>
               <button
+                type="button"
                 onClick={() => setFilter('todas')}
+                aria-pressed={filter === 'todas'}
                 style={{
                   padding: '4px 12px', borderRadius: 'var(--radius-full)',
                   background: filter === 'todas' ? 'rgba(124,58,237,0.15)' : 'transparent',
@@ -397,8 +429,10 @@ export function ApplicationTracker({ isOpen, onClose }: Props) {
                 const cfg = STATUS_CONFIG[s]
                 return (
                   <button
+                    type="button"
                     key={s}
                     onClick={() => setFilter(s)}
+                    aria-pressed={filter === s}
                     style={{
                       padding: '4px 12px', borderRadius: 'var(--radius-full)',
                       background: filter === s ? cfg.bg : 'transparent',
@@ -448,3 +482,4 @@ export function ApplicationTracker({ isOpen, onClose }: Props) {
     </AnimatePresence>
   )
 }
+export default ApplicationTracker

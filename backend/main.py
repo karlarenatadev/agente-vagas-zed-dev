@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import chat, profile, data_files, applications
+from routers import chat, profile, data_files, applications, resume
 
 
 @asynccontextmanager
@@ -29,7 +29,14 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:5174"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -39,6 +46,7 @@ app.include_router(chat.router, prefix="/ws", tags=["websocket"])
 app.include_router(profile.router, prefix="/api/profile", tags=["profile"])
 app.include_router(data_files.router, prefix="/api/data", tags=["data"])
 app.include_router(applications.router, prefix="/api/applications", tags=["applications"])
+app.include_router(resume.router, prefix="/api/resume", tags=["resume"])
 
 
 @app.get("/health")

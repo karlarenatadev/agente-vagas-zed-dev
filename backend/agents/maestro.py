@@ -261,6 +261,10 @@ class MaestroAgent(BaseAgent):
         else:
             # Sem quiz — inicia
             yield "Para começar, preciso conhecer seu perfil profissional.\n"
+            if config.RESUME_ANALYSIS_FILE.exists():
+                yield "Já encontrei uma análise de currículo salva. Use o quiz para confirmar e complementar essas informações.\n"
+            else:
+                yield "Se preferir, você também pode enviar um currículo para eu analisar antes do quiz.\n"
             yield "Vou fazer algumas perguntas rápidas — uma de cada vez.\n\n"
             yield f"**Pergunta 1/7:** {QUIZ_QUESTIONS[0]['text']}\n"
             yield "\n__STATE__:quiz:0"

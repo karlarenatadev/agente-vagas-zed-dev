@@ -1,0 +1,657 @@
+from __future__ import annotations
+
+import re
+from io import BytesIO
+from pathlib import Path
+from typing import Any
+
+from fastapi import APIRouter, File, UploadFile
+from fastapi.responses import JSONResponse
+
+import config
+
+router = APIRouter()
+
+ALLOWED_EXTENSIONS = {".txt", ".pdf", ".docx"}
+
+TECHNICAL_SKILLS: dict[str, list[str]] = {
+    "Python": [r"\bpython\b"],
+    "SQL": [r"\bsql\b"],
+    "Power BI": [r"\bpower\s*bi\b"],
+    "Excel": [r"\bexcel\b"],
+    "JavaScript": [r"\bjavascript\b", r"\bjs\b"],
+    "TypeScript": [r"\btypescript\b", r"\bts\b"],
+    "React": [r"\breact\b", r"\breact\.js\b"],
+    "Node": [r"\bnode\b", r"\bnode\.js\b"],
+    "FastAPI": [r"\bfastapi\b"],
+    "Django": [r"\bdjango\b"],
+    "Flask": [r"\bflask\b"],
+    "Git": [r"\bgit\b"],
+    "GitHub": [r"\bgithub\b"],
+    "Docker": [r"\bdocker\b"],
+    "AWS": [r"\baws\b", r"\bamazon web services\b"],
+    "Azure": [r"\bazure\b"],
+    "Figma": [r"\bfigma\b"],
+    "HTML": [r"\bhtml\b", r"\bhtml5\b"],
+    "CSS": [r"\bcss\b", r"\bcss3\b"],
+    "Tailwind": [r"\btailwind\b", r"\btailwind css\b"],
+    "Pandas": [r"\bpandas\b"],
+    "NumPy": [r"\bnumpy\b"],
+    "Machine Learning": [r"\bmachine learning\b", r"\bml\b"],
+}
+
+SOFT_SKILLS: dict[str, list[str]] = {
+    "comunicação": [r"\bcomunica[cç][aã]o\b"],
+    "trabalho em equipe": [r"\btrabalho em equipe\b", r"\bcolabora[cç][aã]o\b"],
+    "liderança": [r"\blideran[cç]a\b"],
+    "resolução de problemas": [
+        r"\bresolu[cç][aã]o de problemas\b",
+        r"\bproblem solving\b",
+    ],
+    "proatividade": [r"\bproatividade\b", r"\bproativo\b", r"\bproativa\b"],
+    "pensamento crítico": [r"\bpensamento cr[ií]tico\b"],
+    "organização": [r"\borganiza[cç][aã]o\b"],
+    "adaptabilidade": [r"\badaptabilidade\b"],
+    "empatia": [r"\bempatia\b"],
+}
+
+AREA_SKILLS: dict[str, set[str]] = {
+    "Ciência de Dados": {
+        "Python",
+        "SQL",
+        "Power BI",
+        "Excel",
+        "Pandas",
+        "NumPy",
+        "Machine Learning",
+    },
+    "Frontend": {
+        "JavaScript",
+        "TypeScript",
+        "React",
+        "HTML",
+        "CSS",
+        "Tailwind",
+        "Figma",
+    },
+    "Backend": {
+        "Python",
+        "Node",
+        "FastAPI",
+        "Django",
+        "Flask",
+        "SQL",
+        "Docker",
+    },
+    "Full Stack": {
+        "JavaScript",
+        "TypeScript",
+        "React",
+        "Node",
+        "Python",
+        "SQL",
+        "Docker",
+    },
+    "DevOps": {"Docker", "AWS", "Azure", "GitHub"},
+    "Design UI": {"Figma", "HTML", "CSS"},
+    "Cibersegurança": {"Python", "Docker", "AWS", "Azure"},
+}
+
+AREA_TERMS: dict[str, list[str]] = {
+    "Ciência de Dados": [
+        r"\bdados\b",
+        r"\bdata\b",
+        r"\bbi\b",
+        r"\banalista de dados\b",
+    ],
+    "Frontend": [r"\bfrontend\b", r"\bfront-end\b"],
+    "Backend": [r"\bbackend\b", r"\bback-end\b"],
+    "Full Stack": [r"\bfull stack\b", r"\bfullstack\b"],
+    "DevOps": [r"\bdevops\b", r"\bsre\b", r"\bcloud\b"],
+    "Design UI": [r"\bui\b", r"\bux\b", r"\bproduto digital\b"],
+    "Gestão de Produtos": [
+        r"\bproduct manager\b",
+        r"\bproduto\b",
+        r"\bproduct owner\b",
+    ],
+    "Marketing de Mídias Sociais": [
+        r"\bmarketing digital\b",
+        r"\bsocial media\b",
+    ],
+    "Cibersegurança": [
+        r"\bseguran[cç]a\b",
+        r"\bcybersecurity\b",
+        r"\bciberseguran[cç]a\b",
+    ],
+}
+
+TARGET_ROLES: dict[str, list[str]] = {
+    "Ciência de Dados": [
+        "Analista de Dados Júnior",
+        "Estagiária em Dados",
+        "Assistente de BI",
+    ],
+    "Frontend": [
+        "Desenvolvedor Frontend Júnior",
+        "Desenvolvedor React Júnior",
+        "Desenvolvedor Web",
+    ],
+    "Backend": [
+        "Desenvolvedor Backend Júnior",
+        "Desenvolvedor API Júnior",
+        "Desenvolvedor Python",
+    ],
+    "Full Stack": [
+        "Desenvolvedor Full Stack Júnior",
+        "Desenvolvedor Web",
+        "Desenvolvedor de Aplicações",
+    ],
+    "DevOps": [
+        "Analista DevOps Júnior",
+        "Suporte Cloud",
+        "SysAdmin Júnior",
+    ],
+    "Design UI": [
+        "Designer UI Júnior",
+        "Designer UX/UI",
+        "Assistente de Design System",
+    ],
+    "Gestão de Produtos": [
+        "Analista de Produto",
+        "Product Owner Júnior",
+        "Assistente de Produto",
+    ],
+    "Marketing de Mídias Sociais": [
+        "Assistente de Marketing Digital",
+        "Social Media Júnior",
+        "Analista de Marketing Júnior",
+    ],
+    "Cibersegurança": [
+        "Analista de Segurança Júnior",
+        "Analista SOC",
+        "Assistente de Segurança da Informação",
+    ],
+}
+
+
+def _error(message: str, status_code: int = 400) -> JSONResponse:
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "success": False,
+            "message": message,
+        },
+    )
+
+
+def _find_terms(text: str, terms: dict[str, list[str]]) -> list[str]:
+    found: list[str] = []
+
+    for label, patterns in terms.items():
+        if any(re.search(pattern, text, flags=re.IGNORECASE) for pattern in patterns):
+            found.append(label)
+
+    return found
+
+
+def _extract_txt(content: bytes) -> str:
+    return content.decode("utf-8", errors="ignore").strip()
+
+
+def _extract_pdf(content: bytes) -> str:
+    try:
+        from pypdf import PdfReader
+    except ImportError:
+        raise RuntimeError(
+            "A dependência pypdf não está instalada. Adicione pypdf ao requirements.txt."
+        )
+
+    reader = PdfReader(BytesIO(content))
+    pages = [page.extract_text() or "" for page in reader.pages]
+
+    return "\n".join(pages).strip()
+
+
+def _extract_docx(content: bytes) -> str:
+    try:
+        from docx import Document
+    except ImportError:
+        raise RuntimeError(
+            "A dependência python-docx não está instalada. Adicione python-docx ao requirements.txt."
+        )
+
+    document = Document(BytesIO(content))
+    paragraphs = [
+        paragraph.text
+        for paragraph in document.paragraphs
+        if paragraph.text.strip()
+    ]
+
+    return "\n".join(paragraphs).strip()
+
+
+def _extract_text(content: bytes, extension: str) -> str:
+    if extension == ".txt":
+        return _extract_txt(content)
+
+    if extension == ".pdf":
+        return _extract_pdf(content)
+
+    if extension == ".docx":
+        return _extract_docx(content)
+
+    return ""
+
+
+def _detect_name(text: str) -> str:
+    match = re.search(r"(?im)^\s*nome\s*:\s*(.+)$", text)
+
+    if match:
+        return match.group(1).strip()[:80]
+
+    for raw_line in text.splitlines()[:8]:
+        line = raw_line.strip()
+
+        if not line or len(line) > 80:
+            continue
+
+        if re.search(
+            r"@|https?://|\d{4,}|curr[ií]culo|resume|linkedin|github",
+            line,
+            flags=re.IGNORECASE,
+        ):
+            continue
+
+        words = [word for word in re.split(r"\s+", line) if word]
+
+        if 2 <= len(words) <= 5 and all(
+            re.match(r"^[A-Za-zÀ-ÿ'-]+$", word) for word in words
+        ):
+            return line
+
+    return "não identificado"
+
+
+def _estimate_level(text: str) -> str:
+    checks = [
+        (r"\b(s[eê]nior|senior|sr\.?)\b", "Sênior"),
+        (r"\b(pleno|mid[- ]level)\b", "Pleno"),
+        (r"\b(j[uú]nior|junior|jr\.?)\b", "Júnior"),
+        (
+            r"\b(est[aá]gio|estagi[aá]ri[oa]|trainee|primeiro emprego|estudante)\b",
+            "Estágio/Júnior",
+        ),
+    ]
+
+    for pattern, level in checks:
+        if re.search(pattern, text, flags=re.IGNORECASE):
+            return level
+
+    return "Precisa confirmar no quiz"
+
+
+def _probable_areas(text: str, skills: list[str]) -> list[str]:
+    scores: dict[str, int] = {area: 0 for area in AREA_SKILLS}
+    skill_set = set(skills)
+
+    for area, area_skills in AREA_SKILLS.items():
+        scores[area] += len(skill_set & area_skills)
+
+    for area, patterns in AREA_TERMS.items():
+        scores.setdefault(area, 0)
+
+        if any(re.search(pattern, text, flags=re.IGNORECASE) for pattern in patterns):
+            scores[area] += 2
+
+    ranked = [
+        area
+        for area, score in sorted(
+            scores.items(),
+            key=lambda item: item[1],
+            reverse=True,
+        )
+        if score > 0
+    ]
+
+    return ranked[:3]
+
+
+def _collect_section_summary(
+    text: str,
+    patterns: list[str],
+    fallback: str = "não identificado",
+) -> str:
+    lines: list[str] = []
+
+    for raw_line in text.splitlines():
+        line = " ".join(raw_line.split())
+
+        if len(line) < 8 or len(line) > 220:
+            continue
+
+        if any(re.search(pattern, line, flags=re.IGNORECASE) for pattern in patterns):
+            lines.append(line)
+
+        if len(lines) >= 4:
+            break
+
+    return " ".join(lines) if lines else fallback
+
+
+def _professional_summary(
+    areas: list[str],
+    level: str,
+    skills: list[str],
+) -> str:
+    if not areas and not skills:
+        return "Não foi possível identificar um resumo profissional confiável a partir do currículo."
+
+    area_text = areas[0] if areas else "área a confirmar"
+    skill_text = ", ".join(skills[:6]) if skills else "habilidades a confirmar"
+
+    return (
+        f"Perfil com indícios de atuação em {area_text}, "
+        f"nível {level}, com habilidades detectadas em {skill_text}."
+    )
+
+
+def _fields_to_confirm(analysis: dict[str, Any]) -> list[str]:
+    fields = [
+        "Localização",
+        "Preferência de trabalho",
+        "Objetivo de carreira",
+    ]
+
+    if not analysis["probable_areas"]:
+        fields.append("Área de interesse")
+
+    if analysis["estimated_level"] == "Precisa confirmar no quiz":
+        fields.append("Nível de experiência")
+
+    if not analysis["technical_skills"]:
+        fields.append("Habilidades técnicas")
+
+    if not analysis["soft_skills"]:
+        fields.append("Soft skills")
+
+    return fields
+
+
+def _analyze_resume(text: str) -> dict[str, Any]:
+    technical_skills = _find_terms(text, TECHNICAL_SKILLS)
+    soft_skills = _find_terms(text, SOFT_SKILLS)
+    probable_areas = _probable_areas(text, technical_skills)
+    estimated_level = _estimate_level(text)
+    suggested_roles = TARGET_ROLES.get(probable_areas[0], []) if probable_areas else []
+
+    analysis: dict[str, Any] = {
+        "detected_name": _detect_name(text),
+        "professional_summary": "",
+        "probable_areas": probable_areas,
+        "estimated_level": estimated_level,
+        "technical_skills": technical_skills,
+        "soft_skills": soft_skills,
+        "experience_summary": _collect_section_summary(
+            text,
+            [
+                r"\bexperi[eê]ncia\b",
+                r"\bempresa\b",
+                r"\bprojeto\b",
+                r"\banalista\b",
+                r"\bdesenvolvedor",
+            ],
+        ),
+        "education_summary": _collect_section_summary(
+            text,
+            [
+                r"\bforma[cç][aã]o\b",
+                r"\bgradua[cç][aã]o\b",
+                r"\bfaculdade\b",
+                r"\buniversidade\b",
+                r"\bcurso\b",
+                r"\bensino\b",
+            ],
+        ),
+        "suggested_target_roles": suggested_roles,
+        "strengths": [],
+        "improvement_points": [],
+        "fields_to_confirm": [],
+    }
+
+    analysis["professional_summary"] = _professional_summary(
+        probable_areas,
+        estimated_level,
+        technical_skills,
+    )
+
+    strengths: list[str] = []
+
+    if technical_skills:
+        strengths.append(
+            f"Habilidades técnicas detectadas: {', '.join(technical_skills[:8])}"
+        )
+
+    if soft_skills:
+        strengths.append(
+            f"Soft skills mencionadas: {', '.join(soft_skills[:5])}"
+        )
+
+    if probable_areas:
+        strengths.append(f"Área provável identificada: {probable_areas[0]}")
+
+    analysis["strengths"] = strengths or [
+        "Poucas evidências objetivas foram identificadas no currículo."
+    ]
+
+    improvements: list[str] = []
+
+    if not technical_skills:
+        improvements.append("Listar habilidades técnicas de forma mais explícita.")
+
+    if analysis["experience_summary"] == "não identificado":
+        improvements.append("Detalhar experiências, projetos ou responsabilidades recentes.")
+
+    if analysis["education_summary"] == "não identificado":
+        improvements.append("Informar formação, cursos ou certificações relevantes.")
+
+    if estimated_level == "Precisa confirmar no quiz":
+        improvements.append("Confirmar nível de experiência no quiz.")
+
+    analysis["improvement_points"] = improvements or [
+        "Confirmar no quiz se as informações detectadas estão corretas."
+    ]
+
+    analysis["fields_to_confirm"] = _fields_to_confirm(analysis)
+
+    return analysis
+
+
+def _as_list(items: list[str]) -> str:
+    if not items:
+        return "- não identificado"
+
+    return "\n".join(f"- {item}" for item in items)
+
+
+def _analysis_to_markdown(analysis: dict[str, Any]) -> str:
+    return f"""Nome detectado: {analysis['detected_name']}
+
+Resumo profissional:
+{analysis['professional_summary']}
+
+Áreas prováveis:
+{_as_list(analysis['probable_areas'])}
+
+Nível estimado:
+{analysis['estimated_level']}
+
+Habilidades técnicas detectadas:
+{_as_list(analysis['technical_skills'])}
+
+Soft skills detectadas:
+{_as_list(analysis['soft_skills'])}
+
+Experiências detectadas:
+{analysis['experience_summary']}
+
+Formação detectada:
+{analysis['education_summary']}
+
+Funções alvo sugeridas:
+{_as_list(analysis['suggested_target_roles'])}
+
+Pontos fortes:
+{_as_list(analysis['strengths'])}
+
+Pontos de melhoria:
+{_as_list(analysis['improvement_points'])}
+
+Campos que precisam de confirmação no quiz:
+{_as_list(analysis['fields_to_confirm'])}
+
+Concluído: true
+"""
+
+
+def _parse_profile(content: str) -> dict[str, str]:
+    profile: dict[str, str] = {}
+
+    for line in content.splitlines():
+        if ":" not in line:
+            continue
+
+        key, _, value = line.partition(":")
+        profile[key.strip()] = value.strip()
+
+    return profile
+
+
+def _profile_to_markdown(profile: dict[str, str]) -> str:
+    ordered_fields = [
+        "Área de interesse",
+        "Nível de experiência",
+        "Preferências de trabalho",
+        "Localização",
+        "Soft skills",
+        "Objetivo de carreira",
+        "Habilidades atuais",
+        "Funções alvo",
+        "Concluído",
+    ]
+
+    return "\n".join(f"{field}: {profile.get(field, '')}" for field in ordered_fields)
+
+
+def _is_empty(value: str | None) -> bool:
+    if value is None:
+        return True
+
+    normalized = value.strip().lower()
+
+    return normalized in {
+        "",
+        "não identificado",
+        "precisa confirmar no quiz",
+        "false",
+    }
+
+
+def _merge_profile_suggestions(analysis: dict[str, Any]) -> bool:
+    try:
+        existing = config.PROFILE_FILE.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        existing = ""
+
+    profile = _parse_profile(existing)
+    updated = False
+
+    suggestions = {
+        "Área de interesse": (
+            analysis["probable_areas"][0] if analysis["probable_areas"] else ""
+        ),
+        "Nível de experiência": (
+            analysis["estimated_level"]
+            if analysis["estimated_level"] != "Precisa confirmar no quiz"
+            else ""
+        ),
+        "Soft skills": ", ".join(analysis["soft_skills"]),
+        "Habilidades atuais": ", ".join(analysis["technical_skills"]),
+        "Funções alvo": ", ".join(analysis["suggested_target_roles"]),
+    }
+
+    for field, suggestion in suggestions.items():
+        if suggestion and _is_empty(profile.get(field)):
+            profile[field] = suggestion
+            updated = True
+
+    required_fields = [
+        "Área de interesse",
+        "Nível de experiência",
+        "Preferências de trabalho",
+        "Localização",
+        "Soft skills",
+        "Objetivo de carreira",
+        "Habilidades atuais",
+    ]
+
+    profile["Concluído"] = (
+        "true"
+        if all(not _is_empty(profile.get(field)) for field in required_fields)
+        else "false"
+    )
+
+    if updated or not existing:
+        config.PROFILE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        config.PROFILE_FILE.write_text(
+            _profile_to_markdown(profile),
+            encoding="utf-8",
+        )
+
+    return updated
+
+
+@router.post("/upload")
+async def upload_resume(file: UploadFile = File(...)):
+    filename = file.filename or ""
+    extension = Path(filename).suffix.lower()
+
+    if extension not in ALLOWED_EXTENSIONS:
+        return _error("Formato inválido. Envie um arquivo PDF, DOCX ou TXT.")
+
+    content = await file.read(config.MAX_RESUME_UPLOAD_SIZE + 1)
+
+    if len(content) > config.MAX_RESUME_UPLOAD_SIZE:
+        return _error("Arquivo grande demais. O limite é de 5 MB.")
+
+    if not content:
+        return _error("O arquivo está vazio. Envie um currículo com texto legível.")
+
+    try:
+        extracted_text = _extract_text(content, extension)
+    except RuntimeError as exc:
+        return _error(str(exc), status_code=500)
+    except Exception:
+        return _error(
+            "Não foi possível ler o arquivo. Envie um PDF, DOCX ou TXT com texto legível."
+        )
+
+    if len(extracted_text.strip()) < 20:
+        return _error("Não foi possível extrair texto suficiente do currículo.")
+
+    analysis = _analyze_resume(extracted_text)
+
+    config.RESUME_ANALYSIS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    config.RESUME_ANALYSIS_FILE.write_text(
+        _analysis_to_markdown(analysis),
+        encoding="utf-8",
+    )
+
+    profile_updated = _merge_profile_suggestions(analysis)
+
+    return {
+        "success": True,
+        "message": "Currículo analisado com sucesso.",
+        "analysis": analysis,
+        "profile_updated": profile_updated,
+    }
+
