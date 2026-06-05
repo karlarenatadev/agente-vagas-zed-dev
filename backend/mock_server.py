@@ -284,7 +284,6 @@ async def websocket_chat(ws: WebSocket):
                 session["mode"] = "agent_running"
                 await send_state(ws, {**session, "active_agent": "Scout"})
                 await stream_text(ws, SCOUT_RESPONSE, delay=0.005)
-                await done(ws)
                 await asyncio.sleep(0.05)
                 session["mode"] = "menu"
                 await stream_text(ws, MENU)
@@ -294,7 +293,6 @@ async def websocket_chat(ws: WebSocket):
                 session["mode"] = "agent_running"
                 await send_state(ws, {**session, "active_agent": "Curator"})
                 await stream_text(ws, CURATOR_RESPONSE, delay=0.005)
-                await done(ws)
                 await asyncio.sleep(0.05)
                 session["mode"] = "menu"
                 await stream_text(ws, MENU)
@@ -311,7 +309,6 @@ async def websocket_chat(ws: WebSocket):
                 session["quiz_step"] = 0
                 await send_state(ws, session)
                 await stream_text(ws, "\n↺ **Reset completo.**\n\n")
-                await done(ws)
                 await asyncio.sleep(0.05)
                 await stream_text(ws, QUIZ_Q1)
 
@@ -335,7 +332,6 @@ async def websocket_chat(ws: WebSocket):
                     session["coach_step"] = 0
                     await send_state(ws, session)
                     await stream_text(ws, COACH_FINAL, delay=0.010)
-                    await done(ws)
                     await asyncio.sleep(0.05)
                     await stream_text(ws, MENU)
 
@@ -358,7 +354,6 @@ async def websocket_chat(ws: WebSocket):
                     session["quiz_step"] = 0
                     await send_state(ws, session)
                     await stream_text(ws, QUIZ_DONE)
-                    await done(ws)
                     await asyncio.sleep(0.05)
                     await stream_text(ws, MENU)
 
@@ -384,25 +379,39 @@ async def health():
 
 @app.get("/api/profile/")
 async def get_profile():
-    return {
-        "exists": True,
-        "data": {
-            "Área de interesse": "Ciência de Dados",
-            "Nível de experiência": "Júnior",
-            "Preferências de trabalho": "Remoto",
-            "Localização": "Salvador - Bahia",
-            "Soft skills": "comunicação, trabalho em equipe, proatividade",
-            "Objetivo de carreira": "Crescimento técnico",
-            "Habilidades atuais": "Python, SQL, Excel, Figma, Git, Power BI",
-            "Funções alvo": "Analista de Dados, Cientista de Dados Júnior, Analista BI",
-            "Concluído": "true",
-        },
-    }
+    profile_file = Path(__file__).parent.parent / "data" / "user-profile.md"
+
+    if not profile_file.exists():
+        return {"exists": False, "data": {}}
+
+    data = {}
+    for line in profile_file.read_text(encoding="utf-8").splitlines():
+        if ":" not in line:
+            continue
+        key, _, value = line.partition(":")
+        data[key.strip()] = value.strip()
+
+    return {"exists": True, "data": data}
 
 
 @app.get("/api/profile/quiz-status")
 async def quiz_status():
-    return {"exists": True, "completed": True}
+    quiz_file = Path(__file__).parent.parent / "data" / "personality-quiz.md"
+
+    if not quiz_file.exists():
+        return {"exists": False, "completed": False}
+
+    data = {}
+    for line in quiz_file.read_text(encoding="utf-8").splitlines():
+        if ":" not in line:
+            continue
+        key, _, value = line.partition(":")
+        data[key.strip()] = value.strip()
+
+    return {
+        "exists": True,
+        "completed": data.get("Concluído", "false").lower() == "true",
+    }
 
 
 @app.post("/api/resume/upload")
@@ -496,11 +505,28 @@ Concluído: true
         encoding="utf-8",
     )
 
+    (data_dir / "user-profile.md").write_text(
+        "\n".join(
+            [
+                "Área de interesse: Ciência de Dados",
+                "Nível de experiência: Júnior",
+                "Preferências de trabalho: ",
+                "Localização: ",
+                "Soft skills: comunicação, trabalho em equipe, proatividade",
+                "Objetivo de carreira: ",
+                "Habilidades atuais: Python, SQL, Power BI, Git",
+                "Funções alvo: Analista de Dados Júnior, Estagiária em Dados, Assistente de BI",
+                "Concluído: false",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
     return {
         "success": True,
         "message": "Currículo analisado com sucesso.",
         "analysis": analysis,
-        "profile_updated": False,
+        "profile_updated": True,
     }
 
 

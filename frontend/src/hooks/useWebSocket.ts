@@ -206,6 +206,7 @@ export function useWebSocket() {
 
           setLoadingState(INITIAL_LOADING)
           setIsStreaming(false)
+          window.dispatchEvent(new Event('profile-updated'))
         }
 
         else if (data.type === 'error') {

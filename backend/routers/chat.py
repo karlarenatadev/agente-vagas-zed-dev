@@ -55,7 +55,41 @@ def _parse_state_token(token: str) -> dict[str, Any] | None:
         if len(parts) == 3:
             state["interview_context"] = parts[2]
 
+    elif mode == "agent_running" and len(parts) >= 2:
+        agent_key = parts[1].strip().lower()
+        state["active_agent"] = {
+            "scout": "Scout",
+            "curator": "Curator",
+            "coach": "Coach",
+            "maestro": "Maestro",
+        }.get(agent_key, "Maestro")
+
     return state
+
+
+async def _send_stream_token(
+    websocket: WebSocket,
+    token: str,
+    session: dict[str, Any],
+) -> None:
+    """Envia texto e estado sem descartar pedaços da resposta."""
+    if "__STATE__:" not in token:
+        await websocket.send_json({"type": "token", "content": token})
+        return
+
+    text_part, state_and_tail = token.split("__STATE__:", 1)
+    state_line, separator, tail = state_and_tail.partition("\n")
+
+    if text_part:
+        await websocket.send_json({"type": "token", "content": text_part})
+
+    state_update = _parse_state_token("__STATE__:" + state_line)
+    if state_update:
+        session.update(state_update)
+        await websocket.send_json({"type": "state", "content": session})
+
+    if separator and tail:
+        await websocket.send_json({"type": "token", "content": tail})
 
 
 @router.websocket("/chat")
@@ -80,25 +114,8 @@ async def websocket_chat(websocket: WebSocket):
     # Envia mensagem de boas-vindas ao conectar
     try:
         context = {**session, "message": ""}
-        buffer = ""
-
         async for token in maestro.run(context):
-            # Verifica se é token de estado
-            if "__STATE__:" in token:
-                # Pode haver texto antes do token de estado
-                parts = token.split("__STATE__:")
-                text_part = parts[0]
-                state_part = "__STATE__:" + parts[1].split("\n")[0]
-
-                if text_part:
-                    await websocket.send_json({"type": "token", "content": text_part})
-
-                state_update = _parse_state_token(state_part)
-                if state_update:
-                    session.update(state_update)
-                    await websocket.send_json({"type": "state", "content": session})
-            else:
-                await websocket.send_json({"type": "token", "content": token})
+            await _send_stream_token(websocket, token, session)
 
         await websocket.send_json({"type": "done", "content": ""})
 
@@ -120,21 +137,7 @@ async def websocket_chat(websocket: WebSocket):
                 context = {**session, "message": user_message}
 
                 async for token in maestro.run(context):
-                    if "__STATE__:" in token:
-                        parts = token.split("__STATE__:")
-                        text_part = parts[0]
-                        state_raw = parts[1].split("\n")[0]
-                        state_part = "__STATE__:" + state_raw
-
-                        if text_part:
-                            await websocket.send_json({"type": "token", "content": text_part})
-
-                        state_update = _parse_state_token(state_part)
-                        if state_update:
-                            session.update(state_update)
-                            await websocket.send_json({"type": "state", "content": session})
-                    else:
-                        await websocket.send_json({"type": "token", "content": token})
+                    await _send_stream_token(websocket, token, session)
 
                 await websocket.send_json({"type": "done", "content": ""})
 

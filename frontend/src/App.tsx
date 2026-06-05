@@ -1,6 +1,6 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Briefcase, PanelLeft, Sparkles } from 'lucide-react'
+import { Briefcase, FileText, PanelLeft, Sparkles, X } from 'lucide-react'
 
 import { AgentBadge } from './components/AgentBadge'
 import { ChatInput } from './components/ChatInput'
@@ -45,6 +45,7 @@ export default function App() {
   } = useWebSocket()
 
   const [trackerOpen, setTrackerOpen] = useState(false)
+  const [resumeModalOpen, setResumeModalOpen] = useState(false)
   const [resumeUploadOpen, setResumeUploadOpen] = useState(true)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
     typeof window !== 'undefined'
@@ -121,6 +122,18 @@ export default function App() {
               <motion.button
                 whileHover={{ y: -1 }}
                 whileTap={{ scale: 0.98 }}
+                onClick={() => setResumeModalOpen(true)}
+                className="applications-btn"
+                type="button"
+                aria-label="Analisar currículo em PDF, DOCX ou TXT"
+              >
+                <FileText size={15} />
+                <span className="btn-text">Currículo</span>
+              </motion.button>
+
+              <motion.button
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => setTrackerOpen(true)}
                 className="applications-btn"
                 type="button"
@@ -167,6 +180,34 @@ export default function App() {
       <Suspense fallback={<div className="loading-fallback">Carregando...</div>}>
         <ApplicationTracker isOpen={trackerOpen} onClose={() => setTrackerOpen(false)} />
       </Suspense>
+
+      {resumeModalOpen && (
+        <div className="resume-modal" role="dialog" aria-modal="true" aria-labelledby="resume-modal-title">
+          <button
+            type="button"
+            className="resume-modal-backdrop"
+            aria-label="Fechar upload de currículo"
+            onClick={() => setResumeModalOpen(false)}
+          />
+          <section className="resume-modal-panel">
+            <div className="resume-modal-header">
+              <div>
+                <p className="eyebrow">Currículo</p>
+                <h2 id="resume-modal-title">Analisar PDF, DOCX ou TXT</h2>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Fechar upload de currículo"
+                onClick={() => setResumeModalOpen(false)}
+              >
+                <X size={17} />
+              </button>
+            </div>
+            <ResumeUpload onContinueQuiz={() => setResumeModalOpen(false)} />
+          </section>
+        </div>
+      )}
     </div>
   )
 }

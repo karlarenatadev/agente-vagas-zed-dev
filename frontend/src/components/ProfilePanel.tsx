@@ -90,7 +90,7 @@ export function ProfilePanel({ onStartProfile, onToggleCollapse }: Props) {
   const [loading, setLoading] = useState(true)
 
   const loadProfile = useCallback((cancelled?: () => boolean) => {
-    fetch('/api/profile/')
+    fetch('/api/profile/', { cache: 'no-store' })
       .then(response => response.json())
       .then(data => {
         if (cancelled?.()) return
@@ -138,7 +138,7 @@ export function ProfilePanel({ onStartProfile, onToggleCollapse }: Props) {
     }
   }, [profile])
 
-  const hasUsableProfile = Boolean(profile && fields.completed)
+  const hasProfileDraft = Boolean(profile)
 
   return (
     <aside className="profile-panel" aria-label="Perfil profissional usado pela IA">
@@ -165,7 +165,7 @@ export function ProfilePanel({ onStartProfile, onToggleCollapse }: Props) {
           <SkeletonLine width="92%" />
           <SkeletonLine width="58%" />
         </div>
-      ) : !hasUsableProfile ? (
+      ) : !hasProfileDraft ? (
         <div className="profile-empty">
           <div className="empty-profile-icon" aria-hidden="true">
             <UserRound size={24} />
@@ -194,11 +194,26 @@ export function ProfilePanel({ onStartProfile, onToggleCollapse }: Props) {
             </div>
 
             <div>
-              <p>{fields.area}</p>
-              <h3>{fields.level}</h3>
-              <span>{fields.preference}</span>
+              <p>{fields.area || 'Área a confirmar'}</p>
+              <h3>{fields.level || 'Nível a confirmar'}</h3>
+              <span>{fields.completed ? fields.preference : 'Rascunho do perfil'}</span>
             </div>
           </section>
+
+          {!fields.completed && (
+            <section className="profile-empty compact">
+              <h3>Perfil em rascunho</h3>
+              <p>Confirme as informações no quiz para liberar recomendações mais precisas.</p>
+              <button
+                type="button"
+                className="primary-panel-button"
+                onClick={onStartProfile}
+              >
+                <Sparkles size={15} aria-hidden="true" />
+                Continuar quiz
+              </button>
+            </section>
+          )}
 
           <section className="profile-progress" aria-label="Nível de experiência">
             <div>

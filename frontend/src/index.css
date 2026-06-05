@@ -536,6 +536,11 @@ textarea::placeholder {
   padding: 18px;
 }
 
+.profile-empty.compact {
+  gap: 10px;
+  padding: 14px;
+}
+
 .empty-profile-icon {
   width: 48px;
   height: 48px;
@@ -929,6 +934,10 @@ textarea::placeholder {
   line-height: 1.72;
 }
 
+.prose-chat p {
+  white-space: pre-wrap;
+}
+
 .prose-chat > :first-child {
   margin-top: 0;
 }
@@ -1060,20 +1069,20 @@ textarea::placeholder {
 
 .chat-input-shell {
   flex-shrink: 0;
-  padding: 14px 24px 18px;
+  padding: 10px 24px 12px;
   border-top: 1px solid var(--border-subtle);
   background: rgba(14, 16, 24, 0.94);
 }
 
 .menu-actions {
   overflow: hidden;
-  margin-bottom: 14px;
+  margin-bottom: 8px;
 }
 
 .menu-actions-header {
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .menu-actions-header strong {
@@ -1088,16 +1097,17 @@ textarea::placeholder {
 .menu-action-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .menu-action-card {
   position: relative;
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
-  gap: 10px;
-  min-height: 132px;
-  padding: 14px;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-height: 70px;
+  padding: 10px 12px;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   background: rgba(20, 23, 34, 0.9);
@@ -1112,8 +1122,8 @@ textarea::placeholder {
 
 .menu-card-key {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 8px;
+  right: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1128,31 +1138,32 @@ textarea::placeholder {
 }
 
 .menu-card-icon {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   border-radius: var(--radius-md);
 }
 
 .menu-card-copy {
   display: grid;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
   padding-right: 20px;
 }
 
 .menu-card-copy strong {
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .menu-card-copy small {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .menu-card-copy em {
   color: var(--text-secondary);
-  font-size: 12px;
+  display: none;
+  font-size: 11px;
   font-style: normal;
   line-height: 1.35;
 }
@@ -1178,7 +1189,7 @@ textarea::placeholder {
   grid-template-columns: minmax(0, 1fr) 40px;
   align-items: end;
   gap: 10px;
-  padding: 10px 10px 10px 14px;
+  padding: 8px 8px 8px 12px;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   background: var(--bg-elevated);
@@ -1192,8 +1203,8 @@ textarea::placeholder {
 .composer textarea {
   width: 100%;
   max-height: 128px;
-  min-height: 40px;
-  padding: 9px 0;
+  min-height: 36px;
+  padding: 7px 0;
   resize: none;
   border: 0;
   outline: 0;
@@ -1205,8 +1216,8 @@ textarea::placeholder {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border: 0;
   border-radius: var(--radius-md);
   background: linear-gradient(135deg, var(--violet), var(--cyan));
@@ -1221,11 +1232,57 @@ textarea::placeholder {
 }
 
 .composer-hint {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   color: var(--text-ghost);
   font-family: var(--font-mono);
   font-size: 11px;
   text-align: center;
+}
+
+.resume-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.resume-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(5px);
+  cursor: pointer;
+}
+
+.resume-modal-panel {
+  position: relative;
+  width: min(760px, 100%);
+  max-height: min(760px, 92vh);
+  overflow-y: auto;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  background: var(--bg-surface);
+  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.42);
+}
+
+.resume-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px 18px 0;
+}
+
+.resume-modal-header h2 {
+  margin: 3px 0 0;
+  font-size: 18px;
+}
+
+.resume-modal-panel .resume-upload-card {
+  margin: 14px 18px 18px;
 }
 
 .composer-hint.left {
