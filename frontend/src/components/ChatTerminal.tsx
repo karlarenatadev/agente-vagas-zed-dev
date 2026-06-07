@@ -15,25 +15,25 @@ interface Props {
 const WELCOME_ACTIONS = [
   {
     title: 'Criar perfil profissional',
-    description: 'Responder o quiz guiado pelo Maestro.',
+    description: 'Fazer o diagnóstico guiado pelo Maestro.',
     command: 'Quero criar meu perfil profissional',
     icon: Target,
   },
   {
-    title: 'Buscar vagas compatíveis',
-    description: 'Encontrar oportunidades alinhadas às suas habilidades.',
+    title: 'Encontrar oportunidades',
+    description: 'Buscar vagas alinhadas ao diagnóstico.',
     command: 'A',
     icon: Search,
   },
   {
-    title: 'Descobrir lacunas',
-    description: 'Entender o que aprender para melhorar seu match.',
+    title: 'Mapear lacunas',
+    description: 'Definir uma trilha de evolução.',
     command: 'B',
     icon: GraduationCap,
   },
   {
-    title: 'Treinar entrevista',
-    description: 'Praticar respostas com feedback do Coach.',
+    title: 'Simular entrevista',
+    description: 'Praticar uma entrevista direcionada.',
     command: 'C',
     icon: UserRoundCheck,
   },
@@ -62,13 +62,13 @@ export function ChatTerminal({ disabled, messages, mode, onQuickAction }: Props)
           <div className="welcome-hero">
             <div className="welcome-kicker">
               <Sparkles size={15} aria-hidden="true" />
-              Maestro organiza sua jornada
+              Maestro organiza sua esteira
             </div>
 
-            <h2>Seu copiloto de carreira com IA</h2>
+            <h2>Sua jornada de evolução profissional</h2>
             <p>
-              Crie seu perfil, encontre vagas compatíveis, descubra o que aprender e treine
-              entrevistas com agentes especializados.
+              Faça o diagnóstico, encontre oportunidades compatíveis, mapeie lacunas e prepare
+              sua próxima entrevista com agentes especializados.
             </p>
           </div>
 

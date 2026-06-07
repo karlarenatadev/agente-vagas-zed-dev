@@ -12,17 +12,17 @@ interface Props {
 const MENU_ACTIONS = [
   {
     key: 'A',
-    title: 'Buscar vagas',
+    title: 'Encontrar oportunidades',
     agent: 'Scout',
-    description: 'Encontra vagas compatíveis e calcula match com suas habilidades.',
+    description: 'Busca vagas compatíveis e calcula match com seu diagnóstico.',
     icon: Search,
     className: 'menu-scout',
   },
   {
     key: 'B',
-    title: 'Encontrar cursos',
+    title: 'Mapear lacunas',
     agent: 'Curator',
-    description: 'Recomenda materiais para preencher lacunas técnicas.',
+    description: 'Identifica gaps e recomenda uma trilha de evolução.',
     icon: GraduationCap,
     className: 'menu-curator',
   },
@@ -30,13 +30,13 @@ const MENU_ACTIONS = [
     key: 'C',
     title: 'Simular entrevista',
     agent: 'Coach',
-    description: 'Treina perguntas técnicas e comportamentais com feedback.',
+    description: 'Treina uma entrevista direcionada ao perfil e às vagas.',
     icon: UserRoundCheck,
     className: 'menu-coach',
   },
   {
     key: 'D',
-    title: 'Refazer perfil',
+    title: 'Refazer diagnóstico',
     agent: 'Maestro',
     description: 'Atualiza área, nível, preferências e habilidades.',
     icon: RefreshCcw,
@@ -90,8 +90,8 @@ export function ChatInput({ onSend, disabled, mode }: Props) {
             exit={{ opacity: 0, height: 0 }}
           >
             <div className="menu-actions-header">
-              <strong>Menu principal</strong>
-              <span>Escolha um card ou digite A, B, C ou D.</span>
+              <strong>Esteira de carreira</strong>
+              <span>Escolha a próxima etapa ou digite A, B, C ou D.</span>
             </div>
 
             <div className="menu-action-grid">

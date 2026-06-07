@@ -177,9 +177,9 @@ export function ProfilePanel({ onStartProfile, onToggleCollapse }: Props) {
             <UserRound size={24} />
           </div>
 
-          <h3>Seu perfil ainda está incompleto</h3>
+          <h3>Seu diagnóstico ainda está incompleto</h3>
           <p>
-            O quiz cria a base que o Maestro usa para orientar vagas, cursos e entrevistas
+            O diagnóstico cria a base que o Maestro usa para orientar vagas, evolução e entrevistas
             com mais contexto.
           </p>
 
@@ -189,7 +189,7 @@ export function ProfilePanel({ onStartProfile, onToggleCollapse }: Props) {
             onClick={onStartProfile}
           >
             <Sparkles size={15} aria-hidden="true" />
-            Iniciar perfil
+            Iniciar diagnóstico
           </button>
         </div>
       ) : (
@@ -208,15 +208,15 @@ export function ProfilePanel({ onStartProfile, onToggleCollapse }: Props) {
 
           {!fields.completed && (
             <section className="profile-empty compact">
-              <h3>Perfil em rascunho</h3>
-              <p>Confirme as informações no quiz para liberar recomendações mais precisas.</p>
+              <h3>Diagnóstico em rascunho</h3>
+              <p>Confirme as informações para liberar recomendações mais precisas.</p>
               <button
                 type="button"
                 className="primary-panel-button"
                 onClick={onStartProfile}
               >
                 <Sparkles size={15} aria-hidden="true" />
-                Continuar quiz
+                Continuar diagnóstico
               </button>
             </section>
           )}

@@ -109,14 +109,14 @@ QUIZ_QUESTIONS = [
 ]
 
 MENU_TEXT = """
-╔══════════════════════════════════════════╗
-║         CENTRAL DE OPERAÇÕES             ║
-╠══════════════════════════════════════════╣
-║  [A]  Buscar Vagas          ⚔  Scout    ║
-║  [B]  Encontrar Cursos      📚 Curator  ║
-║  [C]  Entrevista Simulada   🎯 Coach    ║
-║  [D]  Refazer Quiz          ↺  Reset    ║
-╚══════════════════════════════════════════╝
+╔════════════════════════════════════════════════════╗
+║              ESTEIRA DE CARREIRA                  ║
+╠════════════════════════════════════════════════════╣
+║  [A]  Encontrar oportunidades compatíveis  Scout  ║
+║  [B]  Mapear lacunas e evolução           Curator ║
+║  [C]  Simular entrevista direcionada       Coach  ║
+║  [D]  Refazer diagnóstico                 Maestro ║
+╚════════════════════════════════════════════════════╝
 
 Digite A, B, C ou D:"""
 
@@ -181,6 +181,36 @@ class MaestroAgent(BaseAgent):
             f"Concluído: true",
         ]
         self._write_file(config.PROFILE_FILE, "\n".join(lines))
+
+    def _profile_summary(self, answers: dict[str, str]) -> str:
+        area = answers.get("Área de interesse", "Não informado")
+        level = answers.get("Nível de experiência", "Não informado")
+        preference = answers.get("Preferências de trabalho", "Não informado")
+        location = answers.get("Localização", "Não informado")
+        goal = answers.get("Objetivo de carreira", "Não informado")
+        skills = answers.get("Habilidades atuais", "Não informado")
+        roles = ""
+
+        profile = self._read_file(config.PROFILE_FILE)
+        for line in profile.splitlines():
+            if line.startswith("Funções alvo:"):
+                roles = line.split(":", 1)[1].strip()
+                break
+
+        if not roles:
+            roles = "Profissional de Tecnologia"
+
+        return (
+            "Diagnóstico concluído. Aqui está a base que vou usar na sua jornada:\n\n"
+            f"1. Área: {area}\n"
+            f"2. Nível: {level}\n"
+            f"3. Modelo desejado: {preference}\n"
+            f"4. Localização: {location}\n"
+            f"5. Objetivo: {goal}\n"
+            f"6. Habilidades atuais: {skills}\n"
+            f"7. Funções alvo: {roles}\n\n"
+            "Próximo passo: comece por oportunidades compatíveis, depois use as lacunas para guiar sua evolução.\n\n"
+        )
 
     def _next_quiz_step(self, answers: dict[str, str]) -> int:
         for index, question in enumerate(QUIZ_QUESTIONS):
@@ -292,6 +322,7 @@ class MaestroAgent(BaseAgent):
             area = quiz_data.get("Área de interesse", "")
             level = quiz_data.get("Nível de experiência", "")
             yield f"✓ Perfil carregado — **{area}** · **{level}**\n\n"
+            yield self._profile_summary(quiz_data)
             async for token in self._show_menu():
                 yield token
             # Sinaliza transição de estado
@@ -344,6 +375,7 @@ class MaestroAgent(BaseAgent):
             self._save_quiz(self.quiz_answers)
             self._generate_profile(self.quiz_answers)
             yield "✓ Perfil consolidado a partir do quiz salvo.\n\n"
+            yield self._profile_summary(self.quiz_answers)
             async for token in self._show_menu():
                 yield token
             yield "\n__STATE__:menu"
@@ -376,6 +408,7 @@ class MaestroAgent(BaseAgent):
             area = self.quiz_answers.get("Área de interesse", "")
             level = self.quiz_answers.get("Nível de experiência", "")
             yield f"\n✓ Perfil criado com sucesso — **{area}** · **{level}**\n\n"
+            yield self._profile_summary(self.quiz_answers)
             async for token in self._show_menu():
                 yield token
             yield "\n__STATE__:menu"
