@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, AsyncGenerator
@@ -22,7 +23,123 @@ from agents.base import BaseAgent
 
 
 LEVEL_ORDER = {"iniciante": 0, "intermediario": 1, "avancado": 2}
-COST_ORDER = {"gratuito": 0, "certificado opcional": 1, "acessivel": 2, "premium": 3, "Nao informado": 4}
+COST_ORDER = {
+    "gratuito": 0,
+    "certificado opcional": 1,
+    "acessivel": 2,
+    "Consultar plataforma": 2,
+    "premium": 3,
+    "Nao informado": 4,
+}
+
+INTERNAL_RECOMMENDATIONS: dict[str, dict[str, tuple[str, str, str, str, str]]] = {
+    "html": {
+        "free": ("MDN Learn HTML", "MDN", "https://developer.mozilla.org/pt-BR/docs/Learn/HTML", "Nao informado", "iniciante"),
+        "reference": ("HTML: HyperText Markup Language", "MDN", "https://developer.mozilla.org/pt-BR/docs/Web/HTML", "Nao informado", "iniciante"),
+        "quick": ("HTML Tutorial", "W3Schools", "https://www.w3schools.com/html/", "Nao informado", "iniciante"),
+        "paid": ("Curso estruturado de HTML em marketplace de cursos", "Udemy/Coursera/Alura", "https://www.udemy.com/courses/search/?q=HTML", "Consultar plataforma", "iniciante"),
+    },
+    "css": {
+        "free": ("MDN Learn CSS", "MDN", "https://developer.mozilla.org/pt-BR/docs/Learn/CSS", "Nao informado", "iniciante"),
+        "reference": ("CSS: Cascading Style Sheets", "MDN", "https://developer.mozilla.org/pt-BR/docs/Web/CSS", "Nao informado", "iniciante"),
+        "quick": ("CSS Tutorial", "W3Schools", "https://www.w3schools.com/css/", "Nao informado", "iniciante"),
+        "paid": ("Curso estruturado de CSS responsivo em marketplace de cursos", "Udemy/Coursera/Alura", "https://www.udemy.com/courses/search/?q=CSS", "Consultar plataforma", "iniciante"),
+    },
+    "javascript": {
+        "free": ("JavaScript Algorithms and Data Structures", "FreeCodeCamp", "https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures-v8/", "Nao informado", "iniciante"),
+        "reference": ("JavaScript", "MDN", "https://developer.mozilla.org/pt-BR/docs/Web/JavaScript", "Nao informado", "intermediario"),
+        "quick": ("JavaScript Tutorial", "W3Schools", "https://www.w3schools.com/js/", "Nao informado", "iniciante"),
+        "paid": ("Curso estruturado de JavaScript moderno em marketplace de cursos", "Udemy/Coursera/Alura", "https://www.udemy.com/courses/search/?q=JavaScript", "Consultar plataforma", "intermediario"),
+    },
+    "typescript": {
+        "free": ("TypeScript for JavaScript Programmers", "TypeScript Docs", "https://www.typescriptlang.org/docs/handbook/typescript-in-5-minutes.html", "Nao informado", "iniciante"),
+        "reference": ("TypeScript Handbook", "TypeScript Docs", "https://www.typescriptlang.org/docs/handbook/intro.html", "Nao informado", "intermediario"),
+        "quick": ("TypeScript Tutorial", "W3Schools", "https://www.w3schools.com/typescript/", "Nao informado", "iniciante"),
+        "paid": ("Curso estruturado de TypeScript aplicado em marketplace de cursos", "Udemy/Coursera/Alura", "https://www.udemy.com/courses/search/?q=TypeScript", "Consultar plataforma", "intermediario"),
+    },
+    "react": {
+        "free": ("Learn React", "React Docs", "https://react.dev/learn", "Nao informado", "iniciante"),
+        "reference": ("React Reference", "React Docs", "https://react.dev/reference/react", "Nao informado", "intermediario"),
+        "quick": ("React Quick Start", "React Docs", "https://react.dev/learn", "Nao informado", "iniciante"),
+        "paid": ("Curso estruturado de React com projetos em marketplace de cursos", "Udemy/Coursera/Alura", "https://www.udemy.com/courses/search/?q=React", "Consultar plataforma", "intermediario"),
+    },
+    "git": {
+        "free": ("GitHub Skills", "GitHub Skills", "https://skills.github.com/", "Nao informado", "iniciante"),
+        "reference": ("Git Documentation", "Git", "https://git-scm.com/doc", "Nao informado", "intermediario"),
+        "quick": ("Git Handbook", "GitHub Docs", "https://guides.github.com/introduction/git-handbook/", "Nao informado", "iniciante"),
+        "paid": ("Curso estruturado de Git e GitHub em marketplace de cursos", "Udemy/Coursera/Alura", "https://www.udemy.com/courses/search/?q=Git%20GitHub", "Consultar plataforma", "iniciante"),
+    },
+    "consumo de apis": {
+        "free": ("Client-side web APIs", "MDN", "https://developer.mozilla.org/pt-BR/docs/Learn/JavaScript/Client-side_web_APIs", "Nao informado", "intermediario"),
+        "reference": ("Fetch API", "MDN", "https://developer.mozilla.org/pt-BR/docs/Web/API/Fetch_API", "Nao informado", "intermediario"),
+        "quick": ("Using the Fetch API", "MDN", "https://developer.mozilla.org/pt-BR/docs/Web/API/Fetch_API/Using_Fetch", "Nao informado", "iniciante"),
+        "paid": ("Curso estruturado de consumo de APIs REST em marketplace de cursos", "Udemy/Coursera/Alura", "https://www.udemy.com/courses/search/?q=API%20REST", "Consultar plataforma", "intermediario"),
+    },
+    "python": {
+        "free": ("Python for Everybody", "FreeCodeCamp", "https://www.freecodecamp.org/learn/scientific-computing-with-python/", "Nao informado", "iniciante"),
+        "reference": ("The Python Tutorial", "Python Docs", "https://docs.python.org/3/tutorial/", "Nao informado", "intermediario"),
+        "quick": ("Python Tutorial", "W3Schools", "https://www.w3schools.com/python/", "Nao informado", "iniciante"),
+        "paid": ("Curso estruturado de Python aplicado em marketplace de cursos", "Udemy/Coursera/Alura", "https://www.udemy.com/courses/search/?q=Python", "Consultar plataforma", "intermediario"),
+    },
+    "sql": {
+        "free": ("Intro to SQL", "Kaggle Learn", "https://www.kaggle.com/learn/intro-to-sql", "Nao informado", "iniciante"),
+        "reference": ("SQL Tutorial", "W3Schools", "https://www.w3schools.com/sql/", "Nao informado", "iniciante"),
+        "quick": ("Advanced SQL", "Kaggle Learn", "https://www.kaggle.com/learn/advanced-sql", "Nao informado", "intermediario"),
+        "paid": ("Curso estruturado de SQL para analise de dados em marketplace de cursos", "Udemy/Coursera/Alura", "https://www.udemy.com/courses/search/?q=SQL", "Consultar plataforma", "intermediario"),
+    },
+    "power bi": {
+        "free": ("Get started with Microsoft Power BI", "Microsoft Learn", "https://learn.microsoft.com/pt-br/training/powerplatform/power-bi", "Nao informado", "iniciante"),
+        "reference": ("Power BI documentation", "Microsoft Learn", "https://learn.microsoft.com/pt-br/power-bi/", "Nao informado", "intermediario"),
+        "quick": ("Guided learning for Power BI", "Microsoft Learn", "https://learn.microsoft.com/pt-br/power-bi/guided-learning/", "Nao informado", "iniciante"),
+        "paid": ("Curso estruturado de Power BI com projetos em marketplace de cursos", "Udemy/Coursera/Alura", "https://www.udemy.com/courses/search/?q=Power%20BI", "Consultar plataforma", "intermediario"),
+    },
+    "excel": {
+        "free": ("Treinamento em Excel", "Microsoft Support", "https://support.microsoft.com/pt-br/office/treinamento-em-excel-9bc05390-e94c-46af-a5b3-d7c22f6990bb", "Nao informado", "iniciante"),
+        "reference": ("Ajuda e aprendizado do Excel", "Microsoft Support", "https://support.microsoft.com/pt-br/excel", "Nao informado", "iniciante"),
+        "quick": ("Excel formulas and functions", "Microsoft Support", "https://support.microsoft.com/pt-br/office/f%C3%B3rmulas-e-fun%C3%A7%C3%B5es-294d9486-b332-48ed-b489-abe7d0f9eda9", "Nao informado", "iniciante"),
+        "paid": ("Curso estruturado de Excel para analise de dados em marketplace de cursos", "Udemy/Coursera/Alura", "https://www.udemy.com/courses/search/?q=Excel", "Consultar plataforma", "intermediario"),
+    },
+    "pandas": {
+        "free": ("Pandas", "Kaggle Learn", "https://www.kaggle.com/learn/pandas", "Nao informado", "iniciante"),
+        "reference": ("Getting started with pandas", "Pandas Docs", "https://pandas.pydata.org/docs/getting_started/index.html", "Nao informado", "intermediario"),
+        "quick": ("10 minutes to pandas", "Pandas Docs", "https://pandas.pydata.org/docs/user_guide/10min.html", "Nao informado", "intermediario"),
+        "paid": ("Curso estruturado de pandas e analise de dados em marketplace de cursos", "Udemy/Coursera/Alura", "https://www.udemy.com/courses/search/?q=pandas", "Consultar plataforma", "intermediario"),
+    },
+    "estatistica": {
+        "free": ("Statistics and probability", "Khan Academy", "https://www.khanacademy.org/math/statistics-probability", "Nao informado", "iniciante"),
+        "reference": ("Intro to Machine Learning", "Kaggle Learn", "https://www.kaggle.com/learn/intro-to-machine-learning", "Nao informado", "intermediario"),
+        "quick": ("Statistics Tutorial", "W3Schools", "https://www.w3schools.com/statistics/", "Nao informado", "iniciante"),
+        "paid": ("Curso estruturado de estatistica aplicada em marketplace de cursos", "Udemy/Coursera/Alura", "https://www.udemy.com/courses/search/?q=estatistica", "Consultar plataforma", "intermediario"),
+    },
+    "storytelling com dados": {
+        "free": ("Storytelling with Data Blog", "Storytelling with Data", "https://www.storytellingwithdata.com/blog", "Nao informado", "intermediario"),
+        "reference": ("Storytelling with Data Resources", "Storytelling with Data", "https://www.storytellingwithdata.com/resources", "Nao informado", "intermediario"),
+        "quick": ("Data visualization catalogue", "Data Viz Catalogue", "https://datavizcatalogue.com/", "Nao informado", "iniciante"),
+        "paid": ("Curso estruturado de visualizacao e narrativa de dados em marketplace de cursos", "Udemy/Coursera/Alura", "https://www.udemy.com/courses/search/?q=data%20storytelling", "Consultar plataforma", "intermediario"),
+    },
+}
+
+SKILL_ALIASES = {
+    "api": "consumo de apis",
+    "apis": "consumo de apis",
+    "api rest": "consumo de apis",
+    "rest": "consumo de apis",
+    "consumo de api": "consumo de apis",
+    "consumo de apis": "consumo de apis",
+    "powerbi": "power bi",
+    "power-bi": "power bi",
+    "js": "javascript",
+    "ts": "typescript",
+    "react.js": "react",
+    "reactjs": "react",
+    "github": "git",
+    "estatistica": "estatistica",
+    "estatisticas": "estatistica",
+    "statistics": "estatistica",
+    "storytelling": "storytelling com dados",
+    "data storytelling": "storytelling com dados",
+    "narrativa de dados": "storytelling com dados",
+}
 
 
 @dataclass
@@ -276,13 +393,47 @@ class CuratorAgent(BaseAgent):
             return "FreeCodeCamp"
         if "developer.mozilla.org" in host:
             return "MDN"
+        if "react.dev" in host:
+            return "React Docs"
+        if "typescriptlang.org" in host:
+            return "TypeScript Docs"
+        if "git-scm.com" in host:
+            return "Git"
+        if "github.com" in host:
+            return "GitHub Docs"
+        if "python.org" in host:
+            return "Python Docs"
+        if "pandas.pydata.org" in host:
+            return "Pandas Docs"
+        if "support.microsoft.com" in host:
+            return "Microsoft Support"
+        if "w3schools.com" in host:
+            return "W3Schools"
+        if "khanacademy.org" in host:
+            return "Khan Academy"
         if any(term in host for term in ["docs.", "documentation", "readthedocs"]):
             return "Documentacao Oficial"
         return host or "Outra"
 
     def _price_for_platform(self, platform: str, title: str, description: str) -> str:
         text = f"{title} {description}".casefold()
-        if platform in {"YouTube", "Documentacao Oficial", "Microsoft Learn", "Kaggle Learn", "FreeCodeCamp", "MDN"}:
+        if platform in {
+            "YouTube",
+            "Documentacao Oficial",
+            "Microsoft Learn",
+            "Kaggle Learn",
+            "FreeCodeCamp",
+            "MDN",
+            "React Docs",
+            "TypeScript Docs",
+            "Git",
+            "GitHub Docs",
+            "Python Docs",
+            "Pandas Docs",
+            "Microsoft Support",
+            "W3Schools",
+            "Khan Academy",
+        }:
             return "gratuito"
         if platform in {"Coursera", "edX"}:
             return "certificado opcional"
@@ -326,7 +477,26 @@ class CuratorAgent(BaseAgent):
             score += 22
         if query_type == "acessivel" and price in {"acessivel", "premium", "certificado opcional"}:
             score += 12
-        if platform in {"YouTube", "Alura", "Udemy", "Coursera", "edX", "Microsoft Learn", "Kaggle Learn", "FreeCodeCamp", "MDN"}:
+        if platform in {
+            "YouTube",
+            "Alura",
+            "Udemy",
+            "Coursera",
+            "edX",
+            "Microsoft Learn",
+            "Kaggle Learn",
+            "FreeCodeCamp",
+            "MDN",
+            "React Docs",
+            "TypeScript Docs",
+            "Git",
+            "GitHub Docs",
+            "Python Docs",
+            "Pandas Docs",
+            "Microsoft Support",
+            "W3Schools",
+            "Khan Academy",
+        }:
             score += 12
         if "curso" in title or "course" in title or "tutorial" in title or "playlist" in title:
             score += 8
@@ -355,6 +525,52 @@ class CuratorAgent(BaseAgent):
             link=item["url"],
             score=self._score_result(item, skill, recurrence, query_type),
         )
+
+    def _skill_catalog_key(self, skill: str) -> str:
+        normalized = unicodedata.normalize("NFKD", skill.casefold())
+        ascii_text = "".join(char for char in normalized if not unicodedata.combining(char))
+        clean = re.sub(r"[^a-z0-9+#.\s-]", " ", ascii_text)
+        clean = re.sub(r"\s+", " ", clean).strip()
+        return SKILL_ALIASES.get(clean, clean)
+
+    def _catalog_resource(
+        self,
+        skill: str,
+        recurrence: int,
+        kind: str,
+        data: tuple[str, str, str, str, str],
+    ) -> LearningResource:
+        name, platform, link, duration, level = data
+        price = "Consultar plataforma" if kind == "paid" else "gratuito"
+        score_bonus = {"free": 34, "reference": 30, "quick": 24, "paid": 18}[kind]
+        return LearningResource(
+            name=name,
+            platform=platform,
+            price=price,
+            duration=duration,
+            level=level,
+            skill=skill,
+            link=link,
+            score=recurrence * 10 + score_bonus,
+        )
+
+    def _internal_resources_for_skill(self, skill: str, recurrence: int) -> list[LearningResource]:
+        catalog_key = self._skill_catalog_key(skill)
+        catalog = INTERNAL_RECOMMENDATIONS.get(catalog_key)
+        if not catalog:
+            return []
+        return [
+            self._catalog_resource(skill, recurrence, kind, data)
+            for kind, data in catalog.items()
+        ]
+
+    def _needs_internal_support(self, candidates: list[LearningResource]) -> bool:
+        if not candidates:
+            return True
+        has_free = any(item.price == "gratuito" for item in candidates)
+        has_reference = any(self._is_trusted_reference(item) for item in candidates)
+        has_quick = any(self._is_quick_content(item) for item in candidates)
+        return not (has_free and has_reference and has_quick)
 
     def _queries_for_skill(self, skill: str, area: str) -> list[tuple[str, str]]:
         return [
@@ -461,6 +677,18 @@ class CuratorAgent(BaseAgent):
             "Kaggle Learn",
             "FreeCodeCamp",
             "MDN",
+            "GitHub Skills",
+            "GitHub Docs",
+            "Git",
+            "React Docs",
+            "TypeScript Docs",
+            "Python Docs",
+            "Pandas Docs",
+            "Khan Academy",
+            "Microsoft Support",
+            "Storytelling with Data",
+            "Data Viz Catalogue",
+            "W3Schools",
             "Coursera",
             "edX",
         }
@@ -470,7 +698,18 @@ class CuratorAgent(BaseAgent):
         text = f"{resource.name} {resource.duration} {resource.platform}".casefold()
         quick_terms = ["tutorial", "guia", "quickstart", "fundamentos", "playlist", "video", "aula"]
         return resource.price == "gratuito" and (
-            resource.platform in {"YouTube", "FreeCodeCamp", "MDN", "Microsoft Learn", "Kaggle Learn"}
+            resource.platform in {
+                "YouTube",
+                "FreeCodeCamp",
+                "MDN",
+                "Microsoft Learn",
+                "Kaggle Learn",
+                "W3Schools",
+                "GitHub Docs",
+                "React Docs",
+                "Pandas Docs",
+                "Data Viz Catalogue",
+            }
             or any(term in text for term in quick_terms)
             or "min" in resource.duration.casefold()
         )
@@ -485,7 +724,7 @@ class CuratorAgent(BaseAgent):
         LearningResource | None,
     ]:
         free_options = [item for item in candidates if item.price == "gratuito"]
-        paid_options = [item for item in candidates if item.price in {"acessivel", "certificado opcional"}]
+        paid_options = [item for item in candidates if item.price in {"acessivel", "certificado opcional", "Consultar plataforma"}]
         trusted_options = [item for item in candidates if self._is_trusted_reference(item)]
         quick_options = [item for item in candidates if self._is_quick_content(item)]
 
@@ -581,7 +820,21 @@ class CuratorAgent(BaseAgent):
 
         plan_items: list[LearningPlanItem] = []
         errors: list[str] = []
+        error_keys: set[str] = set()
+        notices: list[str] = []
+        notice_keys: set[str] = set()
         used_urls: set[str] = set()
+        firecrawl_available = True
+
+        def add_error(message: str) -> None:
+            if message not in error_keys:
+                errors.append(message)
+                error_keys.add(message)
+
+        def add_notice(message: str) -> None:
+            if message not in notice_keys:
+                notices.append(message)
+                notice_keys.add(message)
 
         for index, skill_priority in enumerate(prioritized):
             skill = skill_priority.name
@@ -593,17 +846,29 @@ class CuratorAgent(BaseAgent):
             yield f"1. habilidade: {skill}\n   prioridade: {priority}\n   status: buscando curso gratuito, referencia confiavel e apoio pratico\n"
 
             skill_candidates: list[LearningResource] = []
-            for query_type, query in self._queries_for_skill(skill, area):
-                outcome = self._run_firecrawl_search(query)
-                if outcome.error:
-                    errors.append(f"{skill}: {outcome.error}")
-                    continue
-
-                for item in outcome.results[:5]:
-                    if item["url"] in used_urls:
+            if firecrawl_available:
+                for query_type, query in self._queries_for_skill(skill, area):
+                    outcome = self._run_firecrawl_search(query)
+                    if outcome.error:
+                        if outcome.error == "Firecrawl CLI nao encontrado":
+                            firecrawl_available = False
+                            add_notice("Firecrawl CLI nao encontrado; trilha complementada com base interna confiavel.")
+                            break
+                        add_notice(f"Busca externa nao ficou disponivel para {skill}; usei base interna quando necessario.")
                         continue
-                    resource = self._build_resource(item, skill, recurrence, query_type, default_level)
-                    skill_candidates.append(resource)
+
+                    for item in outcome.results[:5]:
+                        if item["url"] in used_urls:
+                            continue
+                        resource = self._build_resource(item, skill, recurrence, query_type, default_level)
+                        skill_candidates.append(resource)
+
+            if self._needs_internal_support(skill_candidates):
+                internal_candidates = self._internal_resources_for_skill(skill, recurrence)
+                if internal_candidates:
+                    existing_links = {item.link for item in skill_candidates}
+                    skill_candidates.extend(item for item in internal_candidates if item.link not in existing_links)
+                    add_notice("Algumas recomendacoes foram montadas com base interna quando a busca externa nao retornou material suficiente.")
 
             free_resource, paid_resource, trusted_reference, quick_content = self._select_plan_resources(skill_candidates)
             if free_resource:
@@ -643,7 +908,7 @@ class CuratorAgent(BaseAgent):
                 )
                 yield "   status: trilha definida\n\n"
             else:
-                errors.append(f"{skill}: nenhum material encontrado")
+                add_error(f"{skill}: nenhum material encontrado em busca externa nem na base interna")
                 yield "   status: nenhum material encontrado\n\n"
 
         plan_items.sort(key=lambda item: ({"estudar agora": 0, "estudar depois": 1, "opcional": 2}[item.bucket], -item.impact, item.skill.casefold()))
@@ -661,6 +926,11 @@ class CuratorAgent(BaseAgent):
         yield "### resumo\n"
         yield f"Transformei as lacunas do Scout em uma trilha pratica com {len(plan_items)} habilidade(s). A ordem considera recorrencia nas vagas, impacto no match e facilidade para gerar evidencia pratica no curriculo.\n"
         yield f"Contexto usado: area={area}; nivel={raw_level or 'nao informado'}; funcoes_alvo={target_roles or 'nao informado'}; objetivo={career_goal or 'nao informado'}.\n\n"
+        if notices:
+            yield "### avisos\n"
+            for notice in notices:
+                yield f"- {notice}\n"
+            yield "\n"
         yield "### dados\n"
 
         for bucket in ["estudar agora", "estudar depois", "opcional"]:
@@ -687,7 +957,7 @@ class CuratorAgent(BaseAgent):
                 if item.paid_resource:
                     yield f"   curso_pago_acessivel_recomendado: {item.paid_resource.name}\n"
                     yield f"   plataforma_paga: {item.paid_resource.platform}\n"
-                    yield f"   preco_estimado: {item.paid_resource.price}\n"
+                    yield "   preco_estimado: Consultar plataforma\n"
                     yield f"   link_pago: {item.paid_resource.link}\n"
                 else:
                     yield "   curso_pago_acessivel_recomendado: Nao recomendado agora; alternativa gratuita suficiente ou nenhum curso acessivel confiavel encontrado\n"
