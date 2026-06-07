@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { GraduationCap, MessageSquareText, Search, Sparkles, Target, UserRoundCheck } from 'lucide-react'
 import { ChatMessage } from './ChatMessage'
@@ -14,24 +14,28 @@ interface Props {
 
 const WELCOME_ACTIONS = [
   {
+    phase: '00',
     title: 'Criar perfil profissional',
     description: 'Fazer o diagnóstico guiado pelo Maestro.',
     command: 'Quero criar meu perfil profissional',
     icon: Target,
   },
   {
+    phase: '01',
     title: 'Encontrar oportunidades',
     description: 'Buscar vagas alinhadas ao diagnóstico.',
     command: 'A',
     icon: Search,
   },
   {
+    phase: '02',
     title: 'Mapear lacunas',
     description: 'Definir uma trilha de evolução.',
     command: 'B',
     icon: GraduationCap,
   },
   {
+    phase: '03',
     title: 'Simular entrevista',
     description: 'Praticar uma entrevista direcionada.',
     command: 'C',
@@ -39,16 +43,41 @@ const WELCOME_ACTIONS = [
   },
 ]
 
+function groupConsecutiveAgentMessages(messages: ChatMessageType[]): ChatMessageType[] {
+  return messages.reduce<ChatMessageType[]>((groups, message) => {
+    const previous = groups[groups.length - 1]
+    const sameAgentGroup =
+      message.role === 'agent'
+      && previous?.role === 'agent'
+      && previous.agent === message.agent
+
+    if (!sameAgentGroup) {
+      groups.push(message)
+      return groups
+    }
+
+    groups[groups.length - 1] = {
+      ...previous,
+      id: `${previous.id}-${message.id}`,
+      content: `${previous.content.trimEnd()}\n\n${message.content.trimStart()}`,
+      isStreaming: previous.isStreaming || message.isStreaming,
+    }
+
+    return groups
+  }, [])
+}
+
 export function ChatTerminal({ disabled, messages, mode, onQuickAction }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const visibleActions = mode === 'menu' ? WELCOME_ACTIONS : WELCOME_ACTIONS.slice(0, 1)
+  const visualMessages = useMemo(() => groupConsecutiveAgentMessages(messages), [messages])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
-      behavior: messages.length > 2 ? 'smooth' : 'auto',
+      behavior: visualMessages.length > 2 ? 'smooth' : 'auto',
       block: 'end',
     })
-  }, [messages])
+  }, [visualMessages])
 
   return (
     <section className="chat-terminal dot-grid" aria-label="Histórico da conversa">
@@ -96,6 +125,7 @@ export function ChatTerminal({ disabled, messages, mode, onQuickAction }: Props)
                   whileHover={disabled ? undefined : { y: -2 }}
                   whileTap={disabled ? undefined : { scale: 0.98 }}
                 >
+                  <span className="welcome-card-phase">fase {item.phase}</span>
                   <span className="welcome-card-icon">
                     <Icon size={18} aria-hidden="true" />
                   </span>
@@ -116,7 +146,7 @@ export function ChatTerminal({ disabled, messages, mode, onQuickAction }: Props)
       )}
 
       <AnimatePresence initial={false}>
-        {messages.map(message => (
+        {visualMessages.map(message => (
           <ChatMessage key={message.id} message={message} />
         ))}
       </AnimatePresence>

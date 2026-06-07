@@ -1,6 +1,6 @@
 import { type KeyboardEvent, useRef, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowUp, GraduationCap, RefreshCcw, Search, UserRoundCheck } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { ArrowUp } from 'lucide-react'
 import type { SessionMode } from '../types'
 
 interface Props {
@@ -8,41 +8,6 @@ interface Props {
   disabled: boolean
   mode: SessionMode
 }
-
-const MENU_ACTIONS = [
-  {
-    key: 'A',
-    title: 'Encontrar oportunidades',
-    agent: 'Scout',
-    description: 'Busca vagas compatíveis e calcula match com seu diagnóstico.',
-    icon: Search,
-    className: 'menu-scout',
-  },
-  {
-    key: 'B',
-    title: 'Mapear lacunas',
-    agent: 'Curator',
-    description: 'Identifica gaps e recomenda uma trilha de evolução.',
-    icon: GraduationCap,
-    className: 'menu-curator',
-  },
-  {
-    key: 'C',
-    title: 'Simular entrevista',
-    agent: 'Coach',
-    description: 'Treina uma entrevista direcionada ao perfil e às vagas.',
-    icon: UserRoundCheck,
-    className: 'menu-coach',
-  },
-  {
-    key: 'D',
-    title: 'Refazer diagnóstico',
-    agent: 'Maestro',
-    description: 'Atualiza área, nível, preferências e habilidades.',
-    icon: RefreshCcw,
-    className: 'menu-maestro',
-  },
-]
 
 export function ChatInput({ onSend, disabled, mode }: Props) {
   const [value, setValue] = useState('')
@@ -57,10 +22,6 @@ export function ChatInput({ onSend, disabled, mode }: Props) {
     onSend(trimmed)
     setValue('')
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
-  }
-
-  const handleQuickSend = (message: string) => {
-    if (!disabled) onSend(message)
   }
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -80,51 +41,11 @@ export function ChatInput({ onSend, disabled, mode }: Props) {
 
   return (
     <footer className="chat-input-shell">
-      <AnimatePresence>
-        {isMenu && (
-          <motion.section
-            className="menu-actions"
-            aria-label="Ações principais"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-          >
-            <div className="menu-actions-header">
-              <strong>Esteira de carreira</strong>
-              <span>Escolha a próxima etapa ou digite A, B, C ou D.</span>
-            </div>
-
-            <div className="menu-action-grid">
-              {MENU_ACTIONS.map(item => {
-                const Icon = item.icon
-
-                return (
-                  <motion.button
-                    key={item.key}
-                    type="button"
-                    className={`menu-action-card ${item.className}`}
-                    disabled={disabled}
-                    onClick={() => handleQuickSend(item.key)}
-                    whileHover={disabled ? undefined : { y: -2 }}
-                    whileTap={disabled ? undefined : { scale: 0.98 }}
-                    aria-label={`${item.key}: ${item.title} com agente ${item.agent}`}
-                  >
-                    <span className="menu-card-key">{item.key}</span>
-                    <span className="menu-card-icon">
-                      <Icon size={18} aria-hidden="true" />
-                    </span>
-                    <span className="menu-card-copy">
-                      <strong>{item.title}</strong>
-                      <small>Agente: {item.agent}</small>
-                      <em>{item.description}</em>
-                    </span>
-                  </motion.button>
-                )
-              })}
-            </div>
-          </motion.section>
-        )}
-      </AnimatePresence>
+      {isMenu && (
+        <p className="input-mode-hint">
+          Esteira visual pronta acima. Você também pode digitar A, B, C ou D.
+        </p>
+      )}
 
       <div className={`composer ${hasValue ? 'has-value' : ''}`}>
         <textarea

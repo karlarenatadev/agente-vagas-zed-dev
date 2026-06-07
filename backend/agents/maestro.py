@@ -125,6 +125,15 @@ class MaestroAgent(BaseAgent):
     """Orquestrador principal — gerencia quiz, menu e despacho de sub-agentes."""
 
     name = "Maestro"
+    COACH_EXIT_COMMANDS = {
+        "sair",
+        "encerrar",
+        "cancelar",
+        "voltar",
+        "menu",
+        "voltar ao menu",
+        "parar entrevista",
+    }
 
     def __init__(self):
         super().__init__()
@@ -612,6 +621,15 @@ class MaestroAgent(BaseAgent):
         course_recommendations = self._read_file(config.COURSE_RECS_FILE)
         session = self._read_file(config.INTERVIEW_FILE)
 
+        if self._is_coach_exit_command(message):
+            self._mark_interview_paused(session)
+            yield self._coach_pause_response()
+            yield "\n\n"
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
+
         # Extrai histórico do arquivo de sessão
         history = self._parse_interview_history(session)
 
@@ -733,6 +751,45 @@ class MaestroAgent(BaseAgent):
             f"tipo_erro: {type(exc).__name__}\n\n"
             "### erros\n"
             "Erro recuperavel no Coach. Tente iniciar a entrevista novamente.\n"
+        )
+
+    def _is_coach_exit_command(self, message: str) -> bool:
+        normalized = re.sub(r"\s+", " ", message.strip().casefold()).strip(" .!?")
+        return normalized in self.COACH_EXIT_COMMANDS
+
+    def _mark_interview_paused(self, session: str) -> None:
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+        pause_lines = [
+            "",
+            f"Status da Entrevista: pausada em {timestamp}",
+            "Progresso salvo: true",
+        ]
+
+        if session.strip():
+            content = session.rstrip() + "\n" + "\n".join(pause_lines)
+        else:
+            context = self.interview_context or "Posição baseada no seu perfil"
+            content = "\n".join([
+                f"Contexto da Vaga: {context}",
+                "Número da Pergunta: 0",
+                "Histórico de Perguntas e Respostas:",
+                *pause_lines,
+            ])
+
+        self._write_file(config.INTERVIEW_FILE, content)
+
+    def _coach_pause_response(self) -> str:
+        return (
+            "## RESPOSTA: COACH\n"
+            "### estado\n"
+            "sucesso\n\n"
+            "### resumo\n"
+            "Entrevista pausada/encerrada com sucesso.\n\n"
+            "### dados\n"
+            "progresso_salvo: true\n"
+            "proxima_acao: voltar para a esteira de carreira\n\n"
+            "### erros\n"
+            "Nenhum erro.\n"
         )
 
     def _update_interview_session(

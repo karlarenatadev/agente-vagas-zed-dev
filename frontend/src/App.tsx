@@ -1,6 +1,16 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Briefcase, FileText, PanelLeft, Sparkles, X } from 'lucide-react'
+import {
+  Briefcase,
+  FileText,
+  GraduationCap,
+  PanelLeft,
+  RefreshCcw,
+  Search,
+  Sparkles,
+  UserRoundCheck,
+  X,
+} from 'lucide-react'
 
 import { AgentBadge } from './components/AgentBadge'
 import { ChatInput } from './components/ChatInput'
@@ -23,6 +33,84 @@ const MODE_STATUS: Record<SessionMode, (step: number) => string> = {
   curator: () => 'Curator montando recomendações',
   coach: () => 'Coach conduzindo entrevista',
   agent_running: () => 'Agente especializado em execução',
+}
+
+const CAREER_ACTIONS = [
+  {
+    key: 'A',
+    title: 'Encontrar oportunidades',
+    description: 'Radar de vagas compatíveis com o perfil.',
+    icon: Search,
+    className: 'workbench-scout',
+    command: 'A',
+  },
+  {
+    key: 'B',
+    title: 'Mapear lacunas',
+    description: 'Gaps, trilha e evolução prioritária.',
+    icon: GraduationCap,
+    className: 'workbench-curator',
+    command: 'B',
+  },
+  {
+    key: 'C',
+    title: 'Simular entrevista',
+    description: 'Treino direcionado às oportunidades.',
+    icon: UserRoundCheck,
+    className: 'workbench-coach',
+    command: 'C',
+  },
+  {
+    key: 'D',
+    title: 'Refazer diagnóstico',
+    description: 'Atualizar área, nível e preferências.',
+    icon: RefreshCcw,
+    className: 'workbench-maestro',
+    command: 'D',
+  },
+]
+
+const NEXT_ACTION: Record<SessionMode, { label: string; detail: string; command: string }> = {
+  init: {
+    label: 'Iniciar diagnóstico',
+    detail: 'Monte a base que orienta vagas, lacunas e entrevista.',
+    command: 'Quero criar meu perfil profissional',
+  },
+  quiz: {
+    label: 'Concluir diagnóstico',
+    detail: 'Finalize o perfil para liberar a esteira de carreira.',
+    command: '',
+  },
+  quiz_resume: {
+    label: 'Retomar perfil',
+    detail: 'Continue ou refaça o diagnóstico antes das recomendações.',
+    command: '',
+  },
+  menu: {
+    label: 'Encontrar oportunidades',
+    detail: 'Comece pelo radar de vagas compatíveis.',
+    command: 'A',
+  },
+  scout: {
+    label: 'Mapear lacunas',
+    detail: 'Use os resultados do Scout para priorizar evolução.',
+    command: 'B',
+  },
+  curator: {
+    label: 'Simular entrevista',
+    detail: 'Treine com base nas oportunidades e lacunas.',
+    command: 'C',
+  },
+  coach: {
+    label: 'Revisar respostas',
+    detail: 'Continue a entrevista ou use o plano de preparação.',
+    command: '',
+  },
+  agent_running: {
+    label: 'Aguardar agente',
+    detail: 'A esteira está processando a etapa atual.',
+    command: '',
+  },
 }
 
 function extractCurrentQuestion(content: string): string {
@@ -61,9 +149,14 @@ export default function App() {
   }, [messages])
 
   const statusText = MODE_STATUS[session.mode]?.(session.quiz_step) ?? 'Pronto'
+  const nextAction = NEXT_ACTION[session.mode] ?? NEXT_ACTION.menu
 
   const handleQuickStart = (message: string) => {
     if (!disabled) sendMessage(message)
+  }
+
+  const handleWorkbenchAction = (command: string) => {
+    if (command) handleQuickStart(command)
   }
 
   return (
@@ -88,6 +181,7 @@ export default function App() {
 
         <div className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
           <ProfilePanel
+            activeAgent={activeAgent}
             onStartProfile={() => handleQuickStart('Quero criar meu perfil profissional')}
             onToggleCollapse={() => setSidebarCollapsed(value => !value)}
           />
@@ -158,6 +252,52 @@ export default function App() {
             </Suspense>
           ) : (
             <>
+              <section className="career-workbench" aria-label="Área de trabalho de carreira">
+                <div className="career-workbench-copy">
+                  <p className="eyebrow">
+                    <Sparkles size={13} aria-hidden="true" />
+                    Esteira de carreira
+                  </p>
+                  <h2>{nextAction.label}</h2>
+                  <span>{nextAction.detail}</span>
+                  <div className="career-signal-row" aria-label="Sinais usados pela IA">
+                    <small>Perfil</small>
+                    <small>Match</small>
+                    <small>Lacunas</small>
+                    <small>Entrevista</small>
+                  </div>
+                </div>
+
+                <div className="career-workbench-actions" aria-label="Ações principais">
+                  {CAREER_ACTIONS.map(action => {
+                    const Icon = action.icon
+                    const isRecommended = nextAction.command === action.command
+
+                    return (
+                      <motion.button
+                        key={action.key}
+                        type="button"
+                        className={`career-action-card ${action.className} ${isRecommended ? 'recommended' : ''}`}
+                        disabled={disabled}
+                        onClick={() => handleWorkbenchAction(action.command)}
+                        whileHover={disabled ? undefined : { y: -2 }}
+                        whileTap={disabled ? undefined : { scale: 0.98 }}
+                        aria-label={`${action.key}: ${action.title}`}
+                      >
+                        <span className="career-action-key" aria-hidden="true">{action.key}</span>
+                        <span className="career-action-icon">
+                          <Icon size={16} aria-hidden="true" />
+                        </span>
+                        <span>
+                          <strong>{action.title}</strong>
+                          <small>{action.description}</small>
+                        </span>
+                      </motion.button>
+                    )
+                  })}
+                </div>
+              </section>
+
               <ChatTerminal
                 disabled={disabled}
                 isStreaming={isStreaming}

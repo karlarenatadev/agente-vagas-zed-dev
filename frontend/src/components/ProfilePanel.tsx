@@ -1,19 +1,28 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
+  Bot,
   BriefcaseBusiness,
+  ChevronDown,
   ChevronLeft,
   Code2,
   Compass,
+  FileText,
+  GraduationCap,
+  LayoutDashboard,
   MapPin,
+  Radio,
+  Search,
   Sparkles,
   Target,
   UserRound,
+  UserRoundCheck,
   Zap,
 } from 'lucide-react'
-import type { UserProfile } from '../types'
+import type { AgentName, UserProfile } from '../types'
 
 interface Props {
+  activeAgent: AgentName
   onStartProfile?: () => void
   onToggleCollapse?: () => void
 }
@@ -23,6 +32,82 @@ const LEVEL_PROGRESS: Record<string, number> = {
   Pleno: 66,
   'Sênior': 100,
 }
+
+const AI_SQUAD = [
+  {
+    agent: 'Maestro',
+    role: 'Orquestrador da jornada',
+    icon: Bot,
+    className: 'squad-maestro',
+  },
+  {
+    agent: 'Scout',
+    role: 'Radar de oportunidades',
+    icon: Search,
+    className: 'squad-scout',
+  },
+  {
+    agent: 'Curator',
+    role: 'Trilha de evolução',
+    icon: GraduationCap,
+    className: 'squad-curator',
+  },
+  {
+    agent: 'Coach',
+    role: 'Treino de entrevista',
+    icon: UserRoundCheck,
+    className: 'squad-coach',
+  },
+] satisfies Array<{
+  agent: AgentName
+  role: string
+  icon: typeof Bot
+  className: string
+}>
+
+const PRODUCT_NAV = [
+  {
+    label: 'Painel',
+    helper: 'visão geral',
+    agent: 'Maestro',
+    icon: LayoutDashboard,
+    className: 'nav-maestro',
+  },
+  {
+    label: 'Oportunidades',
+    helper: 'radar de vagas',
+    agent: 'Scout',
+    icon: Search,
+    className: 'nav-scout',
+  },
+  {
+    label: 'Evolução',
+    helper: 'lacunas e trilhas',
+    agent: 'Curator',
+    icon: GraduationCap,
+    className: 'nav-curator',
+  },
+  {
+    label: 'Entrevista',
+    helper: 'simulação guiada',
+    agent: 'Coach',
+    icon: UserRoundCheck,
+    className: 'nav-coach',
+  },
+  {
+    label: 'Currículo',
+    helper: 'análise de perfil',
+    agent: 'Maestro',
+    icon: FileText,
+    className: 'nav-maestro',
+  },
+] satisfies Array<{
+  label: string
+  helper: string
+  agent: AgentName
+  icon: typeof Bot
+  className: string
+}>
 
 function splitTags(value?: string): string[] {
   return value?.split(',').map(item => item.trim()).filter(Boolean) ?? []
@@ -85,7 +170,77 @@ function TagGroup({
   )
 }
 
-export function ProfilePanel({ onStartProfile, onToggleCollapse }: Props) {
+function AISquad({ activeAgent }: { activeAgent: AgentName }) {
+  return (
+    <section className="profile-section ai-squad" aria-label="Agentes da jornada">
+      <div className="squad-header">
+        <h3>Squad de IA</h3>
+        <span>missão ativa</span>
+      </div>
+
+      <div className="squad-list">
+        {AI_SQUAD.map(item => {
+          const Icon = item.icon
+          const isActive = activeAgent === item.agent
+
+          return (
+            <div
+              key={item.agent}
+              className={`squad-agent ${item.className} ${isActive ? 'active' : ''}`}
+              aria-current={isActive ? 'step' : undefined}
+            >
+              <span className="squad-agent-icon">
+                <Icon size={15} aria-hidden="true" />
+              </span>
+              <span className="squad-agent-copy">
+                <strong>{item.agent}</strong>
+                <small>{item.role}</small>
+              </span>
+              <span className="squad-agent-status">
+                <Radio size={12} aria-hidden="true" />
+                {isActive ? 'ativo' : 'standby'}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function ProductNav({ activeAgent }: { activeAgent: AgentName }) {
+  return (
+    <nav className="product-nav" aria-label="Navegação de carreira">
+      <div className="product-nav-header">
+        <span>Workspace</span>
+        <small>Career Maze</small>
+      </div>
+
+      <div className="product-nav-list">
+        {PRODUCT_NAV.map(item => {
+          const Icon = item.icon
+          const isActive = activeAgent === item.agent
+
+          return (
+            <span
+              key={item.label}
+              className={`product-nav-item ${item.className} ${isActive ? 'active' : ''}`}
+              aria-current={isActive ? 'page' : undefined}
+            >
+              <Icon size={15} aria-hidden="true" />
+              <span>
+                <strong>{item.label}</strong>
+                <small>{item.helper}</small>
+              </span>
+            </span>
+          )
+        })}
+      </div>
+    </nav>
+  )
+}
+
+export function ProfilePanel({ activeAgent, onStartProfile, onToggleCollapse }: Props) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -164,6 +319,8 @@ export function ProfilePanel({ onStartProfile, onToggleCollapse }: Props) {
         </button>
       </div>
 
+      <ProductNav activeAgent={activeAgent} />
+
       {loading ? (
         <div className="profile-loading">
           <div className="shimmer profile-avatar-skeleton" />
@@ -223,7 +380,7 @@ export function ProfilePanel({ onStartProfile, onToggleCollapse }: Props) {
 
           <section className="profile-progress" aria-label="Nível de experiência">
             <div>
-              <span>Nível de experiência</span>
+              <span>Rota de carreira</span>
               <strong>{fields.progress}%</strong>
             </div>
             <div className="progress-track">
@@ -236,28 +393,39 @@ export function ProfilePanel({ onStartProfile, onToggleCollapse }: Props) {
             </div>
           </section>
 
-          <section className="profile-info-card">
-            <InfoRow icon={MapPin} label="Localização" value={fields.location} />
-            <InfoRow icon={Compass} label="Objetivo" value={fields.objective} />
-            <InfoRow icon={Zap} label="Modelo de trabalho" value={fields.preference} />
-          </section>
+          <AISquad activeAgent={activeAgent} />
 
-          <TagGroup label="Habilidades técnicas" items={fields.skills} />
-          <TagGroup label="Soft skills" items={fields.softSkills} variant="soft" />
+          <details className="profile-details">
+            <summary>
+              <span>Detalhes do perfil</span>
+              <ChevronDown size={15} aria-hidden="true" />
+            </summary>
 
-          {fields.targetRoles.length > 0 && (
-            <section className="profile-section">
-              <h3>Funções alvo</h3>
-              <div className="target-role-list">
-                {fields.targetRoles.map(role => (
-                  <div key={role} className="target-role-item">
-                    <Code2 size={14} aria-hidden="true" />
-                    <span>{role}</span>
+            <div className="profile-details-body">
+              <section className="profile-info-card">
+                <InfoRow icon={MapPin} label="Localização" value={fields.location} />
+                <InfoRow icon={Compass} label="Objetivo" value={fields.objective} />
+                <InfoRow icon={Zap} label="Modelo de trabalho" value={fields.preference} />
+              </section>
+
+              <TagGroup label="Habilidades técnicas" items={fields.skills} />
+              <TagGroup label="Soft skills" items={fields.softSkills} variant="soft" />
+
+              {fields.targetRoles.length > 0 && (
+                <section className="profile-section">
+                  <h3>Funções alvo</h3>
+                  <div className="target-role-list">
+                    {fields.targetRoles.map(role => (
+                      <div key={role} className="target-role-item">
+                        <Code2 size={14} aria-hidden="true" />
+                        <span>{role}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </section>
-          )}
+                </section>
+              )}
+            </div>
+          </details>
         </>
       )}
     </aside>
