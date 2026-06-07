@@ -182,9 +182,51 @@ class MaestroAgent(BaseAgent):
         ]
         self._write_file(config.PROFILE_FILE, "\n".join(lines))
 
+    def _next_quiz_step(self, answers: dict[str, str]) -> int:
+        for index, question in enumerate(QUIZ_QUESTIONS):
+            if not answers.get(question["field"], "").strip():
+                return index
+        return len(QUIZ_QUESTIONS)
+
+    def _is_profile_complete(self) -> bool:
+        profile = self._read_file(config.PROFILE_FILE)
+        if not profile.strip():
+            return False
+
+        fields: dict[str, str] = {}
+        for line in profile.splitlines():
+            if ":" not in line:
+                continue
+            key, _, value = line.partition(":")
+            normalized_key = (
+                key.strip()
+                .lower()
+                .replace("í", "i")
+                .replace("á", "a")
+                .replace("ã", "a")
+                .replace("õ", "o")
+                .replace("ó", "o")
+                .replace("ú", "u")
+                .replace("ç", "c")
+                .replace("ê", "e")
+                .replace("é", "e")
+            )
+            fields[normalized_key] = value.strip()
+
+        required_fields = [
+            "area de interesse",
+            "nivel de experiencia",
+            "habilidades atuais",
+            "funcoes alvo",
+        ]
+        if any(not fields.get(field) for field in required_fields):
+            return False
+
+        return fields.get("concluido", "").strip().lower() == "true"
+
     def _reset_data_files(self) -> None:
         """Remove arquivos de dados derivados ao refazer o quiz."""
-        for path in [config.JOB_RESULTS_FILE, config.COURSE_RECS_FILE, config.INTERVIEW_FILE]:
+        for path in [config.PROFILE_FILE, config.JOB_RESULTS_FILE, config.COURSE_RECS_FILE, config.INTERVIEW_FILE]:
             if path.exists():
                 path.unlink()
 
@@ -216,6 +258,10 @@ class MaestroAgent(BaseAgent):
 
         elif self.mode == "quiz":
             async for token in self._handle_quiz(message):
+                yield token
+
+        elif self.mode == "quiz_resume":
+            async for token in self._handle_quiz_resume(message):
                 yield token
 
         elif self.mode == "menu":
@@ -270,6 +316,42 @@ class MaestroAgent(BaseAgent):
             yield "\n__STATE__:quiz:0"
 
     # ─── Quiz ─────────────────────────────────────────────────────────────────
+
+    async def _handle_quiz_resume(self, message: str) -> AsyncGenerator[str, None]:
+        """Retoma ou reinicia um quiz incompleto salvo em data/personality-quiz.md."""
+        choice = message.strip().lower()
+
+        if choice in {"refazer", "reiniciar", "recomeçar", "recomecar"}:
+            async for token in self._handle_reset():
+                yield token
+            return
+
+        if choice not in {"continuar", "seguir", "sim"}:
+            yield "Escolha **continuar** para retomar o quiz ou **refazer** para começar de novo.\n"
+            yield "\n__STATE__:quiz_resume"
+            return
+
+        quiz_data = self._load_quiz()
+        self.quiz_answers = {
+            key: value
+            for key, value in quiz_data.items()
+            if key != "Concluído" and value.strip()
+        }
+        self.quiz_step = self._next_quiz_step(self.quiz_answers)
+
+        if self.quiz_step >= len(QUIZ_QUESTIONS):
+            self.quiz_answers["Concluído"] = "true"
+            self._save_quiz(self.quiz_answers)
+            self._generate_profile(self.quiz_answers)
+            yield "✓ Perfil consolidado a partir do quiz salvo.\n\n"
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
+
+        q = QUIZ_QUESTIONS[self.quiz_step]
+        yield f"Vamos continuar do ponto salvo.\n\n**Pergunta {self.quiz_step + 1}/7:** {q['text']}\n"
+        yield f"\n__STATE__:quiz:{self.quiz_step}:{self._encode_answers()}"
 
     async def _handle_quiz(self, message: str) -> AsyncGenerator[str, None]:
         """Processa resposta do quiz e avança para próxima pergunta."""
@@ -345,16 +427,16 @@ class MaestroAgent(BaseAgent):
 
     async def _dispatch_scout(self) -> AsyncGenerator[str, None]:
         """Despacha o agente Scout para busca de vagas."""
-        yield "\n⚔ **SCOUT** — Iniciando varredura de vagas...\n\n"
-        yield "__STATE__:agent_running:scout\n"
-
         profile = self._read_file(config.PROFILE_FILE)
-        if not profile:
+        if not profile or not self._is_profile_complete():
             yield "⚠ Perfil não encontrado. Complete o quiz primeiro.\n"
             async for token in self._show_menu():
                 yield token
             yield "\n__STATE__:menu"
             return
+
+        yield "\n⚔ **SCOUT** — Iniciando varredura de vagas...\n\n"
+        yield "__STATE__:agent_running:scout\n"
 
         scout = ScoutAgent()
         result_chunks = []
@@ -376,6 +458,13 @@ class MaestroAgent(BaseAgent):
 
     async def _dispatch_curator(self) -> AsyncGenerator[str, None]:
         """Despacha o agente Curator para busca de cursos."""
+        if not self._is_profile_complete():
+            yield "⚠ Perfil incompleto. Complete o quiz antes de buscar cursos.\n\n"
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
+
         job_results = self._read_file(config.JOB_RESULTS_FILE)
         if not job_results or "habilidades_faltantes" not in job_results:
             yield "⚠ Nenhuma lacuna de habilidade encontrada.\n"
@@ -409,8 +498,15 @@ class MaestroAgent(BaseAgent):
 
     async def _dispatch_coach_start(self) -> AsyncGenerator[str, None]:
         """Inicia a sequência de entrevista simulada (Despacho 1)."""
-        job_results = self._read_file(config.JOB_RESULTS_FILE)
         profile = self._read_file(config.PROFILE_FILE)
+        if not profile or not self._is_profile_complete():
+            yield "⚠ Perfil incompleto. Complete o quiz antes de iniciar a entrevista simulada.\n\n"
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
+
+        job_results = self._read_file(config.JOB_RESULTS_FILE)
 
         # Resolve contexto da vaga
         if job_results:

@@ -90,7 +90,13 @@ export function ProfilePanel({ onStartProfile, onToggleCollapse }: Props) {
   const [loading, setLoading] = useState(true)
 
   const loadProfile = useCallback((cancelled?: () => boolean) => {
-    fetch('/api/profile/', { cache: 'no-store' })
+    setLoading(true)
+    fetch('/api/profile/', {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+      },
+    })
       .then(response => response.json())
       .then(data => {
         if (cancelled?.()) return

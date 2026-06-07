@@ -3,7 +3,7 @@ Router de perfil — endpoints REST para leitura do perfil do usuário.
 Usado pelo frontend para exibir o painel de stats do personagem.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Response
 
 import config
 
@@ -21,8 +21,9 @@ def _parse_md_to_dict(content: str) -> dict[str, str]:
 
 
 @router.get("/")
-async def get_profile():
+async def get_profile(response: Response):
     """Retorna o perfil do usuário como JSON."""
+    response.headers["Cache-Control"] = "no-store"
     content = ""
     try:
         content = config.PROFILE_FILE.read_text(encoding="utf-8")

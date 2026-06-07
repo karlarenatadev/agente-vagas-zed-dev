@@ -2,12 +2,13 @@ import { useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { GraduationCap, MessageSquareText, Search, Sparkles, Target, UserRoundCheck } from 'lucide-react'
 import { ChatMessage } from './ChatMessage'
-import type { ChatMessage as ChatMessageType } from '../types'
+import type { ChatMessage as ChatMessageType, SessionMode } from '../types'
 
 interface Props {
   disabled: boolean
   messages: ChatMessageType[]
   isStreaming: boolean
+  mode: SessionMode
   onQuickAction: (message: string) => void
 }
 
@@ -38,8 +39,9 @@ const WELCOME_ACTIONS = [
   },
 ]
 
-export function ChatTerminal({ disabled, messages, onQuickAction }: Props) {
+export function ChatTerminal({ disabled, messages, mode, onQuickAction }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null)
+  const visibleActions = mode === 'menu' ? WELCOME_ACTIONS : WELCOME_ACTIONS.slice(0, 1)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
@@ -78,7 +80,7 @@ export function ChatTerminal({ disabled, messages, onQuickAction }: Props) {
           </div>
 
           <div className="welcome-actions">
-            {WELCOME_ACTIONS.map((item, index) => {
+            {visibleActions.map((item, index) => {
               const Icon = item.icon
 
               return (

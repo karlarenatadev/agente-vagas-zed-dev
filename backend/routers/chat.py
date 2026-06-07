@@ -28,6 +28,60 @@ from agents.maestro import MaestroAgent
 router = APIRouter()
 
 
+def _initial_session() -> dict[str, Any]:
+    return {
+        "mode": "init",
+        "quiz_step": 0,
+        "quiz_answers": {},
+        "coach_step": 0,
+        "interview_context": "",
+        "active_agent": "Maestro",
+    }
+
+
+def _session_payload(session: dict[str, Any]) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "mode": session.get("mode", "init"),
+        "quiz_step": int(session.get("quiz_step") or 0),
+        "quiz_answers": session.get("quiz_answers") or {},
+        "coach_step": int(session.get("coach_step") or 0),
+        "interview_context": session.get("interview_context") or "",
+    }
+
+    active_agent = session.get("active_agent")
+    if active_agent:
+        payload["active_agent"] = active_agent
+
+    return payload
+
+
+def _apply_state_update(session: dict[str, Any], update: dict[str, Any]) -> None:
+    mode = update.get("mode", session.get("mode", "init"))
+    session.update(update)
+
+    if mode in {"init", "quiz", "quiz_resume", "menu"}:
+        session["active_agent"] = "Maestro"
+    elif mode == "scout":
+        session["active_agent"] = "Scout"
+    elif mode == "curator":
+        session["active_agent"] = "Curator"
+    elif mode == "coach":
+        session["active_agent"] = "Coach"
+    elif mode == "agent_running":
+        session["active_agent"] = update.get("active_agent", session.get("active_agent", "Maestro"))
+
+    if mode != "coach":
+        session["coach_step"] = 0
+
+    if mode in {"init", "quiz", "quiz_resume"}:
+        session["interview_context"] = ""
+
+    if mode not in {"quiz", "quiz_resume"}:
+        session["quiz_step"] = 0
+        if mode == "init":
+            session["quiz_answers"] = {}
+
+
 def _parse_state_token(token: str) -> dict[str, Any] | None:
     """
     Extrai informações de estado de um token __STATE__:...
@@ -42,7 +96,10 @@ def _parse_state_token(token: str) -> dict[str, Any] | None:
     state: dict[str, Any] = {"mode": mode}
 
     if mode == "quiz" and len(parts) >= 2:
-        state["quiz_step"] = int(parts[1])
+        try:
+            state["quiz_step"] = int(parts[1])
+        except ValueError:
+            state["quiz_step"] = 0
         if len(parts) == 3:
             # Decodifica respostas parciais
             try:
@@ -51,7 +108,10 @@ def _parse_state_token(token: str) -> dict[str, Any] | None:
                 state["quiz_answers"] = {}
 
     elif mode == "coach" and len(parts) >= 2:
-        state["coach_step"] = int(parts[1])
+        try:
+            state["coach_step"] = int(parts[1])
+        except ValueError:
+            state["coach_step"] = 0
         if len(parts) == 3:
             state["interview_context"] = parts[2]
 
@@ -85,8 +145,8 @@ async def _send_stream_token(
 
     state_update = _parse_state_token("__STATE__:" + state_line)
     if state_update:
-        session.update(state_update)
-        await websocket.send_json({"type": "state", "content": session})
+        _apply_state_update(session, state_update)
+        await websocket.send_json({"type": "state", "content": _session_payload(session)})
 
     if separator and tail:
         await websocket.send_json({"type": "token", "content": tail})
@@ -101,13 +161,8 @@ async def websocket_chat(websocket: WebSocket):
     await websocket.accept()
 
     # Estado inicial da sessão
-    session: dict[str, Any] = {
-        "mode": "init",
-        "quiz_step": 0,
-        "quiz_answers": {},
-        "coach_step": 0,
-        "interview_context": "",
-    }
+    session = _initial_session()
+    await websocket.send_json({"type": "state", "content": _session_payload(session)})
 
     maestro = MaestroAgent()
 

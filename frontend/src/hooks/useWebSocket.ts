@@ -9,8 +9,6 @@ import type {
   WsOutgoing,
 } from '../types'
 
-const INTERNAL_AGENT_RUNNING = '__STATE__:agent_running:'
-
 const INITIAL_SESSION: SessionState = {
   mode: 'init',
   quiz_step: 0,
@@ -43,23 +41,22 @@ function agentFromSession(session: SessionState): AgentName {
   return 'Maestro'
 }
 
-function loadingKeyToAgent(key: keyof LoadingState): AgentName {
-  const map: Record<keyof LoadingState, AgentName> = {
-    scout: 'Scout',
-    curator: 'Curator',
-    coach: 'Coach',
-    maestro: 'Maestro',
+function loadingFromSession(session: SessionState): LoadingState {
+  if (session.mode !== 'agent_running' || !session.active_agent) {
+    return INITIAL_LOADING
   }
 
-  return map[key]
+  const key = session.active_agent.toLowerCase() as keyof LoadingState
+  if (!(key in INITIAL_LOADING)) {
+    return INITIAL_LOADING
+  }
+
+  return { ...INITIAL_LOADING, [key]: true }
 }
 
 export function useWebSocket() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [session, setSession] = useState<SessionState>(() => {
-    const saved = localStorage.getItem('recoloca-session')
-    return saved ? JSON.parse(saved) : INITIAL_SESSION
-  })
+  const [session, setSession] = useState<SessionState>(INITIAL_SESSION)
   const [loadingState, setLoadingState] = useState<LoadingState>(INITIAL_LOADING)
   const [isConnected, setIsConnected] = useState(false)
   const [isStreaming, setIsStreaming] = useState(false)
@@ -70,17 +67,11 @@ export function useWebSocket() {
   const streamingIdRef = useRef<string | null>(null)
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const destroyedRef = useRef(false)
-  const sessionRef = useRef(session)
   const hasConnectedRef = useRef(false)
   const activeAgentRef = useRef<AgentName>('Maestro')
 
   useEffect(() => {
-    sessionRef.current = session
     activeAgentRef.current = agentFromSession(session)
-  }, [session])
-
-  useEffect(() => {
-    localStorage.setItem('recoloca-session', JSON.stringify(session))
   }, [session])
 
   useEffect(() => {
@@ -143,18 +134,6 @@ export function useWebSocket() {
         if (data.type === 'token') {
           const token = data.content as string
 
-          if (token.startsWith(INTERNAL_AGENT_RUNNING)) {
-            const key = token.replace(INTERNAL_AGENT_RUNNING, '').trim() as keyof LoadingState
-            if (key in INITIAL_LOADING) {
-              const agent = loadingKeyToAgent(key)
-              activeAgentRef.current = agent
-              setActiveAgent(agent)
-              setLoadingState(prev => ({ ...prev, [key]: true }))
-            }
-            setIsStreaming(true)
-            return
-          }
-
           setMessages(prev => {
             const streamId = streamingIdRef.current
 
@@ -191,6 +170,7 @@ export function useWebSocket() {
 
           activeAgentRef.current = nextAgent
           setActiveAgent(nextAgent)
+          setLoadingState(loadingFromSession(nextSession))
           setSession(nextSession)
         }
 
@@ -262,7 +242,6 @@ export function useWebSocket() {
     const payload: WsOutgoing = {
       type: 'message',
       content,
-      state: sessionRef.current,
     }
 
     wsRef.current.send(JSON.stringify(payload))

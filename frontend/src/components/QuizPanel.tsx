@@ -1,8 +1,10 @@
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowRight, CheckCircle2 } from 'lucide-react'
+import type { SessionMode } from '../types'
 
 interface Props {
+  mode: Extract<SessionMode, 'quiz' | 'quiz_resume'>
   step: number
   question: string
   onAnswer: (answer: string) => void
@@ -49,13 +51,18 @@ const QUICK_OPTIONS: Record<number, string[]> = {
   5: ['Crescimento técnico', 'Transição de carreira', 'Primeiro emprego', 'Trilha de liderança'],
 }
 
-export function QuizPanel({ step, question, onAnswer, disabled }: Props) {
+export function QuizPanel({ mode, step, question, onAnswer, disabled }: Props) {
   const [value, setValue] = useState('')
   const inputRef = useRef<HTMLTextAreaElement>(null)
-  const quickOptions = QUICK_OPTIONS[step] ?? []
   const hasValue = value.trim().length > 0
   const safeStep = Math.min(Math.max(step, 0), TOTAL - 1)
-  const currentQuestion = question || FALLBACK_QUESTIONS[safeStep]
+  const isResumeMode = mode === 'quiz_resume'
+  const quickOptions = isResumeMode ? ['continuar', 'refazer'] : QUICK_OPTIONS[step] ?? []
+  const currentQuestion = question || (
+    isResumeMode
+      ? 'Você quer continuar de onde parou ou refazer o quiz?'
+      : FALLBACK_QUESTIONS[safeStep]
+  )
 
   useEffect(() => {
     window.setTimeout(() => inputRef.current?.focus(), 80)
@@ -93,20 +100,22 @@ export function QuizPanel({ step, question, onAnswer, disabled }: Props) {
     <section className="quiz-panel" aria-label="Quiz de perfil profissional">
       <div className="quiz-progress">
         <div className="quiz-progress-top">
-          <span>Criando seu perfil</span>
-          <strong>{safeStep + 1} de {TOTAL}</strong>
+          <span>{isResumeMode ? 'Perfil em andamento' : 'Criando seu perfil'}</span>
+          <strong>{isResumeMode ? 'Decisão de retomada' : `${safeStep + 1} de ${TOTAL}`}</strong>
         </div>
 
-        <div className="quiz-step-track" aria-hidden="true">
-          {Array.from({ length: TOTAL }).map((_, index) => (
-            <span
-              key={index}
-              className={index < safeStep ? 'done' : index === safeStep ? 'active' : ''}
-            />
-          ))}
-        </div>
+        {!isResumeMode && (
+          <div className="quiz-step-track" aria-hidden="true">
+            {Array.from({ length: TOTAL }).map((_, index) => (
+              <span
+                key={index}
+                className={index < safeStep ? 'done' : index === safeStep ? 'active' : ''}
+              />
+            ))}
+          </div>
+        )}
 
-        <p>{STEP_LABELS[safeStep]}</p>
+        <p>{isResumeMode ? 'Retomar ou refazer' : STEP_LABELS[safeStep]}</p>
       </div>
 
       <div className="quiz-body">

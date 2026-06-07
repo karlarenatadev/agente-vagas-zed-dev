@@ -17,7 +17,7 @@ const ApplicationTracker = lazy(() => import('./components/ApplicationTracker'))
 const MODE_STATUS: Record<SessionMode, (step: number) => string> = {
   init: () => 'Preparando a conversa',
   quiz: step => `Quiz de perfil: pergunta ${Math.min(step + 1, 7)} de 7`,
-  quiz_resume: step => `Retomando perfil: pergunta ${Math.min(step + 1, 7)} de 7`,
+  quiz_resume: () => 'Retomar ou refazer perfil',
   menu: () => 'Escolha uma ação para continuar',
   scout: () => 'Scout analisando vagas compatíveis',
   curator: () => 'Curator montando recomendações',
@@ -46,7 +46,6 @@ export default function App() {
 
   const [trackerOpen, setTrackerOpen] = useState(false)
   const [resumeModalOpen, setResumeModalOpen] = useState(false)
-  const [resumeUploadOpen, setResumeUploadOpen] = useState(true)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
     typeof window !== 'undefined'
       ? window.matchMedia('(max-width: 1024px)').matches
@@ -148,10 +147,8 @@ export default function App() {
           {isQuiz ? (
             <Suspense fallback={<div className="loading-fallback">Carregando quiz...</div>}>
               <div className="quiz-flow">
-                {resumeUploadOpen && (
-                  <ResumeUpload onContinueQuiz={() => setResumeUploadOpen(false)} />
-                )}
                 <QuizPanel
+                  mode={session.mode === 'quiz_resume' ? 'quiz_resume' : 'quiz'}
                   step={session.quiz_step}
                   question={currentQuestion}
                   onAnswer={sendMessage}
@@ -165,6 +162,7 @@ export default function App() {
                 disabled={disabled}
                 isStreaming={isStreaming}
                 messages={messages}
+                mode={session.mode}
                 onQuickAction={handleQuickStart}
               />
               <ChatInput

@@ -115,5 +115,4 @@ export interface WsIncoming {
 export interface WsOutgoing {
   type: 'message'
   content: string
-  state: SessionState
 }
