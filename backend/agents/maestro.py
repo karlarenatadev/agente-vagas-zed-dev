@@ -540,6 +540,17 @@ class MaestroAgent(BaseAgent):
             return
 
         job_results = self._read_file(config.JOB_RESULTS_FILE)
+        if not job_results or "habilidades_faltantes" not in job_results:
+            yield "⚠ Ainda não há resultados do Scout para direcionar a entrevista.\n"
+            yield "Rode a opção **A** primeiro para mapear oportunidades, lacunas e requisitos recorrentes.\n\n"
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
+
+        course_recommendations = self._read_file(config.COURSE_RECS_FILE)
+        if not course_recommendations.strip():
+            yield "ℹ A trilha do Curator ainda não foi gerada. Vou iniciar a entrevista com base no perfil e nas oportunidades; para uma preparação mais completa, rode a opção **B** depois.\n\n"
 
         # Resolve contexto da vaga
         if job_results:
@@ -566,14 +577,24 @@ class MaestroAgent(BaseAgent):
 
         coach = CoachAgent()
         result_chunks = []
-        async for token in coach.run({
-            "step": 1,
-            "profile": profile,
-            "interview_context": self.interview_context,
-            "history": [],
-        }):
-            result_chunks.append(token)
-            yield token
+        try:
+            async for token in coach.run({
+                "step": 1,
+                "profile": profile,
+                "job_results": job_results,
+                "course_recommendations": course_recommendations,
+                "interview_context": self.interview_context,
+                "history": [],
+            }):
+                result_chunks.append(token)
+                yield token
+        except Exception as exc:
+            error_response = self._coach_error_response(exc)
+            yield error_response
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
 
         coach_output = "".join(result_chunks)
         question = self._extract_coach_section(coach_output, "pergunta_atual") or self._strip_coach_text(coach_output)
@@ -587,6 +608,8 @@ class MaestroAgent(BaseAgent):
     async def _handle_coach(self, message: str) -> AsyncGenerator[str, None]:
         """Processa resposta do usuário durante a entrevista e avança para próximo passo."""
         profile = self._read_file(config.PROFILE_FILE)
+        job_results = self._read_file(config.JOB_RESULTS_FILE)
+        course_recommendations = self._read_file(config.COURSE_RECS_FILE)
         session = self._read_file(config.INTERVIEW_FILE)
 
         # Extrai histórico do arquivo de sessão
@@ -606,14 +629,23 @@ class MaestroAgent(BaseAgent):
 
             coach = CoachAgent()
             result_chunks = []
-            async for token in coach.run({
-                "step": 6,
-                "profile": profile,
-                "interview_context": self.interview_context,
-                "history": history,
-            }):
-                result_chunks.append(token)
-                yield token
+            try:
+                async for token in coach.run({
+                    "step": 6,
+                    "profile": profile,
+                    "job_results": job_results,
+                    "course_recommendations": course_recommendations,
+                    "interview_context": self.interview_context,
+                    "history": history,
+                }):
+                    result_chunks.append(token)
+                    yield token
+            except Exception as exc:
+                yield self._coach_error_response(exc)
+                async for token in self._show_menu():
+                    yield token
+                yield "\n__STATE__:menu"
+                return
 
             coach_output = "".join(result_chunks)
             feedback = self._extract_coach_section(coach_output, "feedback_anterior")
@@ -639,14 +671,23 @@ class MaestroAgent(BaseAgent):
 
             coach = CoachAgent()
             result_chunks = []
-            async for token in coach.run({
-                "step": next_step,
-                "profile": profile,
-                "interview_context": self.interview_context,
-                "history": history,
-            }):
-                result_chunks.append(token)
-                yield token
+            try:
+                async for token in coach.run({
+                    "step": next_step,
+                    "profile": profile,
+                    "job_results": job_results,
+                    "course_recommendations": course_recommendations,
+                    "interview_context": self.interview_context,
+                    "history": history,
+                }):
+                    result_chunks.append(token)
+                    yield token
+            except Exception as exc:
+                yield self._coach_error_response(exc)
+                async for token in self._show_menu():
+                    yield token
+                yield "\n__STATE__:menu"
+                return
 
             coach_output = "".join(result_chunks)
             feedback = self._extract_coach_section(coach_output, "feedback_anterior")
@@ -680,6 +721,19 @@ class MaestroAgent(BaseAgent):
                 content = match.group(3)
                 history.append({"role": role, "step": step, "content": content})
         return history
+
+    def _coach_error_response(self, exc: Exception) -> str:
+        return (
+            "## RESPOSTA: COACH\n"
+            "### estado\n"
+            "erro\n\n"
+            "### resumo\n"
+            "Nao consegui concluir a etapa da entrevista, mas o WebSocket continuou ativo.\n\n"
+            "### dados\n"
+            f"tipo_erro: {type(exc).__name__}\n\n"
+            "### erros\n"
+            "Erro recuperavel no Coach. Tente iniciar a entrevista novamente.\n"
+        )
 
     def _update_interview_session(
         self,
