@@ -387,8 +387,8 @@ textarea::placeholder {
 }
 
 .sidebar {
-  width: 300px;
-  min-width: 300px;
+  width: 280px;
+  min-width: 280px;
   height: 100%;
   transition: width 0.22s ease, min-width 0.22s ease, transform 0.22s ease;
   z-index: 30;
@@ -736,34 +736,47 @@ textarea::placeholder {
 .profile-panel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  width: 320px;
+  gap: 0;
+  width: 280px;
   height: 100%;
+  padding: 0;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(10, 14, 27, 0.98), rgba(5, 8, 22, 0.96)),
+    rgba(10, 14, 27, 0.96);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-primary {
+  flex-shrink: 0;
+  padding: 14px 12px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.sidebar-secondary {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 0;
   padding: 12px;
   overflow-y: auto;
-  background:
-    linear-gradient(180deg, rgba(11, 16, 32, 0.98), rgba(5, 8, 22, 0.94)),
-    rgba(14, 16, 24, 0.94);
-  border-right: 1px solid rgba(0, 229, 255, 0.12);
-  box-shadow: inset -1px 0 0 rgba(124, 58, 237, 0.12);
 }
 
 .profile-panel-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .product-nav {
   display: grid;
-  gap: 8px;
-  padding: 8px;
-  border: 1px solid rgba(0, 229, 255, 0.12);
-  border-radius: var(--radius-lg);
-  background:
-    linear-gradient(135deg, rgba(0, 229, 255, 0.055), rgba(124, 58, 237, 0.04)),
-    rgba(255, 255, 255, 0.026);
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .product-nav-header {
@@ -771,6 +784,7 @@ textarea::placeholder {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  padding: 0 4px;
   color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: 10px;
@@ -784,24 +798,24 @@ textarea::placeholder {
 
 .product-nav-list {
   display: grid;
-  gap: 4px;
+  gap: 2px;
 }
 
 .product-nav-item {
   --nav-color: var(--cyan);
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
+  grid-template-columns: 24px minmax(0, 1fr);
   align-items: center;
-  gap: 9px;
-  min-height: 34px;
-  padding: 5px 7px;
+  gap: 8px;
+  min-height: 32px;
+  padding: 5px 8px;
   border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   color: var(--text-secondary);
 }
 
 .product-nav-item svg {
-  color: var(--nav-color);
+  color: var(--text-muted);
 }
 
 .product-nav-item > span {
@@ -822,17 +836,23 @@ textarea::placeholder {
 
 .product-nav-item small {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: 9px;
 }
 
 .product-nav-item.active {
-  border-color: color-mix(in srgb, var(--nav-color) 34%, transparent);
-  background: color-mix(in srgb, var(--nav-color) 8%, transparent);
+  border-color: transparent;
+  background: color-mix(in srgb, var(--nav-color) 10%, transparent);
   box-shadow: inset 2px 0 0 var(--nav-color);
+  color: var(--text-primary);
+}
+
+.product-nav-item.active svg {
+  color: var(--nav-color);
 }
 
 .product-nav-item.disabled {
-  opacity: 0.48;
+  color: var(--text-ghost);
+  opacity: 0.66;
 }
 
 .nav-maestro { --nav-color: var(--violet); }
@@ -847,21 +867,26 @@ textarea::placeholder {
 }
 
 .profile-panel h2 {
-  margin-top: 4px;
-  font-size: 16px;
+  margin-top: 2px;
+  font-size: 15px;
 }
 
 .profile-loading,
-.profile-empty,
-.profile-summary,
-.profile-info-card,
-.profile-section {
+.profile-empty {
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   padding: 12px;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
     rgba(255, 255, 255, 0.035);
+}
+
+.profile-summary,
+.profile-info-card,
+.profile-section {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .profile-loading {
@@ -927,52 +952,50 @@ textarea::placeholder {
 .profile-summary {
   position: relative;
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr);
-  gap: 12px;
-  padding: 10px;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 9px;
+  padding: 0 0 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   overflow: hidden;
 }
 
 .profile-summary::after {
-  content: '';
-  position: absolute;
-  right: 14px;
-  bottom: 12px;
-  width: 76px;
-  height: 36px;
-  border-right: 1px solid rgba(0, 229, 255, 0.24);
-  border-bottom: 1px solid rgba(0, 229, 255, 0.24);
-  opacity: 0.7;
+  display: none;
 }
 
 .profile-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
   color: var(--cyan);
-  background: linear-gradient(135deg, var(--violet-soft), var(--cyan-soft));
-  border: 1px solid rgba(34, 211, 238, 0.24);
+  background: rgba(0, 229, 255, 0.08);
+  border: 1px solid rgba(34, 211, 238, 0.16);
 }
 
 .profile-summary p,
 .profile-summary span {
   margin: 0;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .profile-summary h3 {
-  margin: 3px 0;
-  font-size: 17px;
+  margin: 1px 0;
+  font-size: 14px;
+  line-height: 1.2;
 }
 
 .profile-progress {
   display: grid;
-  gap: 7px;
-  padding: 8px 10px;
-  border: 1px solid rgba(0, 229, 255, 0.14);
-  border-radius: var(--radius-lg);
-  background: rgba(0, 229, 255, 0.035);
+  gap: 6px;
+  padding: 0 0 11px;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 0;
+  background: transparent;
 }
 
 .profile-progress > div:first-child {
@@ -1004,14 +1027,14 @@ textarea::placeholder {
 
 .profile-info-card {
   display: grid;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 0;
 }
 
 .profile-info-row {
   align-items: flex-start;
-  gap: 10px;
-  color: var(--cyan);
+  gap: 8px;
+  color: var(--text-muted);
 }
 
 .profile-info-row span {
@@ -1022,20 +1045,20 @@ textarea::placeholder {
 
 .profile-info-row small {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .profile-info-row strong {
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
 
 .profile-section {
   display: grid;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 0;
 }
 
 .profile-section h3 {
@@ -1048,18 +1071,18 @@ textarea::placeholder {
 .tag-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
+  gap: 5px;
 }
 
 .profile-tag {
-  padding: 5px 9px;
+  padding: 3px 7px;
   border-radius: var(--radius-full);
-  border: 1px solid rgba(34, 211, 238, 0.22);
-  background: var(--cyan-soft);
+  border: 1px solid rgba(34, 211, 238, 0.14);
+  background: rgba(0, 229, 255, 0.055);
   color: var(--cyan);
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
-  box-shadow: inset 0 0 12px rgba(0, 229, 255, 0.06);
+  box-shadow: none;
 }
 
 .profile-tag.soft {
@@ -1070,24 +1093,27 @@ textarea::placeholder {
 
 .target-role-list {
   display: grid;
-  gap: 8px;
+  gap: 5px;
 }
 
 .target-role-item {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr);
+  grid-template-columns: 16px minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
-  padding: 9px 10px;
-  border-radius: var(--radius-md);
+  gap: 6px;
+  padding: 6px 0;
+  border-radius: 0;
   border: 1px solid rgba(255, 255, 255, 0.055);
-  background: linear-gradient(90deg, rgba(0, 229, 255, 0.055), rgba(17, 24, 39, 0.74));
+  border-width: 0 0 1px;
+  background: transparent;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .ai-squad {
-  gap: 10px;
+  gap: 6px;
+  padding: 0 0 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .squad-header {
@@ -1107,20 +1133,20 @@ textarea::placeholder {
 .squad-list {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 6px;
+  gap: 2px;
 }
 
 .squad-agent {
   --squad-color: var(--cyan);
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) auto;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 7px;
-  min-height: 36px;
-  padding: 6px 8px;
-  border: 1px solid color-mix(in srgb, var(--squad-color) 20%, transparent);
-  border-radius: var(--radius-md);
-  background: linear-gradient(90deg, color-mix(in srgb, var(--squad-color) 9%, transparent), rgba(17, 24, 39, 0.62));
+  gap: 6px;
+  min-height: 28px;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
 }
 
 .squad-maestro { --squad-color: var(--violet); }
@@ -1129,18 +1155,23 @@ textarea::placeholder {
 .squad-coach { --squad-color: var(--amber); }
 
 .squad-agent.active {
-  border-color: color-mix(in srgb, var(--squad-color) 54%, transparent);
-  box-shadow: 0 0 22px color-mix(in srgb, var(--squad-color) 16%, transparent);
+  border-color: color-mix(in srgb, var(--squad-color) 24%, transparent);
+  background: color-mix(in srgb, var(--squad-color) 8%, transparent);
+  box-shadow: inset 2px 0 0 var(--squad-color);
 }
 
 .squad-agent-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--squad-color) 12%, transparent);
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.squad-agent.active .squad-agent-icon {
   color: var(--squad-color);
 }
 
@@ -1158,21 +1189,21 @@ textarea::placeholder {
 
 .squad-agent-copy strong {
   font-size: 11px;
+  line-height: 1.2;
 }
 
 .squad-agent-copy small,
 .squad-agent-status {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: 9px;
 }
 
 .squad-agent-status {
   display: inline-flex;
-  grid-column: 1 / -1;
+  grid-column: auto;
   align-items: center;
   gap: 4px;
   font-family: var(--font-mono);
-  font-size: 9px;
   text-transform: uppercase;
 }
 
@@ -1181,9 +1212,9 @@ textarea::placeholder {
 }
 
 .profile-details {
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.03);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .profile-details summary {
@@ -1191,8 +1222,8 @@ textarea::placeholder {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  min-height: 42px;
-  padding: 0 12px;
+  min-height: 34px;
+  padding: 0;
   color: var(--text-secondary);
   cursor: pointer;
   font-size: 12px;
@@ -1215,8 +1246,8 @@ textarea::placeholder {
 
 .profile-details-body {
   display: grid;
-  gap: 10px;
-  padding: 0 10px 10px;
+  gap: 12px;
+  padding: 6px 0 4px;
 }
 
 .target-role-item svg {
@@ -2461,15 +2492,15 @@ textarea::placeholder {
   .sidebar {
     position: absolute;
     inset: 0 auto 0 0;
-    width: min(320px, 88vw);
-    min-width: min(320px, 88vw);
+    width: min(280px, 88vw);
+    min-width: min(280px, 88vw);
     transform: translateX(0);
     box-shadow: 18px 0 50px rgba(0, 0, 0, 0.32);
   }
 
   .sidebar.collapsed {
-    width: min(320px, 88vw);
-    min-width: min(320px, 88vw);
+    width: min(280px, 88vw);
+    min-width: min(280px, 88vw);
     transform: translateX(-105%);
   }
 

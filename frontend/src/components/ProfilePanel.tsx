@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
+  Bookmark,
   Bot,
   BriefcaseBusiness,
   ChevronDown,
@@ -67,6 +68,7 @@ const AI_SQUAD = [
 
 const PRODUCT_NAV = [
   {
+    key: 'dashboard',
     label: 'Painel',
     helper: 'visão geral',
     agent: 'Maestro',
@@ -74,6 +76,7 @@ const PRODUCT_NAV = [
     className: 'nav-maestro',
   },
   {
+    key: 'opportunities',
     label: 'Oportunidades',
     helper: 'radar de vagas',
     agent: 'Scout',
@@ -81,6 +84,7 @@ const PRODUCT_NAV = [
     className: 'nav-scout',
   },
   {
+    key: 'growth',
     label: 'Evolução',
     helper: 'lacunas e trilhas',
     agent: 'Curator',
@@ -88,6 +92,7 @@ const PRODUCT_NAV = [
     className: 'nav-curator',
   },
   {
+    key: 'interview',
     label: 'Entrevista',
     helper: 'simulação guiada',
     agent: 'Coach',
@@ -95,18 +100,30 @@ const PRODUCT_NAV = [
     className: 'nav-coach',
   },
   {
+    key: 'resume',
     label: 'Currículo',
     helper: 'análise de perfil',
     agent: 'Maestro',
     icon: FileText,
     className: 'nav-maestro',
   },
+  {
+    key: 'saved',
+    label: 'Salvos',
+    helper: 'em breve',
+    agent: 'Maestro',
+    icon: Bookmark,
+    className: 'nav-disabled',
+    disabled: true,
+  },
 ] satisfies Array<{
+  key: string
   label: string
   helper: string
   agent: AgentName
   icon: typeof Bot
   className: string
+  disabled?: boolean
 }>
 
 function splitTags(value?: string): string[] {
@@ -187,6 +204,7 @@ function AISquad({ activeAgent }: { activeAgent: AgentName }) {
             <div
               key={item.agent}
               className={`squad-agent ${item.className} ${isActive ? 'active' : ''}`}
+              title={item.role}
               aria-current={isActive ? 'step' : undefined}
             >
               <span className="squad-agent-icon">
@@ -194,7 +212,7 @@ function AISquad({ activeAgent }: { activeAgent: AgentName }) {
               </span>
               <span className="squad-agent-copy">
                 <strong>{item.agent}</strong>
-                <small>{item.role}</small>
+                <small>{isActive ? 'ativo' : 'standby'}</small>
               </span>
               <span className="squad-agent-status">
                 <Radio size={12} aria-hidden="true" />
@@ -209,6 +227,14 @@ function AISquad({ activeAgent }: { activeAgent: AgentName }) {
 }
 
 function ProductNav({ activeAgent }: { activeAgent: AgentName }) {
+  const activeKey = activeAgent === 'Scout'
+    ? 'opportunities'
+    : activeAgent === 'Curator'
+      ? 'growth'
+      : activeAgent === 'Coach'
+        ? 'interview'
+        : 'dashboard'
+
   return (
     <nav className="product-nav" aria-label="Navegação de carreira">
       <div className="product-nav-header">
@@ -219,13 +245,14 @@ function ProductNav({ activeAgent }: { activeAgent: AgentName }) {
       <div className="product-nav-list">
         {PRODUCT_NAV.map(item => {
           const Icon = item.icon
-          const isActive = activeAgent === item.agent
+          const isActive = !item.disabled && activeKey === item.key
 
           return (
             <span
               key={item.label}
-              className={`product-nav-item ${item.className} ${isActive ? 'active' : ''}`}
+              className={`product-nav-item ${item.className} ${isActive ? 'active' : ''} ${item.disabled ? 'disabled' : ''}`}
               aria-current={isActive ? 'page' : undefined}
+              aria-disabled={item.disabled ? 'true' : undefined}
             >
               <Icon size={15} aria-hidden="true" />
               <span>
@@ -303,25 +330,28 @@ export function ProfilePanel({ activeAgent, onStartProfile, onToggleCollapse }: 
 
   return (
     <aside className="profile-panel" aria-label="Perfil profissional usado pela IA">
-      <div className="profile-panel-header">
-        <div>
-          <p className="eyebrow">Perfil profissional</p>
-          <h2>Base usada pela IA</h2>
+      <div className="sidebar-primary">
+        <div className="profile-panel-header">
+          <div>
+            <p className="eyebrow">import vagas</p>
+            <h2>Career Maze</h2>
+          </div>
+
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="Recolher painel de perfil"
+            onClick={onToggleCollapse}
+          >
+            <ChevronLeft size={17} />
+          </button>
         </div>
 
-        <button
-          className="icon-button"
-          type="button"
-          aria-label="Recolher painel de perfil"
-          onClick={onToggleCollapse}
-        >
-          <ChevronLeft size={17} />
-        </button>
+        <ProductNav activeAgent={activeAgent} />
       </div>
 
-      <ProductNav activeAgent={activeAgent} />
-
-      {loading ? (
+      <div className="sidebar-secondary">
+        {loading ? (
         <div className="profile-loading">
           <div className="shimmer profile-avatar-skeleton" />
           <SkeletonLine width="72%" />
@@ -359,7 +389,11 @@ export function ProfilePanel({ activeAgent, onStartProfile, onToggleCollapse }: 
             <div>
               <p>{fields.area || 'Área a confirmar'}</p>
               <h3>{fields.level || 'Nível a confirmar'}</h3>
-              <span>{fields.completed ? fields.preference : 'Rascunho do perfil'}</span>
+              <span>
+                {fields.completed
+                  ? [fields.location, fields.preference].filter(Boolean).join(' / ') || 'Local e modelo a confirmar'
+                  : 'Rascunho do perfil'}
+              </span>
             </div>
           </section>
 
@@ -427,7 +461,8 @@ export function ProfilePanel({ activeAgent, onStartProfile, onToggleCollapse }: 
             </div>
           </details>
         </>
-      )}
+        )}
+      </div>
     </aside>
   )
 }
