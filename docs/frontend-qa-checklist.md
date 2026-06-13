@@ -68,3 +68,18 @@ Este roteiro cobre a identidade Career Arcade Pipeline e a regressão dos fluxos
 * [ ] Confirmar que ChatTerminal é carregado sob demanda.
 * [ ] Registrar o tamanho do bundle principal após o build.
 * [ ] Confirmar que nenhuma dependência pesada foi adicionada.
+
+## Polimento final de responsividade
+
+* [ ] Não existe scroll horizontal em `390x844`.
+* [ ] Não existe scroll horizontal em `360x800`.
+* [ ] Sidebar vira layout compacto em mobile.
+* [ ] Header não sobrepõe botões em mobile.
+* [ ] Pipeline vira lista vertical em mobile.
+* [ ] Cards da pipeline não cortam texto.
+* [ ] Tags longas quebram linha.
+* [ ] Modal de vaga cabe na tela.
+* [ ] Chat/input não cobre conteúdo.
+* [ ] Botões principais têm área de toque confortável.
+* [ ] Fundo arcade não prejudica leitura no mobile.
+* [ ] Foco por teclado continua visível.

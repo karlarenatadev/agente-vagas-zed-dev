@@ -8,6 +8,7 @@ interface Props {
   isConnected: boolean
   isStreaming: boolean
   mode: SessionMode
+  onGoHome: () => void
 }
 
 const CONNECTION_LABEL: Record<ConnectionStatus, string> = {
@@ -34,6 +35,7 @@ export function StatusBar({
   isConnected,
   isStreaming,
   mode,
+  onGoHome,
 }: Props) {
   const connected = isConnected && connectionStatus === 'connected'
   const connectionIcon = connected ? CheckCircle2 : connectionStatus === 'offline' ? CloudOff : Loader2
@@ -41,7 +43,12 @@ export function StatusBar({
 
   return (
     <header className="status-bar">
-      <div className="brand-lockup" aria-label="import vagas">
+      <button
+        type="button"
+        className="brand-lockup"
+        aria-label="Voltar para o painel inicial"
+        onClick={onGoHome}
+      >
         <div className="brand-mark" aria-hidden="true">
           <BriefcaseBusiness size={18} />
         </div>
@@ -53,7 +60,7 @@ export function StatusBar({
           </div>
           <span className="brand-subtitle">multi-agente de carreira</span>
         </div>
-      </div>
+      </button>
 
       <AnimatePresence mode="wait">
         <motion.div

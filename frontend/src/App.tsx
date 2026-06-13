@@ -77,6 +77,31 @@ export default function App() {
     if (!disabled) sendMessage(message)
   }
 
+  const closeOverlays = () => {
+    setTrackerOpen(false)
+    setResumeModalOpen(false)
+    setJobAnalyzerOpen(false)
+  }
+
+  const handleGoHome = () => {
+    closeOverlays()
+    if (window.matchMedia('(max-width: 1024px)').matches) {
+      setSidebarCollapsed(true)
+    }
+    document.querySelector('.main-content')?.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handleSidebarNavigate = (key: string) => {
+    closeOverlays()
+    if (key === 'opportunities') handleQuickStart('A')
+    if (key === 'growth') handleQuickStart('B')
+    if (key === 'interview') handleQuickStart('C')
+    if (key === 'resume') setResumeModalOpen(true)
+    if (window.matchMedia('(max-width: 1024px)').matches) {
+      setSidebarCollapsed(true)
+    }
+  }
+
   return (
     <div className="app-shell arcade-shell noise">
       <div className="arcade-background" aria-hidden="true">
@@ -89,6 +114,7 @@ export default function App() {
         isConnected={isConnected}
         isStreaming={isStreaming}
         mode={session.mode}
+        onGoHome={handleGoHome}
       />
 
       <div className="main-layout">
@@ -106,6 +132,7 @@ export default function App() {
             activeAgent={activeAgent}
             onStartProfile={() => handleQuickStart('Quero criar meu perfil profissional')}
             onToggleCollapse={() => setSidebarCollapsed(value => !value)}
+            onNavigate={handleSidebarNavigate}
           />
         </div>
 

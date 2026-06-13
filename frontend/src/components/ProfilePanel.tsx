@@ -27,6 +27,7 @@ interface Props {
   activeAgent: AgentName
   onStartProfile?: () => void
   onToggleCollapse?: () => void
+  onNavigate: (key: string) => void
 }
 
 const LEVEL_PROGRESS: Record<string, number> = {
@@ -226,7 +227,13 @@ function AISquad({ activeAgent }: { activeAgent: AgentName }) {
   )
 }
 
-function ProductNav({ activeAgent }: { activeAgent: AgentName }) {
+function ProductNav({
+  activeAgent,
+  onNavigate,
+}: {
+  activeAgent: AgentName
+  onNavigate: (key: string) => void
+}) {
   const activeKey = activeAgent === 'Scout'
     ? 'opportunities'
     : activeAgent === 'Curator'
@@ -247,12 +254,12 @@ function ProductNav({ activeAgent }: { activeAgent: AgentName }) {
           const Icon = item.icon
           const isActive = !item.disabled && activeKey === item.key
 
-          return (
+          return item.disabled ? (
             <span
               key={item.label}
               className={`product-nav-item ${item.className} ${isActive ? 'active' : ''} ${item.disabled ? 'disabled' : ''}`}
               aria-current={isActive ? 'page' : undefined}
-              aria-disabled={item.disabled ? 'true' : undefined}
+              aria-disabled="true"
             >
               <Icon size={15} aria-hidden="true" />
               <span>
@@ -260,6 +267,20 @@ function ProductNav({ activeAgent }: { activeAgent: AgentName }) {
                 <small>{item.helper}</small>
               </span>
             </span>
+          ) : (
+            <button
+              type="button"
+              key={item.label}
+              className={`product-nav-item ${item.className} ${isActive ? 'active' : ''}`}
+              aria-current={isActive ? 'page' : undefined}
+              onClick={() => onNavigate(item.key)}
+            >
+              <Icon size={15} aria-hidden="true" />
+              <span>
+                <strong>{item.label}</strong>
+                <small>{item.helper}</small>
+              </span>
+            </button>
           )
         })}
       </div>
@@ -267,7 +288,12 @@ function ProductNav({ activeAgent }: { activeAgent: AgentName }) {
   )
 }
 
-export function ProfilePanel({ activeAgent, onStartProfile, onToggleCollapse }: Props) {
+export function ProfilePanel({
+  activeAgent,
+  onStartProfile,
+  onToggleCollapse,
+  onNavigate,
+}: Props) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -349,7 +375,7 @@ export function ProfilePanel({ activeAgent, onStartProfile, onToggleCollapse }: 
           </button>
         </div>
 
-        <ProductNav activeAgent={activeAgent} />
+        <ProductNav activeAgent={activeAgent} onNavigate={onNavigate} />
       </div>
 
       <div className="sidebar-secondary">
