@@ -1,7 +1,10 @@
 import { useState } from 'react'
-import { AlertCircle, BriefcaseBusiness, CheckCircle2, Loader2, Search } from 'lucide-react'
+import { BriefcaseBusiness, Loader2, Search } from 'lucide-react'
 import type { JobDescriptionAnalysis, ResumeMatchReport as ResumeMatchReportData } from '../types'
 import { ResumeMatchReport } from './ResumeMatchReport'
+import { FeedbackState } from './ui/FeedbackState'
+import { SectionCard } from './ui/SectionCard'
+import { SkillTag } from './ui/SkillTag'
 
 const MIN_DESCRIPTION_LENGTH = 40
 
@@ -9,12 +12,11 @@ function ResultList({ title, items }: { title: string; items: string[] }) {
   if (!items.length) return null
 
   return (
-    <section className="job-analysis-section">
-      <h3>{title}</h3>
+    <SectionCard title={title}>
       <ul>
         {items.map(item => <li key={`${title}-${item}`}>{item}</li>)}
       </ul>
-    </section>
+    </SectionCard>
   )
 }
 
@@ -30,21 +32,28 @@ function JobAnalysisResult({ analysis }: { analysis: JobDescriptionAnalysis }) {
       </div>
 
       {!!analysis.keywords.length && (
-        <section className="job-analysis-section">
-          <h3>Palavras-chave principais</h3>
+        <SectionCard
+          title="Palavras-chave principais"
+          description="Termos que ajudam a entender o foco real da oportunidade."
+        >
           <div className="job-analysis-tags">
-            {analysis.keywords.map(keyword => <span key={keyword}>{keyword}</span>)}
+            {analysis.keywords.map(keyword => (
+              <SkillTag key={keyword} variant="partial">{keyword}</SkillTag>
+            ))}
           </div>
-        </section>
+        </SectionCard>
       )}
 
       {!!analysis.alerts.length && (
-        <section className="job-analysis-alerts">
-          <h3><AlertCircle size={15} aria-hidden="true" /> Alertas</h3>
+        <SectionCard
+          title="Pontos de atenção"
+          description="Sinais que merecem uma leitura cuidadosa antes da candidatura."
+          variant="warning"
+        >
           <ul>
             {analysis.alerts.map(alert => <li key={alert}>{alert}</li>)}
           </ul>
-        </section>
+        </SectionCard>
       )}
 
       <div className="job-analysis-grid">
@@ -73,7 +82,7 @@ export function JobDescriptionAnalyzer() {
   const analyze = async () => {
     const cleanDescription = description.trim()
     if (cleanDescription.length < MIN_DESCRIPTION_LENGTH) {
-      setError('Cole uma descrição de vaga com pelo menos 40 caracteres.')
+      setError('Texto muito curto. Cole uma descrição mais completa da vaga para análise.')
       return
     }
 
@@ -95,6 +104,7 @@ export function JobDescriptionAnalyzer() {
       setAnalysis(data as JobDescriptionAnalysis)
       setMatchReport(null)
       setMatchError('')
+      window.dispatchEvent(new Event('pipeline-updated'))
     } catch (requestError) {
       console.error('Falha na análise da descrição da vaga:', requestError)
       setError(
@@ -125,6 +135,7 @@ export function JobDescriptionAnalyzer() {
         throw new Error(data.detail || 'Não foi possível comparar a vaga com o currículo.')
       }
       setMatchReport(data as ResumeMatchReportData)
+      window.dispatchEvent(new Event('pipeline-updated'))
     } catch (requestError) {
       console.error('Falha na comparação da vaga com o currículo:', requestError)
       setMatchError(
@@ -144,9 +155,10 @@ export function JobDescriptionAnalyzer() {
           <BriefcaseBusiness size={22} />
         </div>
         <div>
+          <h3>Cole a descrição da vaga e descubra o que ela realmente está pedindo.</h3>
           <p>
-            Cole o anúncio completo. A análise local identifica requisitos, ferramentas,
-            responsabilidades e sinais de senioridade sem depender de API externa.
+            Vamos transformar o anúncio em requisitos, palavras-chave e próximos movimentos.
+            A análise funciona localmente, mesmo sem uma API externa.
           </p>
         </div>
       </div>
@@ -168,17 +180,15 @@ export function JobDescriptionAnalyzer() {
       </label>
 
       {error && (
-        <div className="resume-upload-message error" role="alert">
-          <AlertCircle size={15} aria-hidden="true" />
-          <span>{error}</span>
-        </div>
+        <FeedbackState tone="error" title={error} description="Revise o texto e tente novamente." />
       )}
 
       {analysis && (
-        <div className="job-analysis-saved" role="status">
-          <CheckCircle2 size={15} aria-hidden="true" />
-          Análise salva em data/job-description-analysis.md
-        </div>
+        <FeedbackState
+          tone="success"
+          title="Etapa concluída"
+          description="A vaga foi mapeada. Agora você pode comparar com seu currículo."
+        />
       )}
 
       <div className="job-analyzer-actions">
@@ -191,9 +201,17 @@ export function JobDescriptionAnalyzer() {
           {loading
             ? <Loader2 size={16} className="spin" aria-hidden="true" />
             : <Search size={16} aria-hidden="true" />}
-          {loading ? 'Analisando...' : 'Analisar descrição'}
+          {loading ? 'Lendo o mapa da vaga...' : 'Analisar descrição'}
         </button>
       </div>
+
+      {loading && (
+        <FeedbackState
+          tone="loading"
+          title="Lendo o mapa da vaga..."
+          description="Identificando requisitos, ferramentas e sinais de senioridade."
+        />
+      )}
 
       {analysis && (
         <>

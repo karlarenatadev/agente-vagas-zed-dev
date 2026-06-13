@@ -121,6 +121,7 @@ export function ResumeUpload({ onContinueQuiz }: Props) {
       setMessage(data.message)
       setStatus('success')
       window.dispatchEvent(new Event('profile-updated'))
+      window.dispatchEvent(new Event('pipeline-updated'))
     } catch (error) {
       console.error('Falha no upload do currículo:', error)
       setStatus('error')

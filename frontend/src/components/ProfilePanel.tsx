@@ -21,6 +21,7 @@ import {
   Zap,
 } from 'lucide-react'
 import type { AgentName, UserProfile } from '../types'
+import { SkillTag } from './ui/SkillTag'
 
 interface Props {
   activeAgent: AgentName
@@ -174,12 +175,11 @@ function TagGroup({
         {items.map((item, index) => (
           <motion.span
             key={`${label}-${item}`}
-            className={`profile-tag ${variant}`}
             initial={{ opacity: 0, scale: 0.92 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: index * 0.025 }}
           >
-            {item}
+            <SkillTag variant={variant === 'soft' ? 'partial' : 'safe'}>{item}</SkillTag>
           </motion.span>
         ))}
       </div>

@@ -28,13 +28,6 @@ const MODE_LABEL: Record<SessionMode, string> = {
   agent_running: 'Processando',
 }
 
-const ROUTE_STEPS: Array<{ key: string; label: string; modes: SessionMode[] }> = [
-  { key: 'diagnostico', label: 'Diagnóstico', modes: ['init', 'quiz', 'quiz_resume'] },
-  { key: 'oportunidades', label: 'Oportunidades', modes: ['menu', 'scout'] },
-  { key: 'evolucao', label: 'Evolução', modes: ['curator'] },
-  { key: 'entrevista', label: 'Entrevista', modes: ['coach'] },
-]
-
 export function StatusBar({
   activeAgent,
   connectionStatus,
@@ -45,7 +38,6 @@ export function StatusBar({
   const connected = isConnected && connectionStatus === 'connected'
   const connectionIcon = connected ? CheckCircle2 : connectionStatus === 'offline' ? CloudOff : Loader2
   const ConnectionIcon = connectionIcon
-  const activeRouteIndex = Math.max(0, ROUTE_STEPS.findIndex(step => step.modes.includes(mode)))
 
   return (
     <header className="status-bar">
@@ -80,18 +72,6 @@ export function StatusBar({
           <span>{isStreaming ? `${activeAgent} respondendo` : MODE_LABEL[mode]}</span>
         </motion.div>
       </AnimatePresence>
-
-      <nav className="hud-route" aria-label="Esteira de carreira">
-        {ROUTE_STEPS.map((step, index) => (
-          <span
-            key={step.key}
-            className={`hud-route-step ${index <= activeRouteIndex ? 'reached' : ''} ${index === activeRouteIndex ? 'current' : ''}`}
-          >
-            <span aria-hidden="true" />
-            <small>{step.label}</small>
-          </span>
-        ))}
-      </nav>
 
       <div className={`connection-chip ${connected ? 'connected' : 'offline'}`}>
         <ConnectionIcon size={14} className={connectionStatus === 'connecting' || connectionStatus === 'reconnecting' ? 'spin' : ''} />

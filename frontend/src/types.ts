@@ -187,6 +187,13 @@ export interface JobApplication {
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'offline'
 
+export type PipelineStatus =
+  | 'completed'
+  | 'available'
+  | 'pending'
+  | 'blocked'
+  | 'error'
+
 export type WsMessageType = 'token' | 'state' | 'done' | 'error'
 
 export interface WsIncoming {

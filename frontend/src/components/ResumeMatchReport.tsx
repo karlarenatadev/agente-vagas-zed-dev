@@ -1,13 +1,14 @@
 import {
-  AlertCircle,
   CheckCircle2,
   Loader2,
   Scale,
-  ShieldAlert,
   Sparkles,
 } from 'lucide-react'
 import type { ResumeMatchReport as ResumeMatchReportData } from '../types'
 import { ResumeTailoringSuggestions } from './ResumeTailoringSuggestions'
+import { FeedbackState } from './ui/FeedbackState'
+import { SectionCard } from './ui/SectionCard'
+import { SkillTag } from './ui/SkillTag'
 
 interface Props {
   report: ResumeMatchReportData | null
@@ -26,14 +27,19 @@ function TagGroup({
   variant: 'strong' | 'partial' | 'missing'
 }) {
   return (
-    <section className={`match-tag-group ${variant}`}>
-      <h4>{title}</h4>
+    <SectionCard
+      title={title}
+      className={`match-tag-group ${variant}`}
+      variant={variant === 'missing' ? 'danger' : variant === 'partial' ? 'warning' : 'success'}
+    >
       <div>
         {items.length
-          ? items.map(item => <span key={`${title}-${item}`}>{item}</span>)
+          ? items.map(item => (
+            <SkillTag key={`${title}-${item}`} variant={variant}>{item}</SkillTag>
+          ))
           : <small>Nenhum item</small>}
       </div>
-    </section>
+    </SectionCard>
   )
 }
 
@@ -49,12 +55,15 @@ function MatchList({
   if (!items.length) return null
 
   return (
-    <section className={`match-list ${critical ? 'critical' : ''}`}>
-      <h4>{critical && <ShieldAlert size={14} aria-hidden="true" />}{title}</h4>
+    <SectionCard
+      title={title}
+      className={`match-list ${critical ? 'critical' : ''}`}
+      variant={critical ? 'danger' : 'default'}
+    >
       <ul>
         {items.map(item => <li key={`${title}-${item}`}>{item}</li>)}
       </ul>
-    </section>
+    </SectionCard>
   )
 }
 
@@ -66,8 +75,8 @@ export function ResumeMatchReport({ report, loading, error, onCompare }: Props) 
           <p className="eyebrow"><Scale size={13} aria-hidden="true" /> Próxima etapa</p>
           <h3>Comparar vaga com meu currículo</h3>
           <p>
-            O match usa apenas evidências presentes nas análises salvas. Ausências e indícios
-            parciais nunca são tratados como experiência profissional.
+            Descubra o quanto seu currículo conversa com essa vaga. Só usamos evidências
+            encontradas nos artefatos salvos.
           </p>
         </div>
         <button
@@ -84,10 +93,19 @@ export function ResumeMatchReport({ report, loading, error, onCompare }: Props) 
       </div>
 
       {error && (
-        <div className="resume-upload-message error" role="alert">
-          <AlertCircle size={15} aria-hidden="true" />
-          <span>{error}</span>
-        </div>
+        <FeedbackState
+          tone="error"
+          title={error}
+          description="Antes de comparar, precisamos de currículo e vaga analisados."
+        />
+      )}
+
+      {loading && (
+        <FeedbackState
+          tone="loading"
+          title="Cruzando as rotas..."
+          description="Comparando evidências fortes, parciais e ausentes."
+        />
       )}
 
       {report && (
@@ -102,9 +120,9 @@ export function ResumeMatchReport({ report, loading, error, onCompare }: Props) 
               <span>/100</span>
             </div>
             <div>
-              <span>Nível de prontidão</span>
+              <span>Score de aderência</span>
               <h3>{report.readiness_level}</h3>
-              <p>{report.job_title}</p>
+              <p>O quanto seu currículo conversa com {report.job_title}.</p>
             </div>
           </div>
 
@@ -117,9 +135,9 @@ export function ResumeMatchReport({ report, loading, error, onCompare }: Props) 
           </div>
 
           <div className="match-evidence-grid">
-            <TagGroup title="Evidência forte" items={report.strong_evidence} variant="strong" />
-            <TagGroup title="Evidência parcial" items={report.partial_evidence} variant="partial" />
-            <TagGroup title="Ausente" items={report.missing_requirements} variant="missing" />
+            <TagGroup title="Evidência forte: aparece claramente no currículo" items={report.strong_evidence} variant="strong" />
+            <TagGroup title="Evidência parcial: existe indício" items={report.partial_evidence} variant="partial" />
+            <TagGroup title="Ausente: falta evidência suficiente" items={report.missing_requirements} variant="missing" />
           </div>
 
           <div className="match-detail-grid">
@@ -140,7 +158,7 @@ export function ResumeMatchReport({ report, loading, error, onCompare }: Props) 
             <MatchList title="Próximos passos" items={report.next_steps} />
           </div>
 
-          <MatchList title="Não afirmar ainda" items={report.do_not_claim} critical />
+          <MatchList title="Não afirmar ainda: espere até ter evidência real" items={report.do_not_claim} critical />
 
           <div className="job-analysis-saved" role="status">
             <CheckCircle2 size={15} aria-hidden="true" />

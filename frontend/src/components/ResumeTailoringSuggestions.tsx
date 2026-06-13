@@ -1,30 +1,14 @@
 import { useState } from 'react'
 import {
-  AlertCircle,
   Check,
-  Clipboard,
   FilePenLine,
   Loader2,
-  ShieldAlert,
+  Map,
 } from 'lucide-react'
 import type { ResumeTailoringSuggestions as TailoringData } from '../types'
-import { PdiPlan } from './PdiPlan'
-
-async function copyText(value: string): Promise<void> {
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(value)
-    return
-  }
-
-  const textarea = document.createElement('textarea')
-  textarea.value = value
-  textarea.style.position = 'fixed'
-  textarea.style.opacity = '0'
-  document.body.appendChild(textarea)
-  textarea.select()
-  document.execCommand('copy')
-  textarea.remove()
-}
+import { CopyButton } from './ui/CopyButton'
+import { FeedbackState } from './ui/FeedbackState'
+import { SectionCard } from './ui/SectionCard'
 
 function CopyableSection({
   title,
@@ -35,33 +19,19 @@ function CopyableSection({
   items: string[]
   critical?: boolean
 }) {
-  const [copied, setCopied] = useState(false)
-
-  const copy = async () => {
-    try {
-      await copyText(items.map(item => `- ${item}`).join('\n'))
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 1600)
-    } catch {
-      setCopied(false)
-    }
-  }
-
   if (!items.length) return null
 
   return (
-    <section className={`tailoring-section ${critical ? 'critical' : ''}`}>
-      <div className="tailoring-section-header">
-        <h4>{critical && <ShieldAlert size={14} aria-hidden="true" />}{title}</h4>
-        <button type="button" onClick={copy} aria-label={`Copiar ${title}`}>
-          {copied ? <Check size={13} /> : <Clipboard size={13} />}
-          {copied ? 'Copiado' : 'Copiar'}
-        </button>
-      </div>
+    <SectionCard
+      title={title}
+      className={`tailoring-section ${critical ? 'critical' : ''}`}
+      variant={critical ? 'danger' : 'default'}
+      action={<CopyButton value={items.map(item => `- ${item}`).join('\n')} label={title} />}
+    >
       <ul>
         {items.map(item => <li key={`${title}-${item}`}>{item}</li>)}
       </ul>
-    </section>
+    </SectionCard>
   )
 }
 
@@ -88,6 +58,7 @@ export function ResumeTailoringSuggestions() {
         throw new Error(result.detail || 'Não foi possível gerar as sugestões.')
       }
       setData(result as TailoringData)
+      window.dispatchEvent(new Event('pipeline-updated'))
     } catch (requestError) {
       console.error('Falha ao gerar sugestões de currículo:', requestError)
       setError(
@@ -107,8 +78,8 @@ export function ResumeTailoringSuggestions() {
           <p className="eyebrow"><FilePenLine size={13} aria-hidden="true" /> Currículo seguro</p>
           <h3>Sugerir ajustes no currículo</h3>
           <p>
-            Organiza melhorias apoiadas nas evidências do currículo. Nenhuma experiência,
-            empresa, certificação ou domínio é criado automaticamente.
+            Melhore a forma de apresentar o que você já tem. Aqui não inventamos experiência:
+            apenas reposicionamos evidências reais.
           </p>
         </div>
         <button
@@ -125,10 +96,19 @@ export function ResumeTailoringSuggestions() {
       </div>
 
       {error && (
-        <div className="resume-upload-message error" role="alert">
-          <AlertCircle size={15} aria-hidden="true" />
-          <span>{error}</span>
-        </div>
+        <FeedbackState
+          tone="error"
+          title={error}
+          description="Conclua o match antes de pedir os ajustes."
+        />
+      )}
+
+      {loading && (
+        <FeedbackState
+          tone="loading"
+          title="Organizando evidências..."
+          description="Separando o que pode entrar, o que precisa de cuidado e o que ainda falta comprovar."
+        />
       )}
 
       {data && (
@@ -163,7 +143,13 @@ export function ResumeTailoringSuggestions() {
             Sugestões salvas em data/resume-tailoring-suggestions.md
           </div>
 
-          <PdiPlan />
+          <div className="future-step-callout">
+            <Map size={17} aria-hidden="true" />
+            <span>
+              <strong>Próximo movimento: PDI personalizado</strong>
+              <small>Esta fase futura vai transformar as lacunas em um plano de evolução por vaga.</small>
+            </span>
+          </div>
         </div>
       )}
     </section>

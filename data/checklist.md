@@ -547,3 +547,30 @@ Uma etapa só deve ser considerada pronta quando:
 * [ ] Existe uma forma clara de testar manualmente.
 * [ ] Nenhum fluxo anterior foi quebrado.
 * [ ] A documentação foi atualizada quando necessário.
+
+---
+
+# 12. Career Arcade Pipeline
+
+## Identidade e jornada
+
+* [x] Criar tokens de cor para a identidade arcade retrô-futurista.
+* [x] Aplicar fundo sutil com referência a labirinto e pellets.
+* [x] Criar pipeline visual com Currículo, Vaga, Match, Sugestões, PDI e Entrevista.
+* [x] Exibir status com texto para não depender apenas de cor.
+* [x] Manter PDI como fase futura sem ação ativa nesta interface.
+* [x] Padronizar botões primários, secundários e estados de alerta.
+* [x] Criar cards e tags reutilizáveis para os relatórios.
+* [x] Padronizar loading, erro e sucesso.
+* [x] Melhorar microcopy da análise de vaga, match e sugestões seguras.
+* [x] Atualizar o ProfilePanel para usar tags semânticas.
+
+## Responsividade e QA
+
+* [x] Preparar pipeline horizontal para desktop.
+* [x] Preparar pipeline em grade para notebook e tablet.
+* [x] Preparar pipeline vertical para mobile.
+* [x] Reduzir intensidade do fundo arcade no mobile.
+* [x] Criar `docs/frontend-qa-checklist.md`.
+* [x] Aplicar lazy loading ao terminal de chat.
+* [ ] Executar checklist visual completo em navegadores reais.
