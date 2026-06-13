@@ -2799,6 +2799,153 @@ textarea::placeholder {
   line-height: 1.5;
 }
 
+.pdi-plan {
+  display: grid;
+  gap: 16px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.pdi-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px;
+  border: 1px solid rgba(52, 211, 153, 0.24);
+  border-radius: var(--radius-lg);
+  background: rgba(52, 211, 153, 0.06);
+}
+
+.pdi-callout > div {
+  display: grid;
+  gap: 5px;
+}
+
+.pdi-callout h3 {
+  color: var(--text-primary);
+  font-size: 15px;
+}
+
+.pdi-callout p:not(.eyebrow) {
+  max-width: 580px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.pdi-result {
+  display: grid;
+  gap: 14px;
+}
+
+.pdi-summary {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 8px;
+}
+
+.pdi-summary > div,
+.pdi-main-goal {
+  display: grid;
+  gap: 4px;
+  padding: 11px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+}
+
+.pdi-summary span,
+.pdi-main-goal span {
+  color: var(--text-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.pdi-summary strong,
+.pdi-main-goal strong {
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.pdi-main-goal {
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  color: var(--emerald);
+}
+
+.pdi-main-goal > div {
+  display: grid;
+  gap: 4px;
+}
+
+.pdi-timeline {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pdi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pdi-section {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+}
+
+.pdi-section.priority {
+  border-color: rgba(251, 191, 36, 0.3);
+  background: rgba(251, 191, 36, 0.06);
+}
+
+.pdi-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pdi-section-header h4 {
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.pdi-section.priority h4 {
+  color: var(--amber);
+}
+
+.pdi-section-header button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: 600 10px var(--font-sans);
+  cursor: pointer;
+}
+
+.pdi-section-header button:hover {
+  color: var(--cyan);
+}
+
+.pdi-section ul {
+  display: grid;
+  gap: 6px;
+  padding-left: 17px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 @media (max-width: 760px) {
   .job-analyzer-modal {
     width: calc(100vw - 20px);
@@ -2810,13 +2957,17 @@ textarea::placeholder {
   .match-evidence-grid,
   .match-detail-grid,
   .tailoring-summary,
-  .tailoring-category-grid {
+  .tailoring-category-grid,
+  .pdi-summary,
+  .pdi-timeline,
+  .pdi-grid {
     grid-template-columns: 1fr;
   }
 
   .job-analyzer-actions .primary-action-button,
   .resume-match-callout .primary-action-button,
-  .resume-tailoring-callout .primary-action-button {
+  .resume-tailoring-callout .primary-action-button,
+  .pdi-callout .primary-action-button {
     width: 100%;
     justify-content: center;
   }
@@ -2827,6 +2978,11 @@ textarea::placeholder {
   }
 
   .resume-tailoring-callout {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pdi-callout {
     align-items: stretch;
     flex-direction: column;
   }

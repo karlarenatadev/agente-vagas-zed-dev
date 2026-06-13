@@ -8,6 +8,7 @@ import {
   ShieldAlert,
 } from 'lucide-react'
 import type { ResumeTailoringSuggestions as TailoringData } from '../types'
+import { PdiPlan } from './PdiPlan'
 
 async function copyText(value: string): Promise<void> {
   if (navigator.clipboard?.writeText) {
@@ -161,6 +162,8 @@ export function ResumeTailoringSuggestions() {
             <Check size={15} aria-hidden="true" />
             Sugestões salvas em data/resume-tailoring-suggestions.md
           </div>
+
+          <PdiPlan />
         </div>
       )}
     </section>

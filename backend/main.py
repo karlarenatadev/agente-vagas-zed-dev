@@ -13,6 +13,7 @@ from routers import (
     chat,
     data_files,
     job_description,
+    pdi,
     profile,
     resume,
     resume_match,
@@ -71,6 +72,7 @@ app.include_router(
     prefix="/api/resume-tailoring",
     tags=["resume-tailoring"],
 )
+app.include_router(pdi.router, prefix="/api/pdi", tags=["pdi"])
 
 
 @app.get("/health")

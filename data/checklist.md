@@ -121,18 +121,18 @@ O Curator é o agente responsável por trilhas de aprendizado.
 
 ### O que iremos acrescentar
 
-* [ ] Gerar PDI personalizado a partir do relatório vaga x currículo.
-* [ ] Separar plano por prazo:
+* [x] Gerar PDI personalizado a partir do relatório vaga x currículo.
+* [x] Separar plano por prazo:
 
-  * [ ] 7 dias;
-  * [ ] 30 dias;
-  * [ ] 60 dias.
-* [ ] Classificar lacunas por impacto na candidatura.
-* [ ] Indicar quais lacunas impedem candidatura imediata.
-* [ ] Indicar quais lacunas podem ser estudadas depois.
-* [ ] Sugerir projetos práticos para gerar evidências reais.
-* [ ] Sugerir entregáveis para GitHub, LinkedIn e currículo.
-* [ ] Salvar o PDI em `data/pdi-plan.md`.
+  * [x] 7 dias;
+  * [x] 30 dias;
+  * [x] 60 dias.
+* [x] Classificar lacunas por impacto na candidatura.
+* [x] Indicar quais lacunas impedem candidatura imediata.
+* [x] Indicar quais lacunas podem ser estudadas depois.
+* [x] Sugerir projetos práticos para gerar evidências reais.
+* [x] Sugerir entregáveis para GitHub, LinkedIn e currículo.
+* [x] Salvar o PDI em `data/pdi-plan.md`.
 
 ---
 
@@ -329,18 +329,18 @@ Transformar as lacunas entre vaga e currículo em plano de desenvolvimento indiv
 
 ### O que será acrescentado
 
-* [ ] Gerar PDI com base no `resume-match-report.md`.
-* [ ] Separar lacunas por prioridade.
-* [ ] Criar plano de 7 dias.
-* [ ] Criar plano de 30 dias.
-* [ ] Criar plano de 60 dias.
-* [ ] Sugerir estudos gratuitos.
-* [ ] Sugerir documentação oficial.
+* [x] Gerar PDI com base no `resume-match-report.md`.
+* [x] Separar lacunas por prioridade.
+* [x] Criar plano de 7 dias.
+* [x] Criar plano de 30 dias.
+* [x] Criar plano de 60 dias.
+* [x] Sugerir estudos gratuitos.
+* [x] Sugerir documentação oficial.
 * [ ] Sugerir cursos pagos apenas quando fizer sentido.
-* [ ] Sugerir projetos práticos.
-* [ ] Sugerir entregáveis para portfólio.
-* [ ] Sugerir ajustes futuros no currículo.
-* [ ] Salvar em `data/pdi-plan.md`.
+* [x] Sugerir projetos práticos.
+* [x] Sugerir entregáveis para portfólio.
+* [x] Sugerir ajustes futuros no currículo.
+* [x] Salvar em `data/pdi-plan.md`.
 
 ---
 
@@ -430,6 +430,9 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 * [x] Testar geração de Markdown manualmente.
 * [x] Testar normalização de aliases manualmente.
 * [x] Testar cálculo de score manualmente.
+* [x] Testar geração do PDI personalizado manualmente.
+* [x] Testar ausência de currículo, vaga, relatório de aderência e sugestões de currículo no PDI.
+* [x] Testar leitura de `data/pdi-plan.md` pela API.
 
 ### Frontend
 
@@ -521,7 +524,7 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 ## Etapas seguintes
 
 * [x] Gerar sugestões seguras de currículo.
-* [ ] Gerar PDI personalizado por vaga.
+* [x] Gerar PDI personalizado por vaga.
 * [ ] Conectar Coach à vaga analisada.
 * [ ] Resolver divergência entre perfil, currículo e vaga.
 * [ ] Configurar dados reais com Firecrawl.

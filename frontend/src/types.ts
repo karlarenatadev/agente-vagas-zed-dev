@@ -139,6 +139,23 @@ export interface ResumeTailoringSuggestions {
   next_steps: string[]
 }
 
+export interface PdiPlan {
+  target_role: string
+  overall_score: number
+  readiness_level: string
+  main_goal: string
+  priority_gaps: string[]
+  quick_wins: string[]
+  seven_day_plan: string[]
+  thirty_day_plan: string[]
+  sixty_day_plan: string[]
+  portfolio_projects: string[]
+  resume_evidence_to_create: string[]
+  study_resources: string[]
+  interview_preparation: string[]
+  next_steps: string[]
+}
+
 // Tracker de candidaturas
 
 export type ApplicationStatus =

@@ -70,3 +70,13 @@ async def get_resume_tailoring_suggestions():
         return {"exists": True, "content": content}
     except FileNotFoundError:
         return {"exists": False, "content": ""}
+
+
+@router.get("/pdi")
+async def get_pdi_plan():
+    """Retorna o último PDI personalizado por vaga."""
+    try:
+        content = config.PDI_PLAN_FILE.read_text(encoding="utf-8")
+        return {"exists": True, "content": content}
+    except FileNotFoundError:
+        return {"exists": False, "content": ""}
