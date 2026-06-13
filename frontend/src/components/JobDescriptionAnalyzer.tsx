@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { AlertCircle, BriefcaseBusiness, CheckCircle2, Loader2, Search } from 'lucide-react'
-import type { JobDescriptionAnalysis } from '../types'
+import type { JobDescriptionAnalysis, ResumeMatchReport as ResumeMatchReportData } from '../types'
+import { ResumeMatchReport } from './ResumeMatchReport'
 
 const MIN_DESCRIPTION_LENGTH = 40
 
@@ -65,6 +66,9 @@ export function JobDescriptionAnalyzer() {
   const [analysis, setAnalysis] = useState<JobDescriptionAnalysis | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [matchReport, setMatchReport] = useState<ResumeMatchReportData | null>(null)
+  const [matchLoading, setMatchLoading] = useState(false)
+  const [matchError, setMatchError] = useState('')
 
   const analyze = async () => {
     const cleanDescription = description.trim()
@@ -89,6 +93,8 @@ export function JobDescriptionAnalyzer() {
       }
 
       setAnalysis(data as JobDescriptionAnalysis)
+      setMatchReport(null)
+      setMatchError('')
     } catch (requestError) {
       console.error('Falha na análise da descrição da vaga:', requestError)
       setError(
@@ -98,6 +104,36 @@ export function JobDescriptionAnalyzer() {
       )
     } finally {
       setLoading(false)
+    }
+  }
+
+  const compareWithResume = async () => {
+    setMatchLoading(true)
+    setMatchError('')
+
+    try {
+      const response = await fetch('/api/resume-match/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          use_latest_job_analysis: true,
+          use_latest_resume_analysis: true,
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.detail || 'Não foi possível comparar a vaga com o currículo.')
+      }
+      setMatchReport(data as ResumeMatchReportData)
+    } catch (requestError) {
+      console.error('Falha na comparação da vaga com o currículo:', requestError)
+      setMatchError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'Não foi possível comparar a vaga com o currículo.'
+      )
+    } finally {
+      setMatchLoading(false)
     }
   }
 
@@ -159,7 +195,17 @@ export function JobDescriptionAnalyzer() {
         </button>
       </div>
 
-      {analysis && <JobAnalysisResult analysis={analysis} />}
+      {analysis && (
+        <>
+          <JobAnalysisResult analysis={analysis} />
+          <ResumeMatchReport
+            report={matchReport}
+            loading={matchLoading}
+            error={matchError}
+            onCompare={compareWithResume}
+          />
+        </>
+      )}
     </div>
   )
 }

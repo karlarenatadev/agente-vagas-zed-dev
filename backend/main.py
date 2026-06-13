@@ -8,7 +8,15 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import applications, chat, data_files, job_description, profile, resume
+from routers import (
+    applications,
+    chat,
+    data_files,
+    job_description,
+    profile,
+    resume,
+    resume_match,
+)
 
 
 @asynccontextmanager
@@ -51,6 +59,11 @@ app.include_router(
     job_description.router,
     prefix="/api/job-description",
     tags=["job-description"],
+)
+app.include_router(
+    resume_match.router,
+    prefix="/api/resume-match",
+    tags=["resume-match"],
 )
 
 

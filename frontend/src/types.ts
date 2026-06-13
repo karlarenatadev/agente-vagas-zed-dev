@@ -91,6 +91,36 @@ export interface JobDescriptionAnalysis {
   next_steps: string[]
 }
 
+export interface ResumeMatchReport {
+  overall_score: number
+  readiness_level: string
+  job_title: string
+  resume_summary: string
+  score_breakdown: {
+    hard_skills: number
+    tools: number
+    soft_skills: number
+    keywords: number
+    seniority_area: number
+  }
+  strong_evidence: string[]
+  partial_evidence: string[]
+  missing_requirements: string[]
+  hard_skills_found: string[]
+  hard_skills_missing: string[]
+  soft_skills_found: string[]
+  soft_skills_missing: string[]
+  tools_found: string[]
+  tools_missing: string[]
+  matched_keywords: string[]
+  missing_keywords: string[]
+  strengths: string[]
+  critical_gaps: string[]
+  safe_resume_suggestions: string[]
+  do_not_claim: string[]
+  next_steps: string[]
+}
+
 // Tracker de candidaturas
 
 export type ApplicationStatus =

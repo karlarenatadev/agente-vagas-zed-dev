@@ -34,6 +34,7 @@ RESUME_ANALYSIS_FILE = DATA_DIR / "resume-analysis.md"
 JOB_DESCRIPTION_ANALYSIS_FILE = DATA_DIR / "job-description-analysis.md"
 # Saídas reservadas para as próximas etapas de vaga x currículo e PDI.
 RESUME_MATCH_REPORT_FILE = DATA_DIR / "resume-match-report.md"
+RESUME_TAILORING_SUGGESTIONS_FILE = DATA_DIR / "resume-tailoring-suggestions.md"
 PDI_PLAN_FILE = DATA_DIR / "pdi-plan.md"
 
 # Upload de currículo

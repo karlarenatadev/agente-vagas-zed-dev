@@ -48,3 +48,13 @@ async def get_job_description_analysis():
         return {"exists": True, "content": content}
     except FileNotFoundError:
         return {"exists": False, "content": ""}
+
+
+@router.get("/resume-match")
+async def get_resume_match_report():
+    """Retorna o último relatório de aderência entre vaga e currículo."""
+    try:
+        content = config.RESUME_MATCH_REPORT_FILE.read_text(encoding="utf-8")
+        return {"exists": True, "content": content}
+    except FileNotFoundError:
+        return {"exists": False, "content": ""}
