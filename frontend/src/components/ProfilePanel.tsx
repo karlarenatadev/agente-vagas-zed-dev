@@ -5,7 +5,6 @@ import {
   Bot,
   BriefcaseBusiness,
   ChevronDown,
-  ChevronLeft,
   Code2,
   Compass,
   FileText,
@@ -26,7 +25,6 @@ import { SkillTag } from './ui/SkillTag'
 interface Props {
   activeAgent: AgentName
   onStartProfile?: () => void
-  onToggleCollapse?: () => void
   onNavigate: (key: string) => void
 }
 
@@ -291,7 +289,6 @@ function ProductNav({
 export function ProfilePanel({
   activeAgent,
   onStartProfile,
-  onToggleCollapse,
   onNavigate,
 }: Props) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -364,15 +361,6 @@ export function ProfilePanel({
             <p className="eyebrow">import vagas</p>
             <h2>Career Maze</h2>
           </div>
-
-          <button
-            className="icon-button"
-            type="button"
-            aria-label="Recolher painel de perfil"
-            onClick={onToggleCollapse}
-          >
-            <ChevronLeft size={17} />
-          </button>
         </div>
 
         <ProductNav activeAgent={activeAgent} onNavigate={onNavigate} />

@@ -131,7 +131,6 @@ export default function App() {
           <ProfilePanel
             activeAgent={activeAgent}
             onStartProfile={() => handleQuickStart('Quero criar meu perfil profissional')}
-            onToggleCollapse={() => setSidebarCollapsed(value => !value)}
             onNavigate={handleSidebarNavigate}
           />
         </div>

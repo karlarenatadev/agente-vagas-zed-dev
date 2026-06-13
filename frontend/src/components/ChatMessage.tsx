@@ -3,9 +3,162 @@ import { AlertCircle, Bot, GraduationCap, Search, User, UserRoundCheck } from 'l
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { AgentName, ChatMessage as ChatMessageType } from '../types'
+import { ScoutReport, type ScoutData } from './ScoutReport'
+import { CuratorReport, type CuratorData } from './CuratorReport'
 
 interface Props {
   message: ChatMessageType
+}
+
+const JOB_FIELDS = new Set([
+  'titulo', 'empresa', 'localizacao', 'salario', 'beneficios', 'link',
+  'score_aderencia', 'prioridade_candidatura', 'habilidades_correspondentes',
+  'soft_skills_correspondentes', 'habilidades_faltantes',
+  'contagem_correspondencia', 'dica_curriculo',
+])
+
+/**
+ * Detecta a saída estruturada do Scout (vagas_compativeis) e a converte em
+ * dados renderizáveis como cards. Retorna null quando não há vagas no texto.
+ */
+function parseScoutData(content: string): ScoutData | null {
+  if (!/vagas_compativeis:/i.test(content)) return null
+
+  const resumoMatch = content.match(/###\s*resumo\s*\n([\s\S]*?)(?:\n###|\nvagas_compativeis:|$)/i)
+  const resumo = resumoMatch
+    ? resumoMatch[1].replace(/\*\*/g, '').replace(/\s+/g, ' ').trim()
+    : ''
+
+  const requisitos: ScoutData['requisitos'] = []
+  const reqBlock = content.match(/requisitos_mais_recorrentes:\s*\n([\s\S]*?)(?:\nvagas_compativeis:|$)/i)
+  if (reqBlock) {
+    const reqRegex = /requisito:\s*(.+)\n\s*ocorrencias:\s*(.+)/gi
+    let m: RegExpExecArray | null
+    while ((m = reqRegex.exec(reqBlock[1])) !== null) {
+      const requisito = m[1].trim()
+      if (requisito && !/^n[ãa]o informado$/i.test(requisito)) {
+        requisitos.push({ requisito, ocorrencias: m[2].trim() })
+      }
+    }
+  }
+
+  const vagasRaw = content.slice(content.search(/vagas_compativeis:/i) + 'vagas_compativeis:'.length)
+  const blocks = vagasRaw.split(/\n(?=\s*\d+\.\s*titulo:)/i)
+  const vagas: ScoutData['vagas'] = []
+
+  for (const block of blocks) {
+    const job: Record<string, string> = {}
+    const lineRegex = /^\s*(?:\d+\.\s*)?([a-z_]+):\s*(.*)$/gim
+    let line: RegExpExecArray | null
+    while ((line = lineRegex.exec(block)) !== null) {
+      const key = line[1].toLowerCase()
+      if (JOB_FIELDS.has(key)) job[key] = line[2].trim()
+    }
+    if (job.titulo) vagas.push(job)
+  }
+
+  if (vagas.length === 0) return null
+  return { resumo, requisitos, vagas }
+}
+
+const SKILL_FIELDS = new Set([
+  'habilidade', 'prioridade', 'nivel_recomendado', 'por_que_importa',
+  'alinhamento_com_perfil', 'projeto_pratico', 'tempo_estimado_estudo',
+  'relacao_com_vagas', 'impacto_esperado_aderencia',
+])
+
+const RESOURCE_MAP = [
+  { kind: 'free', label: 'Curso gratuito', name: 'curso_gratuito_recomendado', platform: 'plataforma_gratuita', link: 'link_gratuito' },
+  { kind: 'paid', label: 'Curso pago', name: 'curso_pago_acessivel_recomendado', platform: 'plataforma_paga', link: 'link_pago' },
+  { kind: 'reference', label: 'Documentação', name: 'documentacao_ou_referencia', platform: 'plataforma_referencia', link: 'link_referencia' },
+  { kind: 'quick', label: 'Conteúdo rápido', name: 'conteudo_complementar_rapido', platform: 'plataforma_conteudo_rapido', link: 'link_conteudo_rapido' },
+] as const
+
+const BUCKET_LABELS: Record<string, string> = {
+  'estudar agora': 'Estudar agora',
+  'estudar depois': 'Estudar depois',
+  'opcional': 'Opcional',
+}
+
+function isUsable(value?: string): boolean {
+  if (!value) return false
+  const trimmed = value.trim()
+  return trimmed !== '' && trimmed !== '-' && !/^n[ãa]o\s/i.test(trimmed)
+}
+
+/**
+ * Detecta a saída estruturada do Curator (trilha de evolução) e a converte em
+ * habilidades agrupadas por bucket. Retorna null quando não há trilha no texto.
+ */
+function parseCuratorData(content: string): CuratorData | null {
+  if (!/curso_gratuito_recomendado|projeto_pratico|nivel_recomendado/i.test(content)) return null
+
+  const resumoMatch = content.match(/###\s*resumo\s*\n([\s\S]*?)(?:\n###|$)/i)
+  const resumo = resumoMatch
+    ? resumoMatch[1].replace(/\*\*/g, '').replace(/Contexto usado:[\s\S]*/i, '').replace(/\s+/g, ' ').trim()
+    : ''
+
+  // Limita à seção de dados (entre "### dados" e a próxima seção "### ...").
+  let dados = content
+  const dadosIdx = content.search(/###\s*dados/i)
+  if (dadosIdx >= 0) {
+    const rest = content.slice(dadosIdx + content.slice(dadosIdx).indexOf('\n') + 1)
+    const nextSection = rest.search(/\n###\s/)
+    dados = nextSection >= 0 ? rest.slice(0, nextSection) : rest
+  }
+
+  // Localiza cada cabeçalho de bucket; guarda início do cabeçalho e do conteúdo.
+  const headerRegex = /^[ \t]*(estudar agora|estudar depois|opcional):[ \t]*$/gim
+  const headers: { name: string; headerStart: number; contentStart: number }[] = []
+  let h: RegExpExecArray | null
+  while ((h = headerRegex.exec(dados)) !== null) {
+    headers.push({ name: h[1].toLowerCase(), headerStart: h.index, contentStart: h.index + h[0].length })
+  }
+
+  const buckets: CuratorData['buckets'] = []
+
+  for (let i = 0; i < headers.length; i++) {
+    const start = headers[i].contentStart
+    const end = i + 1 < headers.length ? headers[i + 1].headerStart : dados.length
+    const slice = dados.slice(start, end)
+
+    const skillBlocks = slice.split(/\n(?=\s*\d+\.\s*habilidade:)/i)
+    const skills: CuratorData['buckets'][number]['skills'] = []
+
+    for (const block of skillBlocks) {
+      const raw: Record<string, string> = {}
+      const lineRegex = /^\s*(?:\d+\.\s*)?([a-z_]+):\s*(.*)$/gim
+      let line: RegExpExecArray | null
+      while ((line = lineRegex.exec(block)) !== null) {
+        raw[line[1].toLowerCase()] = line[2].trim()
+      }
+      if (!raw.habilidade) continue
+
+      const skill: CuratorData['buckets'][number]['skills'][number] = { habilidade: raw.habilidade, resources: [] }
+      for (const key of SKILL_FIELDS) {
+        if (key !== 'habilidade' && raw[key]) (skill as Record<string, unknown>)[key] = raw[key]
+      }
+      for (const res of RESOURCE_MAP) {
+        if (isUsable(raw[res.name])) {
+          skill.resources.push({
+            kind: res.kind,
+            label: res.label,
+            name: raw[res.name],
+            platform: raw[res.platform],
+            link: raw[res.link],
+          })
+        }
+      }
+      skills.push(skill)
+    }
+
+    if (skills.length > 0) {
+      buckets.push({ label: BUCKET_LABELS[headers[i].name] ?? headers[i].name, skills })
+    }
+  }
+
+  if (buckets.length === 0) return null
+  return { resumo, buckets }
 }
 
 const AGENT_META = {
@@ -71,6 +224,8 @@ export function ChatMessage({ message }: Props) {
   const { hasCareerMenu, visibleContent } = getRenderableContent(message.content)
   const hasStructuredCareerData = /score_aderencia|prioridade|habilidades_faltantes|curso_gratuito|projeto_pratico|pontuacao_final|nota_parcial/i
     .test(message.content)
+  const scoutData = !isUser && !isSystem ? parseScoutData(message.content) : null
+  const curatorData = !isUser && !isSystem && !scoutData ? parseCuratorData(message.content) : null
 
   if (isSystem) {
     return (
@@ -129,19 +284,25 @@ export function ChatMessage({ message }: Props) {
         </div>
 
         <div className="prose-chat">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              table: ({ children }) => <div className="table-scroll"><table>{children}</table></div>,
-              a: ({ children, href }) => (
-                <a href={href} target="_blank" rel="noopener noreferrer">
-                  {children}
-                </a>
-              ),
-            }}
-          >
-            {visibleContent || 'A esteira de carreira está pronta para a próxima ação.'}
-          </ReactMarkdown>
+          {scoutData ? (
+            <ScoutReport data={scoutData} />
+          ) : curatorData ? (
+            <CuratorReport data={curatorData} />
+          ) : (
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                table: ({ children }) => <div className="table-scroll"><table>{children}</table></div>,
+                a: ({ children, href }) => (
+                  <a href={href} target="_blank" rel="noopener noreferrer">
+                    {children}
+                  </a>
+                ),
+              }}
+            >
+              {visibleContent || 'A esteira de carreira está pronta para a próxima ação.'}
+            </ReactMarkdown>
+          )}
 
           {hasCareerMenu && (
             <div className="compact-career-menu" role="note" aria-label="Menu de carreira compactado">

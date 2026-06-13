@@ -1,9 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { Activity, BriefcaseBusiness, CheckCircle2, CloudOff, Loader2, Radio } from 'lucide-react'
-import type { AgentName, ConnectionStatus, SessionMode } from '../types'
+import type { ConnectionStatus, SessionMode } from '../types'
 
 interface Props {
-  activeAgent: AgentName
   connectionStatus: ConnectionStatus
   isConnected: boolean
   isStreaming: boolean
@@ -30,7 +29,6 @@ const MODE_LABEL: Record<SessionMode, string> = {
 }
 
 export function StatusBar({
-  activeAgent,
   connectionStatus,
   isConnected,
   isStreaming,
@@ -64,7 +62,7 @@ export function StatusBar({
 
       <AnimatePresence mode="wait">
         <motion.div
-          key={`${mode}-${activeAgent}-${isStreaming}`}
+          key={`${mode}-${isStreaming}`}
           className="status-center"
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
@@ -76,7 +74,7 @@ export function StatusBar({
           ) : (
             <Radio size={14} aria-hidden="true" />
           )}
-          <span>{isStreaming ? `${activeAgent} respondendo` : MODE_LABEL[mode]}</span>
+          <span>{isStreaming ? 'Respondendo...' : MODE_LABEL[mode]}</span>
         </motion.div>
       </AnimatePresence>
 
