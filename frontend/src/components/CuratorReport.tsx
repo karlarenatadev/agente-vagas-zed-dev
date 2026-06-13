@@ -8,7 +8,7 @@ interface Resource {
   link?: string
 }
 
-interface Skill {
+export interface CuratorSkill {
   habilidade: string
   prioridade?: string
   nivel_recomendado?: string
@@ -23,7 +23,7 @@ interface Skill {
 
 interface Bucket {
   label: string
-  skills: Skill[]
+  skills: CuratorSkill[]
 }
 
 export interface CuratorData {

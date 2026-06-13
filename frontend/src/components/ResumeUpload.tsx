@@ -11,6 +11,7 @@ type UploadStatus = 'idle' | 'selected' | 'uploading' | 'success' | 'error'
 
 const ACCEPTED_EXTENSIONS = ['.txt', '.pdf', '.docx']
 const MAX_FILE_SIZE = 5 * 1024 * 1024
+const RESUME_ANALYSIS_STORAGE_KEY = 'import-vagas:resume-analysis-complete'
 
 function isValidExtension(fileName: string): boolean {
   return ACCEPTED_EXTENSIONS.some(extension => fileName.toLowerCase().endsWith(extension))
@@ -120,6 +121,7 @@ export function ResumeUpload({ onContinueQuiz }: Props) {
       setAnalysis(data.analysis)
       setMessage(data.message)
       setStatus('success')
+      window.localStorage.setItem(RESUME_ANALYSIS_STORAGE_KEY, 'true')
       window.dispatchEvent(new Event('profile-updated'))
       window.dispatchEvent(new Event('pipeline-updated'))
     } catch (error) {

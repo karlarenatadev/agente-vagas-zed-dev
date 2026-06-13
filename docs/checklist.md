@@ -1,5 +1,31 @@
 # Roadmap — Evolução do Import Vagas
 
+## Auditoria atual
+
+Última revisão: 2026-06-13.
+
+Validação executada nesta revisão:
+
+* [x] `npm run lint` concluído sem erros.
+* [x] `npm run build` concluído sem erros.
+  Os bloqueios de props em `App.tsx`/`StatusBar` e tipagem de `Skill` em `ChatMessage.tsx` foram corrigidos.
+* [x] Backend compilado e aplicação FastAPI importada com sucesso.
+* [x] Rotas REST e WebSocket registradas na aplicação.
+* [x] Firecrawl CLI instalado no ambiente.
+* [ ] `FIRECRAWL_API_KEY` configurada no ambiente.
+* [ ] Suíte automatizada de testes disponível.
+* [ ] QA visual completo executado em navegadores reais.
+  Validação de estabilização executada no Chrome em 1366x768, 1440x900, 768x1024, 390x844 e 360x800.
+
+Pendências críticas confirmadas:
+
+* [ ] Integrar o componente `PdiPlan` à interface e ao pipeline.
+* [x] Fazer a pipeline reconhecer uma análise de currículo concluída após upload e nos artefatos dependentes.
+* [ ] Expor `resume-analysis.md` por uma rota de leitura para detectar o arquivo diretamente em uma nova sessão.
+* [ ] Conectar o Coach à descrição da vaga e ao relatório de aderência.
+* [ ] Criar testes automatizados mínimos para backend e frontend.
+* [ ] Executar e registrar `docs/frontend-qa-checklist.md`.
+
 ## Visão geral
 
 O Import Vagas está evoluindo de uma plataforma conversacional de carreira para um copiloto completo de candidatura.
@@ -49,7 +75,8 @@ O Maestro é o orquestrador principal do sistema.
 * [x] Identificação de funções alvo.
 * [x] Roteamento para Scout, Curator e Coach.
 * [x] Controle da entrevista simulada.
-* [x] Tratamento de erros.
+* [ ] Tratamento de erros completo.
+  Situação atual: Coach e novas rotas têm tratamento explícito; falhas de Firecrawl no Scout podem ser ocultadas pelo fallback.
 * [x] Manutenção do estado da sessão.
 
 ### O que iremos acrescentar
@@ -61,12 +88,13 @@ O Maestro é o orquestrador principal do sistema.
 * [ ] Roteamento para entrevista baseada em uma vaga específica.
 * [ ] Etapa de reconciliação entre perfil, currículo e vaga.
 * [ ] Mensagens mais claras quando houver conflito entre dados do usuário.
+* [ ] Limpar também currículo, vaga analisada, match, tailoring e PDI ao refazer o diagnóstico.
 
 ---
 
 ## 1.3 Scout
 
-O Scout é o agente responsável por oportunidades e análise de vagas.
+O Scout é o agente responsável pela busca de oportunidades. A análise de descrição colada, o match e o PDI são módulos separados no backend.
 
 ### O que temos
 
@@ -80,7 +108,7 @@ O Scout é o agente responsável por oportunidades e análise de vagas.
 * [x] Dicas iniciais para currículo.
 * [x] Fallback com oportunidades simuladas quando a busca real não retorna resultados.
 
-### O que iremos acrescentar
+### Inteligência de vaga implementada em módulos separados
 
 * [x] Análise de descrição de vaga colada pelo usuário.
 * [x] Extração de título da vaga.
@@ -106,7 +134,7 @@ O Scout é o agente responsável por oportunidades e análise de vagas.
 
 ## 1.4 Curator
 
-O Curator é o agente responsável por trilhas de aprendizado.
+O Curator é o agente responsável por trilhas de aprendizado. O PDI por vaga é gerado separadamente por `PdiGenerator`.
 
 ### O que temos
 
@@ -119,7 +147,7 @@ O Curator é o agente responsável por trilhas de aprendizado.
 * [x] Organização entre “estudar agora” e “estudar depois”.
 * [x] Base interna de recomendações quando o Firecrawl não está disponível.
 
-### O que iremos acrescentar
+### PDI implementado em módulo separado
 
 * [x] Gerar PDI personalizado a partir do relatório vaga x currículo.
 * [x] Separar plano por prazo:
@@ -180,7 +208,7 @@ O Coach é o agente responsável pela entrevista simulada.
 * [x] Comparar currículo com descrição de vaga específica.
 * [x] Identificar palavras-chave da vaga que já aparecem no currículo.
 * [x] Identificar palavras-chave ausentes.
-* [ ] Identificar experiências que podem ser melhor destacadas.
+* [x] Identificar experiências que podem ser melhor destacadas.
 * [x] Identificar informações fracas ou pouco claras.
 * [x] Criar sugestões seguras de melhoria.
 * [x] Criar seção “Não afirmar ainda”.
@@ -202,7 +230,7 @@ O Coach é o agente responsável pela entrevista simulada.
 * [x] Sugestão de projetos a destacar.
 * [x] Sugestão de experiências a reposicionar.
 * [x] Sugestão de palavras-chave para inserir.
-* [ ] Separação entre:
+* [x] Separação entre:
 
   * [x] pode destacar melhor;
   * [x] pode reposicionar;
@@ -341,6 +369,8 @@ Transformar as lacunas entre vaga e currículo em plano de desenvolvimento indiv
 * [x] Sugerir entregáveis para portfólio.
 * [x] Sugerir ajustes futuros no currículo.
 * [x] Salvar em `data/pdi-plan.md`.
+* [ ] Integrar o componente `PdiPlan` ao fluxo visível do frontend.
+* [ ] Atualizar a etapa PDI da pipeline com estado, leitura e ação reais.
 
 ---
 
@@ -396,7 +426,7 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 ## O que iremos acrescentar
 
-* [ ] Instalar Firecrawl CLI.
+* [x] Instalar Firecrawl CLI.
 * [ ] Configurar `FIRECRAWL_API_KEY`.
 * [ ] Testar busca real de vagas.
 * [ ] Testar busca real de cursos.
@@ -405,7 +435,8 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 * [ ] Validar requisitos extraídos.
 * [ ] Registrar origem dos dados.
 * [ ] Tratar resultados parciais.
-* [ ] Tratar ausência de resultados reais sem quebrar o fluxo.
+* [x] Tratar ausência de resultados reais sem quebrar o fluxo por meio de fallback local.
+* [ ] Expor ao usuário as falhas parciais do Firecrawl em vez de descartá-las silenciosamente.
 
 ---
 
@@ -413,26 +444,26 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 ## O que temos
 
-* [x] Validação manual de build.
+* [x] Validação atual de build.
 * [x] Validação manual de lint.
 * [x] Validação manual do backend.
-* [x] Teste integrado da análise de descrição de vaga.
+* [ ] Reexecutar teste integrado da análise de descrição de vaga.
 * [x] Tratamento de entrada inválida na análise de vaga.
 
 ## O que iremos acrescentar
 
 ### Backend
 
-* [x] Testar análise de descrição de vaga manualmente.
-* [x] Testar comparação vaga x currículo manualmente.
-* [x] Testar ausência de currículo manualmente.
-* [x] Testar ausência de vaga manualmente.
-* [x] Testar geração de Markdown manualmente.
-* [x] Testar normalização de aliases manualmente.
-* [x] Testar cálculo de score manualmente.
-* [x] Testar geração do PDI personalizado manualmente.
-* [x] Testar ausência de currículo, vaga, relatório de aderência e sugestões de currículo no PDI.
-* [x] Testar leitura de `data/pdi-plan.md` pela API.
+* [ ] Testar análise de descrição de vaga de forma reproduzível.
+* [ ] Testar comparação vaga x currículo de forma reproduzível.
+* [ ] Testar ausência de currículo.
+* [ ] Testar ausência de vaga.
+* [ ] Testar geração de Markdown.
+* [ ] Testar normalização de aliases.
+* [ ] Testar cálculo de score.
+* [ ] Testar geração do PDI personalizado.
+* [ ] Testar ausência de currículo, vaga, relatório de aderência e sugestões de currículo no PDI.
+* [ ] Testar leitura de `data/pdi-plan.md` pela API.
 
 ### Frontend
 
@@ -462,14 +493,17 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 ## O que temos
 
 * [x] Build funcionando.
-* [x] Interface responsiva.
-* [x] Componentes carregados sob demanda.
-* [x] Aviso de bundle principal acima de 500 kB.
+* [x] Interface responsiva validada nos viewports prioritários.
+  Validado sem scroll horizontal em 1366x768, 1440x900, 768x1024, 390x844 e 360x800.
+* [ ] Lazy loading completo dos módulos principais.
+  Situação atual: quiz, candidaturas, analisador de vaga e chat são lazy; pipeline e upload são carregados imediatamente.
+* [x] Medição atual do bundle principal.
+  Bundle principal: 357,78 kB; ChatTerminal permanece em chunk separado de 171,20 kB.
 
 ## O que iremos acrescentar
 
 * [ ] Investigar bundle principal.
-* [x] Aplicar lazy loading nos módulos principais da esteira.
+* [ ] Aplicar lazy loading em todos os módulos principais da esteira.
 * [x] Separar o relatório de aderência em componente próprio.
 * [ ] Evitar duplicação de tipos TypeScript.
 * [ ] Revisar CSS adicionado.
@@ -500,6 +534,9 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 * [ ] Criar seção de roadmap.
 * [ ] Criar seção de decisões de arquitetura.
 * [ ] Adicionar prints futuramente.
+* [ ] Atualizar `README.md` para React 19, TypeScript 6, novas rotas e novos artefatos.
+* [ ] Atualizar `plano.md`, que ainda descreve escopo e quantidade de perguntas antigos.
+* [ ] Atualizar `docs/project-update-report.md` com os commits, validações e estado da entrevista atuais.
 
 ---
 
@@ -507,24 +544,30 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 ## Etapa atual
 
+* [ ] Integrar o PDI ao frontend e ao estado da pipeline.
+* [ ] Conectar a entrevista à vaga analisada e ao match.
+* [ ] Criar testes mínimos dos fluxos críticos.
+* [ ] Expor a análise de currículo por endpoint de leitura para hidratação entre sessões.
+
+## Base concluída
+
 * [x] Corrigir lint do ProfilePanel.
 * [x] Criar análise de descrição de vaga.
 * [x] Criar rota de análise de vaga.
 * [x] Criar interface para colar descrição.
 * [x] Salvar análise em Markdown.
 
-## Etapa concluída mais recente
-
 * [x] Criar comparação vaga x currículo.
 * [x] Gerar `resume-match-report.md`.
 * [x] Exibir relatório no frontend.
 * [x] Tratar ausência de currículo ou vaga.
-* [x] Validar lint, build e backend.
+* [x] Validar lint, build e backend em conjunto.
 
 ## Etapas seguintes
 
 * [x] Gerar sugestões seguras de currículo.
-* [x] Gerar PDI personalizado por vaga.
+* [x] Gerar PDI personalizado por vaga no backend.
+* [ ] Disponibilizar geração e visualização do PDI no frontend.
 * [ ] Conectar Coach à vaga analisada.
 * [ ] Resolver divergência entre perfil, currículo e vaga.
 * [ ] Configurar dados reais com Firecrawl.
@@ -538,12 +581,12 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 Uma etapa só deve ser considerada pronta quando:
 
 * [ ] A funcionalidade aparece no frontend.
-* [ ] A rota backend responde corretamente.
-* [ ] O arquivo Markdown correspondente é gerado.
-* [ ] Os erros comuns são tratados.
-* [ ] O lint passa.
-* [ ] O build passa.
-* [ ] O backend importa ou compila corretamente.
+* [x] A rota backend está registrada corretamente.
+* [x] O arquivo Markdown correspondente é gerado.
+* [x] Os erros comuns de pré-requisitos são tratados nas novas rotas.
+* [x] O lint passa.
+* [x] O build passa.
+* [x] O backend importa ou compila corretamente.
 * [ ] Existe uma forma clara de testar manualmente.
 * [ ] Nenhum fluxo anterior foi quebrado.
 * [ ] A documentação foi atualizada quando necessário.
@@ -559,6 +602,7 @@ Uma etapa só deve ser considerada pronta quando:
 * [x] Criar pipeline visual com Currículo, Vaga, Match, Sugestões, PDI e Entrevista.
 * [x] Exibir status com texto para não depender apenas de cor.
 * [x] Manter PDI como fase futura sem ação ativa nesta interface.
+* [x] Mostrar PDI como concluído quando `/api/data/pdi` contém um plano válido.
 * [x] Padronizar botões primários, secundários e estados de alerta.
 * [x] Criar cards e tags reutilizáveis para os relatórios.
 * [x] Padronizar loading, erro e sucesso.
@@ -574,3 +618,5 @@ Uma etapa só deve ser considerada pronta quando:
 * [x] Criar `docs/frontend-qa-checklist.md`.
 * [x] Aplicar lazy loading ao terminal de chat.
 * [ ] Executar checklist visual completo em navegadores reais.
+* [x] Corrigir a sidebar para manter navegação fixa e perfil rolável sem cortes.
+* [x] Validar ausência de scroll horizontal nos cinco viewports prioritários.

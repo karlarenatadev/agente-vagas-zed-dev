@@ -1,4 +1,4 @@
-Data da Busca: 2026-06-07 19:11
+Data da Busca: 2026-06-13 19:56
 
 Montando trilha de evolucao para 7 habilidade(s) priorizada(s) a partir do Scout...
 

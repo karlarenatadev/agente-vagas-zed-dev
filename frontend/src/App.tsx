@@ -109,7 +109,6 @@ export default function App() {
         <span className="pellet-field" />
       </div>
       <StatusBar
-        activeAgent={activeAgent}
         connectionStatus={connectionStatus}
         isConnected={isConnected}
         isStreaming={isStreaming}

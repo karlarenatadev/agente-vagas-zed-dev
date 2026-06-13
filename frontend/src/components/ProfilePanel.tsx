@@ -366,7 +366,11 @@ export function ProfilePanel({
         <ProductNav activeAgent={activeAgent} onNavigate={onNavigate} />
       </div>
 
-      <div className="sidebar-secondary">
+      <div
+        className="sidebar-secondary"
+        tabIndex={0}
+        aria-label="Resumo e detalhes do perfil profissional"
+      >
         {loading ? (
         <div className="profile-loading">
           <div className="shimmer profile-avatar-skeleton" />

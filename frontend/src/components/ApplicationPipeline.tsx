@@ -25,16 +25,21 @@ interface DataFileResponse {
 }
 
 interface PipelineSnapshot {
+  resume: boolean
   job: boolean
   match: boolean
   tailoring: boolean
+  pdi: boolean
   failed: boolean
 }
+
+const RESUME_ANALYSIS_STORAGE_KEY = 'import-vagas:resume-analysis-complete'
 
 const INVALID_MARKERS = [
   'nenhuma análise realizada',
   'nenhuma comparação realizada',
   'nenhuma sugestão gerada',
+  'nenhum plano gerado',
   'não calculado',
   'aguardando análise válida',
 ]
@@ -58,23 +63,38 @@ export function ApplicationPipeline({
   onStartInterview,
 }: Props) {
   const [snapshot, setSnapshot] = useState<PipelineSnapshot>({
+    resume: false,
     job: false,
     match: false,
     tailoring: false,
+    pdi: false,
     failed: false,
   })
 
   const refresh = useCallback(async () => {
     try {
-      const [job, match, tailoring] = await Promise.all([
+      const [job, match, tailoring, pdi] = await Promise.all([
         readDataFile('/api/data/job-description'),
         readDataFile('/api/data/resume-match'),
         readDataFile('/api/data/resume-tailoring'),
+        readDataFile('/api/data/pdi'),
       ])
+      const matchCompleted = hasValidContent(match)
+      const tailoringCompleted = hasValidContent(tailoring)
+      const resumeCompleted = window.localStorage.getItem(RESUME_ANALYSIS_STORAGE_KEY) === 'true'
+        || matchCompleted
+        || tailoringCompleted
+
+      if (resumeCompleted) {
+        window.localStorage.setItem(RESUME_ANALYSIS_STORAGE_KEY, 'true')
+      }
+
       setSnapshot({
+        resume: resumeCompleted,
         job: hasValidContent(job),
-        match: hasValidContent(match),
-        tailoring: hasValidContent(tailoring),
+        match: matchCompleted,
+        tailoring: tailoringCompleted,
+        pdi: hasValidContent(pdi),
         failed: false,
       })
     } catch {
@@ -96,10 +116,11 @@ export function ApplicationPipeline({
   }, [refresh])
 
   const steps = useMemo(() => {
-    const resumeCompleted = snapshot.match || snapshot.tailoring
+    const resumeCompleted = snapshot.resume
     const jobCompleted = snapshot.job || snapshot.match || snapshot.tailoring
     const matchCompleted = snapshot.match || snapshot.tailoring
     const tailoringCompleted = snapshot.tailoring
+    const pdiCompleted = snapshot.pdi
 
     return [
       {
@@ -154,8 +175,8 @@ export function ApplicationPipeline({
         key: 'pdi',
         label: 'PDI',
         description: 'Transforme lacunas em um plano de evolução.',
-        next: 'Fase futura da jornada.',
-        status: 'pending' as PipelineStatus,
+        next: pdiCompleted ? 'Plano de evolução salvo.' : 'Fase futura da jornada.',
+        status: (pdiCompleted ? 'completed' : 'pending') as PipelineStatus,
         icon: Map,
       },
       {
@@ -187,7 +208,7 @@ export function ApplicationPipeline({
         </div>
         <span className="pipeline-progress-label">
           <FileCheck2 size={14} aria-hidden="true" />
-          {steps.filter(step => step.status === 'completed').length} de 4 etapas-base concluídas
+          {steps.slice(0, 4).filter(step => step.status === 'completed').length} de 4 etapas-base concluídas
         </span>
       </header>
 

@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { AgentName, ChatMessage as ChatMessageType } from '../types'
 import { ScoutReport, type ScoutData } from './ScoutReport'
-import { CuratorReport, type CuratorData } from './CuratorReport'
+import { CuratorReport, type CuratorData, type CuratorSkill } from './CuratorReport'
 
 interface Props {
   message: ChatMessageType
@@ -61,11 +61,46 @@ function parseScoutData(content: string): ScoutData | null {
   return { resumo, requisitos, vagas }
 }
 
-const SKILL_FIELDS = new Set([
+type CuratorSkillTextField = Exclude<keyof CuratorSkill, 'habilidade' | 'resources'>
+
+const SKILL_FIELDS = [
   'habilidade', 'prioridade', 'nivel_recomendado', 'por_que_importa',
   'alinhamento_com_perfil', 'projeto_pratico', 'tempo_estimado_estudo',
   'relacao_com_vagas', 'impacto_esperado_aderencia',
-])
+] as const
+
+function assignSkillField(
+  skill: CuratorSkill,
+  key: CuratorSkillTextField,
+  value: string,
+) {
+  switch (key) {
+    case 'prioridade':
+      skill.prioridade = value
+      break
+    case 'nivel_recomendado':
+      skill.nivel_recomendado = value
+      break
+    case 'por_que_importa':
+      skill.por_que_importa = value
+      break
+    case 'alinhamento_com_perfil':
+      skill.alinhamento_com_perfil = value
+      break
+    case 'projeto_pratico':
+      skill.projeto_pratico = value
+      break
+    case 'tempo_estimado_estudo':
+      skill.tempo_estimado_estudo = value
+      break
+    case 'relacao_com_vagas':
+      skill.relacao_com_vagas = value
+      break
+    case 'impacto_esperado_aderencia':
+      skill.impacto_esperado_aderencia = value
+      break
+  }
+}
 
 const RESOURCE_MAP = [
   { kind: 'free', label: 'Curso gratuito', name: 'curso_gratuito_recomendado', platform: 'plataforma_gratuita', link: 'link_gratuito' },
@@ -134,9 +169,9 @@ function parseCuratorData(content: string): CuratorData | null {
       }
       if (!raw.habilidade) continue
 
-      const skill: CuratorData['buckets'][number]['skills'][number] = { habilidade: raw.habilidade, resources: [] }
+      const skill: CuratorSkill = { habilidade: raw.habilidade, resources: [] }
       for (const key of SKILL_FIELDS) {
-        if (key !== 'habilidade' && raw[key]) (skill as Record<string, unknown>)[key] = raw[key]
+        if (key !== 'habilidade' && raw[key]) assignSkillField(skill, key, raw[key])
       }
       for (const res of RESOURCE_MAP) {
         if (isUsable(raw[res.name])) {
