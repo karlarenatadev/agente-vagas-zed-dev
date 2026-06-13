@@ -97,10 +97,10 @@ O Scout é o agente responsável por oportunidades e análise de vagas.
 * [x] Extração de palavras-chave principais.
 * [x] Criação de alertas sobre vaga pouco clara, vaga sênior ou requisitos críticos.
 * [x] Persistência em `data/job-description-analysis.md`.
-* [ ] Comparar a descrição da vaga com o currículo analisado.
-* [ ] Separar evidências fortes, evidências parciais e requisitos ausentes.
-* [ ] Gerar score de aderência entre vaga e currículo.
-* [ ] Gerar relatório em `data/resume-match-report.md`.
+* [x] Comparar a descrição da vaga com o currículo analisado.
+* [x] Separar evidências fortes, evidências parciais e requisitos ausentes.
+* [x] Gerar score de aderência entre vaga e currículo.
+* [x] Gerar relatório em `data/resume-match-report.md`.
 
 ---
 
@@ -177,14 +177,14 @@ O Coach é o agente responsável pela entrevista simulada.
 
 ### O que iremos acrescentar
 
-* [ ] Comparar currículo com descrição de vaga específica.
-* [ ] Identificar palavras-chave da vaga que já aparecem no currículo.
-* [ ] Identificar palavras-chave ausentes.
+* [x] Comparar currículo com descrição de vaga específica.
+* [x] Identificar palavras-chave da vaga que já aparecem no currículo.
+* [x] Identificar palavras-chave ausentes.
 * [ ] Identificar experiências que podem ser melhor destacadas.
-* [ ] Identificar informações fracas ou pouco claras.
-* [ ] Criar sugestões seguras de melhoria.
-* [ ] Criar seção “Não afirmar ainda”.
-* [ ] Gerar `data/resume-tailoring-suggestions.md`.
+* [x] Identificar informações fracas ou pouco claras.
+* [x] Criar sugestões seguras de melhoria.
+* [x] Criar seção “Não afirmar ainda”.
+* [x] Gerar `data/resume-tailoring-suggestions.md`.
 
 ---
 
@@ -197,19 +197,19 @@ O Coach é o agente responsável pela entrevista simulada.
 
 ### O que iremos acrescentar
 
-* [ ] Sugestão de novo resumo profissional.
-* [ ] Sugestão de reorganização da seção de habilidades.
-* [ ] Sugestão de projetos a destacar.
-* [ ] Sugestão de experiências a reposicionar.
-* [ ] Sugestão de palavras-chave para inserir.
+* [x] Sugestão de novo resumo profissional.
+* [x] Sugestão de reorganização da seção de habilidades.
+* [x] Sugestão de projetos a destacar.
+* [x] Sugestão de experiências a reposicionar.
+* [x] Sugestão de palavras-chave para inserir.
 * [ ] Separação entre:
 
-  * [ ] pode destacar melhor;
-  * [ ] pode reposicionar;
-  * [ ] precisa estudar primeiro;
-  * [ ] não afirmar ainda.
-* [ ] Botão para copiar sugestões.
-* [ ] Avisos para evitar exageros ou informações falsas.
+  * [x] pode destacar melhor;
+  * [x] pode reposicionar;
+  * [x] precisa estudar primeiro;
+  * [x] não afirmar ainda.
+* [x] Botão para copiar sugestões.
+* [x] Avisos para evitar exageros ou informações falsas no relatório de aderência.
 
 ---
 
@@ -232,15 +232,15 @@ O Coach é o agente responsável pela entrevista simulada.
 
 ### O que iremos acrescentar
 
-* [ ] Botão “Comparar com meu currículo”.
-* [ ] Integração com `data/resume-analysis.md`.
-* [ ] Geração do relatório de aderência.
-* [ ] Exibição de score geral.
-* [ ] Exibição de palavras-chave encontradas.
-* [ ] Exibição de palavras-chave ausentes.
-* [ ] Exibição de lacunas críticas.
-* [ ] Exibição de sugestões seguras.
-* [ ] Exibição da seção “Não afirmar ainda”.
+* [x] Botão “Comparar com meu currículo”.
+* [x] Integração com `data/resume-analysis.md`.
+* [x] Geração do relatório de aderência.
+* [x] Exibição de score geral.
+* [x] Exibição de palavras-chave encontradas.
+* [x] Exibição de palavras-chave ausentes.
+* [x] Exibição de lacunas críticas.
+* [x] Exibição de sugestões seguras.
+* [x] Exibição da seção “Não afirmar ainda”.
 
 ---
 
@@ -254,28 +254,28 @@ Criar uma etapa que mostre o quanto o currículo do usuário está aderente à v
 
 ### O que será acrescentado
 
-* [ ] Criar módulo de comparação entre vaga e currículo.
-* [ ] Ler `data/job-description-analysis.md`.
-* [ ] Ler `data/resume-analysis.md`.
-* [ ] Normalizar aliases de habilidades.
-* [ ] Comparar hard skills.
-* [ ] Comparar soft skills.
-* [ ] Comparar ferramentas.
-* [ ] Comparar palavras-chave.
-* [ ] Comparar senioridade e área.
-* [ ] Separar evidências em:
+* [x] Criar módulo de comparação entre vaga e currículo.
+* [x] Ler `data/job-description-analysis.md`.
+* [x] Ler `data/resume-analysis.md`.
+* [x] Normalizar aliases de habilidades.
+* [x] Comparar hard skills.
+* [x] Comparar soft skills.
+* [x] Comparar ferramentas.
+* [x] Comparar palavras-chave.
+* [x] Comparar senioridade e área.
+* [x] Separar evidências em:
 
-  * [ ] evidência forte;
-  * [ ] evidência parcial;
-  * [ ] ausente.
-* [ ] Calcular score geral.
-* [ ] Gerar nível de prontidão.
-* [ ] Gerar recomendações seguras.
-* [ ] Gerar alertas.
-* [ ] Salvar resultado em `data/resume-match-report.md`.
-* [ ] Criar rota `POST /api/resume-match/analyze`.
-* [ ] Criar rota `GET /api/data/resume-match`.
-* [ ] Criar interface para visualizar o relatório.
+  * [x] evidência forte;
+  * [x] evidência parcial;
+  * [x] ausente.
+* [x] Calcular score geral.
+* [x] Gerar nível de prontidão.
+* [x] Gerar recomendações seguras.
+* [x] Gerar alertas.
+* [x] Salvar resultado em `data/resume-match-report.md`.
+* [x] Criar rota `POST /api/resume-match/analyze`.
+* [x] Criar rota `GET /api/data/resume-match`.
+* [x] Criar interface para visualizar o relatório.
 
 ---
 
@@ -287,18 +287,18 @@ Criar um documento simples e claro que explique o quanto o currículo conversa c
 
 ### O que será acrescentado
 
-* [ ] Score geral de aderência.
-* [ ] Nível de prontidão.
-* [ ] Evidências fortes.
-* [ ] Evidências parciais.
-* [ ] Requisitos ausentes.
-* [ ] Palavras-chave encontradas.
-* [ ] Palavras-chave ausentes.
-* [ ] Pontos fortes para a vaga.
-* [ ] Lacunas críticas.
-* [ ] Sugestões seguras para melhorar o currículo.
-* [ ] Seção “Não afirmar ainda”.
-* [ ] Próximos passos recomendados.
+* [x] Score geral de aderência.
+* [x] Nível de prontidão.
+* [x] Evidências fortes.
+* [x] Evidências parciais.
+* [x] Requisitos ausentes.
+* [x] Palavras-chave encontradas.
+* [x] Palavras-chave ausentes.
+* [x] Pontos fortes para a vaga.
+* [x] Lacunas críticas.
+* [x] Sugestões seguras para melhorar o currículo.
+* [x] Seção “Não afirmar ainda”.
+* [x] Próximos passos recomendados.
 
 ---
 
@@ -310,14 +310,14 @@ Ajudar o usuário a melhorar o currículo para uma vaga específica sem inventar
 
 ### O que será acrescentado
 
-* [ ] Gerar sugestões para resumo profissional.
-* [ ] Gerar sugestões para habilidades.
-* [ ] Gerar sugestões para projetos.
-* [ ] Gerar sugestões para experiências.
-* [ ] Mostrar palavras-chave que podem ser adicionadas com segurança.
-* [ ] Mostrar termos que precisam de evidência antes de entrar no currículo.
-* [ ] Permitir copiar sugestões.
-* [ ] Salvar em `data/resume-tailoring-suggestions.md`.
+* [x] Gerar sugestões para resumo profissional.
+* [x] Gerar sugestões para habilidades.
+* [x] Gerar sugestões para projetos.
+* [x] Gerar sugestões para experiências.
+* [x] Mostrar palavras-chave que podem ser adicionadas com segurança.
+* [x] Mostrar termos que precisam de evidência antes de entrar no currículo.
+* [x] Permitir copiar sugestões.
+* [x] Salvar em `data/resume-tailoring-suggestions.md`.
 
 ---
 
@@ -374,14 +374,14 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 ## O que iremos acrescentar
 
 * [ ] Detectar conflito entre perfil e currículo.
-* [ ] Detectar conflito entre currículo e vaga.
+* [x] Detectar conflito entre currículo e vaga.
 * [ ] Detectar conflito entre perfil e vaga.
 * [ ] Permitir escolher foco da candidatura.
 * [ ] Permitir usar dados do currículo como base.
 * [ ] Permitir usar dados do perfil como base.
 * [ ] Permitir usar a vaga como foco principal.
 * [ ] Atualizar perfil somente com confirmação do usuário.
-* [ ] Normalizar habilidades antes de qualquer cálculo de aderência.
+* [x] Normalizar habilidades antes de qualquer cálculo de aderência.
 
 ---
 
@@ -423,13 +423,13 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 ### Backend
 
-* [ ] Testar análise de descrição de vaga.
-* [ ] Testar comparação vaga x currículo.
-* [ ] Testar ausência de currículo.
-* [ ] Testar ausência de vaga.
-* [ ] Testar geração de Markdown.
-* [ ] Testar normalização de aliases.
-* [ ] Testar cálculo de score.
+* [x] Testar análise de descrição de vaga manualmente.
+* [x] Testar comparação vaga x currículo manualmente.
+* [x] Testar ausência de currículo manualmente.
+* [x] Testar ausência de vaga manualmente.
+* [x] Testar geração de Markdown manualmente.
+* [x] Testar normalização de aliases manualmente.
+* [x] Testar cálculo de score manualmente.
 
 ### Frontend
 
@@ -466,8 +466,8 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 ## O que iremos acrescentar
 
 * [ ] Investigar bundle principal.
-* [ ] Aplicar lazy loading em componentes grandes.
-* [ ] Separar melhor os componentes da esteira de candidatura.
+* [x] Aplicar lazy loading nos módulos principais da esteira.
+* [x] Separar o relatório de aderência em componente próprio.
 * [ ] Evitar duplicação de tipos TypeScript.
 * [ ] Revisar CSS adicionado.
 * [ ] Garantir consistência visual entre módulos.
@@ -510,17 +510,17 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 * [x] Criar interface para colar descrição.
 * [x] Salvar análise em Markdown.
 
-## Próxima etapa
+## Etapa concluída mais recente
 
-* [ ] Criar comparação vaga x currículo.
-* [ ] Gerar `resume-match-report.md`.
-* [ ] Exibir relatório no frontend.
-* [ ] Tratar ausência de currículo ou vaga.
-* [ ] Validar lint, build e backend.
+* [x] Criar comparação vaga x currículo.
+* [x] Gerar `resume-match-report.md`.
+* [x] Exibir relatório no frontend.
+* [x] Tratar ausência de currículo ou vaga.
+* [x] Validar lint, build e backend.
 
 ## Etapas seguintes
 
-* [ ] Gerar sugestões seguras de currículo.
+* [x] Gerar sugestões seguras de currículo.
 * [ ] Gerar PDI personalizado por vaga.
 * [ ] Conectar Coach à vaga analisada.
 * [ ] Resolver divergência entre perfil, currículo e vaga.

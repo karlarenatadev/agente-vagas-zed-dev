@@ -16,6 +16,7 @@ from routers import (
     profile,
     resume,
     resume_match,
+    resume_tailoring,
 )
 
 
@@ -64,6 +65,11 @@ app.include_router(
     resume_match.router,
     prefix="/api/resume-match",
     tags=["resume-match"],
+)
+app.include_router(
+    resume_tailoring.router,
+    prefix="/api/resume-tailoring",
+    tags=["resume-tailoring"],
 )
 
 

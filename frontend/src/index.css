@@ -2669,6 +2669,136 @@ textarea::placeholder {
   line-height: 1.5;
 }
 
+.resume-tailoring {
+  display: grid;
+  gap: 16px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.resume-tailoring-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px;
+  border: 1px solid rgba(124, 58, 237, 0.24);
+  border-radius: var(--radius-lg);
+  background: rgba(124, 58, 237, 0.06);
+}
+
+.resume-tailoring-callout > div {
+  display: grid;
+  gap: 5px;
+}
+
+.resume-tailoring-callout h3 {
+  color: var(--text-primary);
+  font-size: 15px;
+}
+
+.resume-tailoring-callout p:not(.eyebrow) {
+  max-width: 580px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.tailoring-result {
+  display: grid;
+  gap: 14px;
+}
+
+.tailoring-summary {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 8px;
+}
+
+.tailoring-summary > div {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+}
+
+.tailoring-summary span {
+  color: var(--text-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.tailoring-summary strong {
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.tailoring-category-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.tailoring-section {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+}
+
+.tailoring-section.critical {
+  border-color: rgba(251, 113, 133, 0.28);
+  background: rgba(251, 113, 133, 0.06);
+}
+
+.tailoring-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tailoring-section-header h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.tailoring-section.critical h4 {
+  color: var(--rose);
+}
+
+.tailoring-section-header button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: 600 10px var(--font-sans);
+  cursor: pointer;
+}
+
+.tailoring-section-header button:hover {
+  color: var(--cyan);
+}
+
+.tailoring-section ul {
+  display: grid;
+  gap: 6px;
+  padding-left: 17px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 @media (max-width: 760px) {
   .job-analyzer-modal {
     width: calc(100vw - 20px);
@@ -2678,17 +2808,25 @@ textarea::placeholder {
   .job-analysis-grid,
   .match-breakdown,
   .match-evidence-grid,
-  .match-detail-grid {
+  .match-detail-grid,
+  .tailoring-summary,
+  .tailoring-category-grid {
     grid-template-columns: 1fr;
   }
 
   .job-analyzer-actions .primary-action-button,
-  .resume-match-callout .primary-action-button {
+  .resume-match-callout .primary-action-button,
+  .resume-tailoring-callout .primary-action-button {
     width: 100%;
     justify-content: center;
   }
 
   .resume-match-callout {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .resume-tailoring-callout {
     align-items: stretch;
     flex-direction: column;
   }

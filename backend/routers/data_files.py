@@ -58,3 +58,15 @@ async def get_resume_match_report():
         return {"exists": True, "content": content}
     except FileNotFoundError:
         return {"exists": False, "content": ""}
+
+
+@router.get("/resume-tailoring")
+async def get_resume_tailoring_suggestions():
+    """Retorna as últimas sugestões seguras de currículo."""
+    try:
+        content = config.RESUME_TAILORING_SUGGESTIONS_FILE.read_text(
+            encoding="utf-8"
+        )
+        return {"exists": True, "content": content}
+    except FileNotFoundError:
+        return {"exists": False, "content": ""}

@@ -121,6 +121,24 @@ export interface ResumeMatchReport {
   next_steps: string[]
 }
 
+export interface ResumeTailoringSuggestions {
+  job_title: string
+  match_score: number
+  readiness_level: string
+  summary_suggestions: string[]
+  skills_suggestions: string[]
+  project_suggestions: string[]
+  experience_suggestions: string[]
+  keywords_to_include: string[]
+  keywords_to_avoid_claiming: string[]
+  can_highlight_better: string[]
+  can_reposition: string[]
+  needs_evidence: string[]
+  do_not_claim: string[]
+  safety_alerts: string[]
+  next_steps: string[]
+}
+
 // Tracker de candidaturas
 
 export type ApplicationStatus =

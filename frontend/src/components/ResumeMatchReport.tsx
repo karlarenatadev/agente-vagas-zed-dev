@@ -7,6 +7,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import type { ResumeMatchReport as ResumeMatchReportData } from '../types'
+import { ResumeTailoringSuggestions } from './ResumeTailoringSuggestions'
 
 interface Props {
   report: ResumeMatchReportData | null
@@ -151,6 +152,8 @@ export function ResumeMatchReport({ report, loading, error, onCompare }: Props) 
             Este relatório está pronto para alimentar sugestões de adaptação e o futuro PDI,
             sem editar o currículo nesta etapa.
           </p>
+
+          <ResumeTailoringSuggestions />
         </div>
       )}
     </section>
