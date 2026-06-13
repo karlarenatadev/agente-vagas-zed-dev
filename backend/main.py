@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import chat, profile, data_files, applications, resume
+from routers import applications, chat, data_files, job_description, profile, resume
 
 
 @asynccontextmanager
@@ -47,6 +47,11 @@ app.include_router(profile.router, prefix="/api/profile", tags=["profile"])
 app.include_router(data_files.router, prefix="/api/data", tags=["data"])
 app.include_router(applications.router, prefix="/api/applications", tags=["applications"])
 app.include_router(resume.router, prefix="/api/resume", tags=["resume"])
+app.include_router(
+    job_description.router,
+    prefix="/api/job-description",
+    tags=["job-description"],
+)
 
 
 @app.get("/health")

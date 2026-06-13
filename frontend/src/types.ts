@@ -74,6 +74,23 @@ export interface ResumeUploadResponse {
   profile_updated?: boolean
 }
 
+export interface JobDescriptionAnalysis {
+  title: string
+  company: string
+  seniority: string
+  modality: string
+  location: string
+  keywords: string[]
+  hard_skills: string[]
+  soft_skills: string[]
+  tools: string[]
+  responsibilities: string[]
+  required_requirements: string[]
+  nice_to_have: string[]
+  alerts: string[]
+  next_steps: string[]
+}
+
 // Tracker de candidaturas
 
 export type ApplicationStatus =

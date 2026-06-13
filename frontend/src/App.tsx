@@ -2,6 +2,7 @@ import { lazy, Suspense, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   Briefcase,
+  BriefcaseBusiness,
   FileText,
   GraduationCap,
   PanelLeft,
@@ -23,6 +24,7 @@ import type { SessionMode } from './types'
 
 const QuizPanel = lazy(() => import('./components/QuizPanel'))
 const ApplicationTracker = lazy(() => import('./components/ApplicationTracker'))
+const JobDescriptionAnalyzer = lazy(() => import('./components/JobDescriptionAnalyzer'))
 
 const MODE_STATUS: Record<SessionMode, (step: number) => string> = {
   init: () => 'Preparando a conversa',
@@ -134,6 +136,7 @@ export default function App() {
 
   const [trackerOpen, setTrackerOpen] = useState(false)
   const [resumeModalOpen, setResumeModalOpen] = useState(false)
+  const [jobAnalyzerOpen, setJobAnalyzerOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
     typeof window !== 'undefined'
       ? window.matchMedia('(max-width: 1024px)').matches
@@ -211,6 +214,18 @@ export default function App() {
             <div className="workspace-actions">
               <span className="mode-pill">{statusText}</span>
               <AgentBadge activeAgent={activeAgent} mode={session.mode} isStreaming={isStreaming} />
+
+              <motion.button
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setJobAnalyzerOpen(true)}
+                className="applications-btn"
+                type="button"
+                aria-label="Analisar descrição de vaga"
+              >
+                <BriefcaseBusiness size={15} />
+                <span className="btn-text">Analisar vaga</span>
+              </motion.button>
 
               <motion.button
                 whileHover={{ y: -1 }}
@@ -343,6 +358,36 @@ export default function App() {
               </button>
             </div>
             <ResumeUpload onContinueQuiz={() => setResumeModalOpen(false)} />
+          </section>
+        </div>
+      )}
+
+      {jobAnalyzerOpen && (
+        <div className="resume-modal" role="dialog" aria-modal="true" aria-labelledby="job-analyzer-title">
+          <button
+            type="button"
+            className="resume-modal-backdrop"
+            aria-label="Fechar análise de vaga"
+            onClick={() => setJobAnalyzerOpen(false)}
+          />
+          <section className="resume-modal-panel job-analyzer-modal">
+            <div className="resume-modal-header">
+              <div>
+                <p className="eyebrow">Inteligência de oportunidade</p>
+                <h2 id="job-analyzer-title">Analisar descrição de vaga</h2>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Fechar análise de vaga"
+                onClick={() => setJobAnalyzerOpen(false)}
+              >
+                <X size={17} />
+              </button>
+            </div>
+            <Suspense fallback={<div className="loading-fallback">Carregando analisador...</div>}>
+              <JobDescriptionAnalyzer />
+            </Suspense>
           </section>
         </div>
       )}

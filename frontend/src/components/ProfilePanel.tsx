@@ -272,7 +272,6 @@ export function ProfilePanel({ activeAgent, onStartProfile, onToggleCollapse }: 
   const [loading, setLoading] = useState(true)
 
   const loadProfile = useCallback((cancelled?: () => boolean) => {
-    setLoading(true)
     fetch('/api/profile/', {
       cache: 'no-store',
       headers: {
@@ -295,7 +294,10 @@ export function ProfilePanel({ activeAgent, onStartProfile, onToggleCollapse }: 
   useEffect(() => {
     let cancelled = false
     const isCancelled = () => cancelled
-    const handleProfileUpdated = () => loadProfile()
+    const handleProfileUpdated = () => {
+      setLoading(true)
+      loadProfile()
+    }
 
     loadProfile(isCancelled)
     window.addEventListener('profile-updated', handleProfileUpdated)

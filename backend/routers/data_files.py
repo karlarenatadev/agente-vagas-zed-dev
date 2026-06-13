@@ -38,3 +38,13 @@ async def get_interview_session():
         return {"exists": True, "content": content}
     except FileNotFoundError:
         return {"exists": False, "content": ""}
+
+
+@router.get("/job-description")
+async def get_job_description_analysis():
+    """Retorna a última análise de descrição de vaga."""
+    try:
+        content = config.JOB_DESCRIPTION_ANALYSIS_FILE.read_text(encoding="utf-8")
+        return {"exists": True, "content": content}
+    except FileNotFoundError:
+        return {"exists": False, "content": ""}
