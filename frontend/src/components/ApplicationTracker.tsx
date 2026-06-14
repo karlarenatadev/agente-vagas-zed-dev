@@ -3,10 +3,11 @@
  * Exibe vagas salvas, permite mudar status e adicionar notas.
  */
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, ExternalLink, ChevronDown } from 'lucide-react'
 import type { JobApplication, ApplicationStatus } from '../types'
+import { FeedbackState } from './ui/FeedbackState'
 
 const STATUS_CONFIG: Record<ApplicationStatus, { label: string; color: string; bg: string }> = {
   salva:        { label: 'Salva',        color: '#64748b', bg: 'rgba(100,116,139,0.12)' },
@@ -107,10 +108,12 @@ function ApplicationCard({
   app,
   onStatusChange,
   onDelete,
+  onError,
 }: {
   app: JobApplication
   onStatusChange: (id: string, status: ApplicationStatus) => void
   onDelete: (id: string) => void
+  onError: (message: string) => void
 }) {
   const [showDropdown, setShowDropdown] = useState(false)
   const [notes, setNotes] = useState(app.notas ?? '')
@@ -122,12 +125,22 @@ function ApplicationCard({
   const matchPct = matchTotal > 0 ? Math.round((matchNum / matchTotal) * 100) : 0
 
   const saveNotes = async () => {
-    await fetch(`/api/applications/${app.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ notas: notes }),
-    })
-    setEditingNotes(false)
+    try {
+      const response = await fetch(`/api/applications/${app.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notas: notes }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Falha HTTP ${response.status}`)
+      }
+
+      setEditingNotes(false)
+    } catch (requestError) {
+      console.error('Falha ao salvar notas da candidatura:', requestError)
+      onError('Não foi possível salvar as notas. Confira a conexão e tente novamente.')
+    }
   }
 
   return (
@@ -302,24 +315,40 @@ export function ApplicationTracker({ isOpen, onClose }: Props) {
   const [applications, setApplications] = useState<JobApplication[]>([])
   const [filter, setFilter] = useState<ApplicationStatus | 'todas'>('todas')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const loadApplications = useCallback(async () => {
+    try {
+      const response = await fetch('/api/applications/', { cache: 'no-store' })
+      if (!response.ok) {
+        throw new Error(`Falha HTTP ${response.status}`)
+      }
+
+      const data = await response.json()
+      if (!Array.isArray(data)) {
+        throw new Error('Resposta inválida da API de candidaturas')
+      }
+
+      setApplications(data as JobApplication[])
+    } catch (requestError) {
+      console.error('Falha ao carregar candidaturas:', requestError)
+      setError('Não foi possível carregar suas candidaturas agora.')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
     if (!isOpen) return
 
-    const load = async () => {
-      try {
-        const res = await fetch('/api/applications/')
-        const data = await res.json()
-        setApplications(data)
-      } catch {
-        setApplications([])
-      } finally {
-        setLoading(false)
-      }
-    }
+    const loadTimer = window.setTimeout(() => {
+      setLoading(true)
+      setError('')
+      void loadApplications()
+    }, 0)
 
-    load()
-  }, [isOpen])
+    return () => window.clearTimeout(loadTimer)
+  }, [isOpen, loadApplications])
 
   useEffect(() => {
     if (!isOpen) return
@@ -333,17 +362,40 @@ export function ApplicationTracker({ isOpen, onClose }: Props) {
   }, [isOpen, onClose])
 
   const handleStatusChange = async (id: string, status: ApplicationStatus) => {
-    await fetch(`/api/applications/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    })
-    setApplications(prev => prev.map(a => a.id === id ? { ...a, status } : a))
+    setError('')
+
+    try {
+      const response = await fetch(`/api/applications/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Falha HTTP ${response.status}`)
+      }
+
+      setApplications(prev => prev.map(a => a.id === id ? { ...a, status } : a))
+    } catch (requestError) {
+      console.error('Falha ao atualizar candidatura:', requestError)
+      setError('Não foi possível atualizar o status. Confira a conexão e tente novamente.')
+    }
   }
 
   const handleDelete = async (id: string) => {
-    await fetch(`/api/applications/${id}`, { method: 'DELETE' })
-    setApplications(prev => prev.filter(a => a.id !== id))
+    setError('')
+
+    try {
+      const response = await fetch(`/api/applications/${id}`, { method: 'DELETE' })
+      if (!response.ok) {
+        throw new Error(`Falha HTTP ${response.status}`)
+      }
+
+      setApplications(prev => prev.filter(a => a.id !== id))
+    } catch (requestError) {
+      console.error('Falha ao remover candidatura:', requestError)
+      setError('Não foi possível remover a candidatura. Confira a conexão e tente novamente.')
+    }
   }
 
   const filtered = filter === 'todas'
@@ -469,8 +521,31 @@ export function ApplicationTracker({ isOpen, onClose }: Props) {
             {/* Lista */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {loading ? (
-                <div style={{ textAlign: 'center', color: 'var(--text-muted)', paddingTop: '40px', fontSize: '13px' }}>
-                  Carregando...
+                <div style={{ paddingTop: '24px' }}>
+                  <FeedbackState
+                    tone="loading"
+                    title="Carregando candidaturas..."
+                    description="Buscando vagas salvas e seus status."
+                  />
+                </div>
+              ) : error ? (
+                <div style={{ paddingTop: '24px', display: 'grid', gap: '12px' }}>
+                  <FeedbackState
+                    tone="error"
+                    title={error}
+                    description="A lista não foi apagada. Você pode tentar sincronizar novamente."
+                  />
+                  <button
+                    type="button"
+                    className="secondary-action-button"
+                    onClick={() => {
+                      setLoading(true)
+                      setError('')
+                      void loadApplications()
+                    }}
+                  >
+                    Tentar novamente
+                  </button>
                 </div>
               ) : filtered.length === 0 ? (
                 <div style={{ textAlign: 'center', paddingTop: '40px' }}>
@@ -489,6 +564,7 @@ export function ApplicationTracker({ isOpen, onClose }: Props) {
                       app={app}
                       onStatusChange={handleStatusChange}
                       onDelete={handleDelete}
+                      onError={setError}
                     />
                   ))}
                 </AnimatePresence>

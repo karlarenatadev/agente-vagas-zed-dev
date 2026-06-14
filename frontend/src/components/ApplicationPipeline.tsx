@@ -37,6 +37,7 @@ interface PipelineSnapshot {
 const RESUME_ANALYSIS_STORAGE_KEY = 'import-vagas:resume-analysis-complete'
 
 const INVALID_MARKERS = [
+  'não analisado',
   'nenhuma análise realizada',
   'nenhuma comparação realizada',
   'nenhuma sugestão gerada',
@@ -85,14 +86,15 @@ export function ApplicationPipeline({
       const matchCompleted = hasValidContent(match)
       const tailoringCompleted = hasValidContent(tailoring)
       
-      // Prioriza arquivo real, fallback para localStorage, fallback para artefatos dependentes
+      // A API é a fonte principal; artefatos dependentes preservam compatibilidade.
       const resumeCompleted = hasValidContent(resumeAnalysis)
-        || window.localStorage.getItem(RESUME_ANALYSIS_STORAGE_KEY) === 'true'
         || matchCompleted
         || tailoringCompleted
 
       if (resumeCompleted) {
         window.localStorage.setItem(RESUME_ANALYSIS_STORAGE_KEY, 'true')
+      } else {
+        window.localStorage.removeItem(RESUME_ANALYSIS_STORAGE_KEY)
       }
 
       setSnapshot({

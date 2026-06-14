@@ -27,9 +27,12 @@ Validação executada nesta revisão:
   * [x] `pdi-plan.md`
   * [x] `personality-quiz.md`
   * [x] `user-profile.md`
-* [ ] Arquivo `resume-analysis.md` AUSENTE (necessário para comparação vaga x currículo).
-* [ ] Arquivo `resume-match-report.md` AUSENTE (necessário para relatório de aderência).
-* [ ] Arquivo `resume-tailoring-suggestions.md` AUSENTE (necessário para sugestões seguras).
+* [x] Geração e leitura de `resume-analysis.md` validadas.
+  O artefato pode estar ausente no estado inicial limpo e é criado pelo upload.
+* [x] Geração e leitura de `resume-match-report.md` validadas.
+  O artefato pode estar ausente antes da primeira comparação.
+* [x] Geração e leitura de `resume-tailoring-suggestions.md` validadas.
+  O artefato pode estar ausente antes da primeira geração de sugestões.
 
 ### Rotas backend validadas
 
@@ -86,7 +89,7 @@ Sessão executada em 2026-06-14.
 * [x] Validação executada: `npm run lint`, `npm run build`, `py_compile`, `import main` e smoke do Maestro com paths temporários.
 * [x] Checagem visual curta executada no navegador interno com frontend e backend reais em localhost.
 * [ ] Criar teste automatizado cobrindo o pré-preenchimento do quiz a partir do currículo.
-* [ ] Validar o fluxo no navegador com upload real de currículo seguido de “Iniciar/Continuar diagnóstico”.
+* [x] Validar o fluxo no navegador com upload real de currículo seguido de “Iniciar/Continuar diagnóstico”.
 
 ## Correção do card de perfil e limpeza do backend
 
@@ -198,8 +201,9 @@ Etapa executada em 2026-06-14, sem alterações de backend, agentes, PDI ou depe
 Pendências mantidas:
 
 * [ ] Executar todos os fluxos de erro com backend disponível e indisponível.
-* [ ] Confirmar separadamente a atualização do perfil após o upload do currículo.
-* [ ] Revalidar quiz e painel de candidaturas em uma rodada dedicada.
+  Restam match sem vaga válida, sugestões sem match e desligamento físico do processo backend.
+* [x] Confirmar separadamente a atualização do perfil após o upload do currículo.
+* [x] Revalidar quiz e painel de candidaturas em uma rodada dedicada.
 
 Pendências críticas confirmadas:
 
@@ -208,13 +212,41 @@ Pendências críticas confirmadas:
   Implementado em modal lazy, com ação liberada após as sugestões seguras e leitura do plano salvo.
 * [x] Fazer a pipeline reconhecer uma análise de currículo concluída após upload e nos artefatos dependentes.
   Implementado via localStorage e validação de artefatos dependentes (match/tailoring).
-* [ ] **Expor `resume-analysis.md` por uma rota de leitura** para detectar o arquivo diretamente em uma nova sessão.
-  Situação atual: A rota não existe em `data_files.py`, pipeline usa localStorage como workaround.
-* [ ] **Criar arquivo `resume-analysis.md` durante upload/análise de currículo.**
-  Situação atual: Arquivo não é gerado, causando falha na comparação vaga x currículo.
+* [x] **Expor `resume-analysis.md` por uma rota de leitura** para detectar o arquivo diretamente em uma nova sessão.
+  Implementado em `GET /api/data/resume-analysis`; a pipeline usa a API como fonte principal.
+* [x] **Criar arquivo `resume-analysis.md` durante upload/análise de currículo.**
+  Validado com upload TXT real no Chrome em 2026-06-14.
 * [ ] Conectar o Coach à descrição da vaga e ao relatório de aderência.
 * [ ] Criar testes automatizados mínimos para backend e frontend.
 * [x] Executar e registrar `docs/frontend-qa-checklist.md`.
+
+## Estabilização funcional de perfil, candidaturas e reconexão
+
+Sessão executada em 2026-06-14, sem alterações de backend, Coach, Firecrawl,
+multiusuário, deploy ou dependências.
+
+* [x] `ProfilePanel` distingue perfil ausente de falha de leitura e oferece nova tentativa.
+* [x] Upload real de currículo atualiza o perfil e inicia o diagnóstico pelo botão de continuação.
+* [x] `ApplicationTracker` valida status e contrato da resposta antes de renderizar.
+* [x] Candidaturas exibem estados distintos de loading, erro e vazio.
+* [x] PATCH, DELETE e notas não produzem falso sucesso quando a requisição falha.
+* [x] Queda durante streaming limpa loading e desbloqueia o chat para a reconexão.
+* [x] Pipeline usa `resume-analysis` da API como fonte principal e remove fallback obsoleto.
+* [x] Placeholder “Não analisado” não marca a etapa Vaga como concluída.
+* [x] Chrome `149.0.7827.114` validado em `1366x768` e `390x844`, sem overflow horizontal.
+* [x] Indisponibilidade de `/api` e `/ws` simulada no navegador com mensagens amigáveis e retry.
+* [x] WebSocket reconectou automaticamente após a rede ser liberada.
+* [x] Rotas de perfil, currículo, vaga, match, sugestões, PDI e candidaturas responderam `200`.
+* [x] `npm run lint` passa.
+* [x] `npm run build` passa.
+* [x] `python -m py_compile backend/main.py` passa.
+* [x] FastAPI importado com 27 rotas registradas.
+
+Pendências mantidas:
+
+* [ ] Executar desligamento físico do backend; o PID da porta 8000 não ficou acessível ao ambiente de teste.
+* [ ] Testar diretamente match sem vaga válida e sugestões sem relatório de match.
+* [ ] Revisar estados visuais dos componentes restantes em uma rodada global.
 
 ## Visão geral
 
@@ -677,8 +709,8 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 * [x] Testar renderização do analisador de vaga.
 * [x] Testar botão de comparação com currículo.
-* [ ] Testar loading.
-* [ ] Testar mensagens de erro.
+* [x] Testar loading.
+* [x] Testar mensagens de erro.
 * [x] Testar renderização de tags.
 * [x] Testar responsividade básica.
 
@@ -691,7 +723,7 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 * [x] Comparar vaga com currículo.
 * [x] Gerar relatório de aderência.
 * [x] Gerar sugestões seguras.
-* [ ] Gerar PDI.
+* [x] Gerar PDI.
 * [ ] Iniciar entrevista baseada na vaga.
 
 ---
@@ -752,10 +784,10 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 ## Etapa atual
 
-* [ ] **CRÍTICO: Corrigir geração de `resume-analysis.md` durante upload/análise de currículo.**
-  Situação: Arquivo não é criado, impedindo comparação vaga x currículo.
+* [x] **Garantir geração de `resume-analysis.md` durante upload/análise de currículo.**
+  Validado com upload TXT real em 2026-06-14.
 * [x] Integrar o componente `PdiPlan` ao frontend visível e à pipeline.
-* [ ] Adicionar rota de leitura para `resume-analysis` em `data_files.py`.
+* [x] Adicionar rota de leitura para `resume-analysis` em `data_files.py`.
 * [ ] Conectar a entrevista à vaga analisada e ao match.
 * [ ] Criar testes mínimos dos fluxos críticos.
 
@@ -775,8 +807,8 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 ## Etapas seguintes
 
-* [ ] **CRÍTICO: Garantir que `resume-analysis.md` seja criado durante análise de currículo.**
-* [ ] Adicionar rota GET para `resume-analysis` em `data_files.py`.
+* [x] Garantir que `resume-analysis.md` seja criado durante análise de currículo.
+* [x] Adicionar rota GET para `resume-analysis` em `data_files.py`.
 * [x] Disponibilizar visualização do PDI no frontend.
 * [ ] Conectar Coach à vaga analisada e ao relatório de aderência.
 * [ ] Resolver divergência entre perfil, currículo e vaga.
@@ -841,7 +873,7 @@ Uma etapa só deve ser considerada pronta quando:
 ## Arquitetura completa validada
 
 ### Backend (FastAPI + Python)
-* [x] 11 rotas REST implementadas e registradas
+* [x] 22 endpoints HTTP, 1 WebSocket e 4 rotas automáticas de documentação registrados
 * [x] 9 agentes especializados implementados
 * [x] WebSocket para chat em tempo real
 * [x] Persistência em arquivos Markdown
@@ -881,7 +913,7 @@ Uma etapa só deve ser considerada pronta quando:
 **Correções aplicadas:**
 - ✅ Adicionado endpoint `GET /api/data/resume-analysis` em `data_files.py`
 - ✅ Pipeline atualizada para ler o arquivo via API
-- ✅ Mantido fallback para localStorage como segurança adicional
+- ✅ API passou a ser a fonte principal; `localStorage` obsoleto é removido quando o artefato não existe
 - ✅ Validado: lint e build passando sem erros
 
 ### 2. ~~Firecrawl estava quebrando~~ ✅ RESOLVIDO

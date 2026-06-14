@@ -20,6 +20,7 @@ import {
   Zap,
 } from 'lucide-react'
 import type { AgentName, UserProfile } from '../types'
+import { FeedbackState } from './ui/FeedbackState'
 import { SkillTag } from './ui/SkillTag'
 
 interface Props {
@@ -293,25 +294,36 @@ export function ProfilePanel({
 }: Props) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  const loadProfile = useCallback((cancelled?: () => boolean) => {
-    fetch('/api/profile/', {
-      cache: 'no-store',
-      headers: {
-        'Cache-Control': 'no-cache',
-      },
-    })
-      .then(response => response.json())
-      .then(data => {
-        if (cancelled?.()) return
-        setProfile(data.exists ? data.data : null)
+  const loadProfile = useCallback(async (cancelled?: () => boolean) => {
+    try {
+      const response = await fetch('/api/profile/', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
       })
-      .catch(error => {
-        console.error('Falha ao carregar perfil:', error)
-      })
-      .finally(() => {
-        if (!cancelled?.()) setLoading(false)
-      })
+
+      if (!response.ok) {
+        throw new Error(`Falha HTTP ${response.status}`)
+      }
+
+      const data = await response.json() as {
+        exists?: boolean
+        data?: UserProfile
+      }
+
+      if (cancelled?.()) return
+      setProfile(data.exists && data.data ? data.data : null)
+    } catch (requestError) {
+      console.error('Falha ao carregar perfil:', requestError)
+      if (!cancelled?.()) {
+        setError('Não foi possível carregar seu perfil agora.')
+      }
+    } finally {
+      if (!cancelled?.()) setLoading(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -319,14 +331,18 @@ export function ProfilePanel({
     const isCancelled = () => cancelled
     const handleProfileUpdated = () => {
       setLoading(true)
-      loadProfile()
+      setError('')
+      void loadProfile()
     }
 
-    loadProfile(isCancelled)
+    const loadTimer = window.setTimeout(() => {
+      void loadProfile(isCancelled)
+    }, 0)
     window.addEventListener('profile-updated', handleProfileUpdated)
 
     return () => {
       cancelled = true
+      window.clearTimeout(loadTimer)
       window.removeEventListener('profile-updated', handleProfileUpdated)
     }
   }, [loadProfile])
@@ -378,6 +394,25 @@ export function ProfilePanel({
           <SkeletonLine width="92%" />
           <SkeletonLine width="58%" />
         </div>
+      ) : error && !hasProfileDraft ? (
+        <div className="profile-empty">
+          <FeedbackState
+            tone="error"
+            title={error}
+            description="Confira se o backend está disponível e tente novamente."
+          />
+          <button
+            type="button"
+            className="primary-panel-button"
+            onClick={() => {
+              setLoading(true)
+              setError('')
+              void loadProfile()
+            }}
+          >
+            Tentar novamente
+          </button>
+        </div>
       ) : !hasProfileDraft ? (
         <div className="profile-empty">
           <div className="empty-profile-icon" aria-hidden="true">
@@ -401,6 +436,13 @@ export function ProfilePanel({
         </div>
       ) : (
         <>
+          {error && (
+            <FeedbackState
+              tone="error"
+              title="O perfil salvo não pôde ser atualizado."
+              description="Mantivemos os últimos dados carregados. Tente novamente quando a conexão voltar."
+            />
+          )}
           <section className="profile-summary">
             <div className="profile-avatar" aria-hidden="true">
               <BriefcaseBusiness size={24} />

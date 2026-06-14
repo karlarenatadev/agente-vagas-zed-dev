@@ -110,7 +110,20 @@ export function useWebSocket() {
       socket.onclose = () => {
         if (destroyedRef.current) return
 
+        const interruptedStreamId = streamingIdRef.current
+        streamingIdRef.current = null
+        if (interruptedStreamId) {
+          setMessages(prev =>
+            prev.map(message =>
+              message.id === interruptedStreamId
+                ? { ...message, isStreaming: false }
+                : message
+            )
+          )
+        }
         setIsConnected(false)
+        setIsStreaming(false)
+        setLoadingState(INITIAL_LOADING)
         setConnectionStatus(hasConnectedRef.current ? 'reconnecting' : 'offline')
         reconnectTimerRef.current = setTimeout(connect, 2000)
       }

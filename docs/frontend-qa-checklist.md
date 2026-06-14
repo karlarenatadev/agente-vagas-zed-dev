@@ -6,7 +6,7 @@ Este roteiro cobre a identidade Career Arcade Pipeline e a regressão dos fluxos
 
 * [x] Abrir a aplicação e confirmar que a pipeline mostra Currículo, Vaga, Match, Sugestões, PDI e Entrevista.
 * [x] Enviar um currículo PDF, DOCX ou TXT válido.
-* [ ] Confirmar o estado de sucesso do currículo e a atualização do perfil.
+* [x] Confirmar o estado de sucesso do currículo e a atualização do perfil.
 * [x] Colar uma descrição completa de vaga.
 * [x] Confirmar cards de resumo, palavras-chave, requisitos e alertas.
 * [x] Comparar a vaga com o currículo.
@@ -19,34 +19,37 @@ Este roteiro cobre a identidade Career Arcade Pipeline e a regressão dos fluxos
 
 ## Fluxos de erro
 
-* [ ] Tentar analisar uma vaga com menos de 40 caracteres.
-* [ ] Tentar comparar sem currículo analisado.
+* [x] Tentar analisar uma vaga com menos de 40 caracteres.
+* [x] Tentar comparar sem currículo analisado.
 * [ ] Tentar comparar sem vaga válida.
+  A interface mantém o match dentro de uma análise de vaga válida; falta um teste isolado do contrato.
 * [ ] Tentar gerar sugestões sem relatório de match.
+  A ação permanece inacessível antes do match; falta testar diretamente a resposta da rota.
 * [x] Confirmar que a ação do PDI fica desabilitada sem sugestões seguras.
 * [x] Simular ausência de `pdi-plan.md` e confirmar estado vazio amigável.
 * [x] Simular erro `500` na geração do PDI e confirmar mensagem amigável.
 * [ ] Parar o backend e confirmar uma mensagem amigável no frontend.
-* [ ] Simular arquivo ausente ou inválido e confirmar que a aplicação não quebra.
-* [ ] Reconectar o backend e confirmar que o chat recupera o estado de conexão.
+  A indisponibilidade foi simulada no Chrome bloqueando `/api` e `/ws`; o processo da porta 8000 não pôde ser encerrado pelo ambiente.
+* [x] Simular arquivo ausente ou inválido e confirmar que a aplicação não quebra.
+* [x] Reconectar o backend e confirmar que o chat recupera o estado de conexão.
 
 ## Regressão
 
 * [x] O chat continua enviando e recebendo mensagens por WebSocket.
-* [ ] O ProfilePanel continua carregando o perfil.
-* [ ] O quiz continua abrindo e recebendo respostas.
+* [x] O ProfilePanel continua carregando o perfil.
+* [x] O quiz continua abrindo e recebendo respostas.
 * [x] O upload de currículo continua funcionando.
 * [x] A análise de vaga continua salvando o resultado.
 * [x] O match continua funcionando.
 * [x] As sugestões seguras continuam funcionando.
-* [ ] O painel de candidaturas continua abrindo.
-* [ ] As rotas de leitura continuam funcionando.
+* [x] O painel de candidaturas continua abrindo.
+* [x] As rotas de leitura continuam funcionando.
 
 ## Visual
 
 * [x] Desktop grande: pipeline em seis colunas, sem sobreposição.
-* [ ] Notebook: pipeline em duas linhas de três etapas.
-* [ ] Tablet: pipeline em duas colunas.
+* [x] Notebook: pipeline em duas linhas de três etapas.
+* [x] Tablet: pipeline em duas colunas.
 * [x] Mobile: pipeline vertical com rolagem interna.
 * [x] Sidebar não cobre o conteúdo principal.
 * [x] Modal de vaga cabe na altura disponível.
@@ -55,6 +58,7 @@ Este roteiro cobre a identidade Career Arcade Pipeline e a regressão dos fluxos
 * [x] Tags quebram linha sem cortar conteúdo.
 * [x] Botões mantêm área de toque confortável.
 * [ ] Loading, erro, vazio e sucesso são visualmente distintos.
+  Validado nesta rodada em perfil, candidaturas, upload e análise de vaga; falta revisão global dos demais componentes.
 * [x] Fundo de labirinto e pellets não prejudica a leitura.
 
 ## Acessibilidade
@@ -197,5 +201,25 @@ Problema corrigido:
 Pendências não validadas nesta rodada:
 
 * [ ] Executar todos os fluxos de erro com backend disponível e indisponível.
-* [ ] Confirmar separadamente a atualização do perfil após o upload do currículo.
-* [ ] Revalidar quiz e painel de candidaturas em uma rodada dedicada.
+  Restam match sem vaga válida, sugestões sem match e desligamento físico do backend.
+* [x] Confirmar separadamente a atualização do perfil após o upload do currículo.
+* [x] Revalidar quiz e painel de candidaturas em uma rodada dedicada.
+
+## Rodada de estabilização funcional
+
+Validação executada em 2026-06-14 com Google Chrome `149.0.7827.114`.
+
+* [x] Currículo TXT válido exibiu sucesso e atualizou o `ProfilePanel` imediatamente.
+* [x] Arquivo com extensão inválida exibiu orientação amigável sem quebrar o modal.
+* [x] O botão “Continuar para o quiz” iniciou o diagnóstico em vez de apenas fechar o modal.
+* [x] O quiz recebeu “continuar” e avançou para a próxima pergunta aplicável.
+* [x] Vaga com menos de 40 caracteres foi recusada com mensagem amigável.
+* [x] Match sem currículo analisado exibiu pré-requisito sem erro técnico cru.
+* [x] Painel de candidaturas abriu com empty state quando a lista estava vazia.
+* [x] Falhas de perfil e candidaturas exibiram erro e ação “Tentar novamente”.
+* [x] Bloqueio simulado de `/api` e `/ws` exibiu estado de reconexão.
+* [x] Ao liberar a rede, o WebSocket reconectou, o chat foi habilitado e os painéis recuperaram dados.
+* [x] Perfil, currículo, vaga, match, sugestões, PDI e candidaturas responderam `200` nas rotas de leitura.
+* [x] Sem overflow horizontal em `1366x768` e `390x844`.
+* [x] `npm run lint` passa.
+* [x] `npm run build` passa.

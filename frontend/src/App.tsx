@@ -83,6 +83,11 @@ export default function App() {
     if (!disabled) sendMessage(message)
   }
 
+  const handleContinueQuizAfterResume = () => {
+    setResumeModalOpen(false)
+    handleQuickStart('Iniciar/Continuar diagnóstico')
+  }
+
   const closeOverlays = () => {
     setTrackerOpen(false)
     setResumeModalOpen(false)
@@ -339,7 +344,7 @@ export default function App() {
                 <X size={17} />
               </button>
             </div>
-            <ResumeUpload onContinueQuiz={() => setResumeModalOpen(false)} />
+            <ResumeUpload onContinueQuiz={handleContinueQuizAfterResume} />
           </section>
         </div>
       )}
