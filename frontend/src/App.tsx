@@ -4,6 +4,7 @@ import {
   Briefcase,
   BriefcaseBusiness,
   FileText,
+  Map,
   PanelLeft,
   Sparkles,
   X,
@@ -21,6 +22,7 @@ import type { SessionMode } from './types'
 const QuizPanel = lazy(() => import('./components/QuizPanel'))
 const ApplicationTracker = lazy(() => import('./components/ApplicationTracker'))
 const JobDescriptionAnalyzer = lazy(() => import('./components/JobDescriptionAnalyzer'))
+const PdiPlan = lazy(() => import('./components/PdiPlan'))
 const ChatTerminal = lazy(() =>
   import('./components/ChatTerminal').then(module => ({ default: module.ChatTerminal }))
 )
@@ -58,8 +60,10 @@ export default function App() {
   const [trackerOpen, setTrackerOpen] = useState(false)
   const [resumeModalOpen, setResumeModalOpen] = useState(false)
   const [jobAnalyzerOpen, setJobAnalyzerOpen] = useState(false)
+  const [pdiModalOpen, setPdiModalOpen] = useState(false)
   const resumeModalRef = useRef<HTMLElement>(null)
   const jobAnalyzerModalRef = useRef<HTMLElement>(null)
+  const pdiModalRef = useRef<HTMLElement>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
     typeof window !== 'undefined'
       ? window.matchMedia('(max-width: 1024px)').matches
@@ -83,6 +87,7 @@ export default function App() {
     setTrackerOpen(false)
     setResumeModalOpen(false)
     setJobAnalyzerOpen(false)
+    setPdiModalOpen(false)
   }
 
   useEffect(() => {
@@ -90,7 +95,9 @@ export default function App() {
       ? resumeModalRef.current
       : jobAnalyzerOpen
         ? jobAnalyzerModalRef.current
-        : null
+        : pdiModalOpen
+          ? pdiModalRef.current
+          : null
 
     if (!modal) return
 
@@ -122,6 +129,7 @@ export default function App() {
         event.preventDefault()
         if (resumeModalOpen) setResumeModalOpen(false)
         if (jobAnalyzerOpen) setJobAnalyzerOpen(false)
+        if (pdiModalOpen) setPdiModalOpen(false)
         return
       }
 
@@ -146,7 +154,7 @@ export default function App() {
       document.removeEventListener('keydown', handleModalKeyDown)
       previousFocus?.focus()
     }
-  }, [jobAnalyzerOpen, resumeModalOpen])
+  }, [jobAnalyzerOpen, pdiModalOpen, resumeModalOpen])
 
   const handleGoHome = () => {
     closeOverlays()
@@ -281,6 +289,7 @@ export default function App() {
                 mode={session.mode}
                 onOpenResume={() => setResumeModalOpen(true)}
                 onOpenJob={() => setJobAnalyzerOpen(true)}
+                onOpenPdi={() => setPdiModalOpen(true)}
                 onStartInterview={() => handleQuickStart('C')}
               />
 
@@ -360,6 +369,36 @@ export default function App() {
             </div>
             <Suspense fallback={<div className="loading-fallback">Carregando analisador...</div>}>
               <JobDescriptionAnalyzer />
+            </Suspense>
+          </section>
+        </div>
+      )}
+
+      {pdiModalOpen && (
+        <div className="resume-modal" role="dialog" aria-modal="true" aria-labelledby="pdi-modal-title">
+          <button
+            type="button"
+            className="resume-modal-backdrop"
+            aria-label="Fechar plano de desenvolvimento"
+            onClick={() => setPdiModalOpen(false)}
+          />
+          <section ref={pdiModalRef} className="resume-modal-panel pdi-modal">
+            <div className="resume-modal-header">
+              <div>
+                <p className="eyebrow"><Map size={13} aria-hidden="true" /> Desenvolvimento</p>
+                <h2 id="pdi-modal-title">PDI personalizado para a vaga</h2>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Fechar plano de desenvolvimento"
+                onClick={() => setPdiModalOpen(false)}
+              >
+                <X size={17} />
+              </button>
+            </div>
+            <Suspense fallback={<div className="loading-fallback">Carregando PDI...</div>}>
+              <PdiPlan />
             </Suspense>
           </section>
         </div>

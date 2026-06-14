@@ -168,6 +168,49 @@ def validate_tailoring_suggestions(content: str) -> bool:
     )
 
 
+def pdi_from_markdown(content: str) -> dict[str, Any] | None:
+    parsed = _parse_markdown(content)
+    score_match = re.match(
+        r"^(\d{1,3})/100$",
+        _value(parsed, "score_atual", ""),
+    )
+    target_role = _value(parsed, "vaga_analisada", "")
+    main_goal = _value(parsed, "objetivo_principal", "")
+
+    if not score_match or not target_role or not main_goal:
+        return None
+
+    return {
+        "target_role": target_role,
+        "overall_score": int(score_match.group(1)),
+        "readiness_level": _value(
+            parsed,
+            "nivel_de_prontidao",
+            "Não calculado",
+        ),
+        "main_goal": main_goal,
+        "priority_gaps": _list(parsed, "lacunas_prioritarias"),
+        "quick_wins": _list(parsed, "ganhos_rapidos"),
+        "seven_day_plan": _list(parsed, "plano_de_7_dias"),
+        "thirty_day_plan": _list(parsed, "plano_de_30_dias"),
+        "sixty_day_plan": _list(parsed, "plano_de_60_dias"),
+        "portfolio_projects": _list(
+            parsed,
+            "projetos_praticos_recomendados",
+        ),
+        "resume_evidence_to_create": _list(
+            parsed,
+            "evidencias_para_criar_no_curriculo",
+        ),
+        "study_resources": _list(parsed, "estudos_recomendados"),
+        "interview_preparation": _list(
+            parsed,
+            "preparacao_para_entrevista",
+        ),
+        "next_steps": _list(parsed, "proximos_passos"),
+    }
+
+
 def pdi_to_markdown(result: dict[str, Any]) -> str:
     def bullets(items: list[str]) -> str:
         return "\n".join(f"* {item}" for item in items) if items else "* Nenhum item"

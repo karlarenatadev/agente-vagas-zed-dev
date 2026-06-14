@@ -4297,6 +4297,17 @@ textarea::placeholder {
     var(--color-surface-strong);
 }
 
+.pdi-modal {
+  width: min(1040px, calc(100vw - 32px));
+  border-color: rgba(52, 211, 153, 0.22);
+}
+
+.pdi-modal .pdi-plan {
+  margin: 14px 18px 18px;
+  padding-top: 0;
+  border-top: 0;
+}
+
 .job-analyzer {
   padding: 4px 20px 22px;
 }
@@ -5008,7 +5019,8 @@ button.product-nav-item:hover {
   }
 
   .resume-modal-panel,
-  .job-analyzer-modal {
+  .job-analyzer-modal,
+  .pdi-modal {
     width: 100%;
     max-height: calc(100dvh - 12px);
     border-radius: 14px;

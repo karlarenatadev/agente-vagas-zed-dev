@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   AlertCircle,
   CalendarRange,
@@ -65,8 +65,42 @@ function PdiSection({
 
 export function PdiPlan() {
   const [data, setData] = useState<PdiPlanData | null>(null)
+  const [loadingSaved, setLoadingSaved] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+
+    const loadSavedPlan = async () => {
+      try {
+        const response = await fetch('/api/pdi/latest', { cache: 'no-store' })
+        if (response.status === 404) return
+
+        const result = await response.json()
+        if (!response.ok) {
+          throw new Error(result.detail || 'Não foi possível carregar o PDI salvo.')
+        }
+        if (active) setData(result as PdiPlanData)
+      } catch (requestError) {
+        console.error('Falha ao carregar PDI:', requestError)
+        if (active) {
+          setError(
+            requestError instanceof Error
+              ? requestError.message
+              : 'Não foi possível carregar o PDI salvo.'
+          )
+        }
+      } finally {
+        if (active) setLoadingSaved(false)
+      }
+    }
+
+    void loadSavedPlan()
+    return () => {
+      active = false
+    }
+  }, [])
 
   const generate = async () => {
     setLoading(true)
@@ -87,6 +121,7 @@ export function PdiPlan() {
         throw new Error(result.detail || 'Não foi possível gerar o PDI.')
       }
       setData(result as PdiPlanData)
+      window.dispatchEvent(new Event('pipeline-updated'))
     } catch (requestError) {
       console.error('Falha ao gerar PDI:', requestError)
       setError(
@@ -114,12 +149,18 @@ export function PdiPlan() {
           type="button"
           className="primary-action-button"
           onClick={generate}
-          disabled={loading}
+          disabled={loading || loadingSaved}
         >
-          {loading
+          {loading || loadingSaved
             ? <Loader2 size={16} className="spin" aria-hidden="true" />
             : <CalendarRange size={16} aria-hidden="true" />}
-          {loading ? 'Gerando PDI...' : data ? 'Gerar novamente' : 'Gerar PDI para essa vaga'}
+          {loading
+            ? 'Gerando PDI...'
+            : loadingSaved
+              ? 'Carregando PDI...'
+              : data
+                ? 'Gerar novamente'
+                : 'Gerar PDI para essa vaga'}
         </button>
       </div>
 

@@ -11,6 +11,7 @@ import config
 from routers.common import read_required
 from agents.pdi_generator import (
     PdiGenerator,
+    pdi_from_markdown,
     pdi_to_markdown,
     validate_job_analysis,
     validate_match_report,
@@ -44,6 +45,23 @@ class PdiResponse(BaseModel):
     study_resources: list[str]
     interview_preparation: list[str]
     next_steps: list[str]
+
+
+@router.get("/latest", response_model=PdiResponse)
+async def get_latest_pdi() -> dict[str, Any]:
+    try:
+        content = config.PDI_PLAN_FILE.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Nenhum PDI foi gerado ainda.")
+
+    result = pdi_from_markdown(content)
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Nenhum PDI válido foi gerado ainda.",
+        )
+
+    return result
 
 
 @router.post("/generate", response_model=PdiResponse)

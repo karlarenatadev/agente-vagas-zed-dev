@@ -16,6 +16,7 @@ interface Props {
   mode: SessionMode
   onOpenResume: () => void
   onOpenJob: () => void
+  onOpenPdi: () => void
   onStartInterview: () => void
 }
 
@@ -60,6 +61,7 @@ export function ApplicationPipeline({
   mode,
   onOpenResume,
   onOpenJob,
+  onOpenPdi,
   onStartInterview,
 }: Props) {
   const [snapshot, setSnapshot] = useState<PipelineSnapshot>({
@@ -179,9 +181,15 @@ export function ApplicationPipeline({
         key: 'pdi',
         label: 'PDI',
         description: 'Transforme lacunas em um plano de evolução.',
-        next: pdiCompleted ? 'Plano de evolução salvo.' : 'Fase futura da jornada.',
-        status: (pdiCompleted ? 'completed' : 'pending') as PipelineStatus,
+        next: pdiCompleted
+          ? 'Plano de evolução salvo.'
+          : tailoringCompleted
+            ? 'Gere um plano de 7, 30 e 60 dias.'
+            : 'Conclua as sugestões primeiro.',
+        status: (pdiCompleted ? 'completed' : tailoringCompleted ? 'available' : 'blocked') as PipelineStatus,
         icon: Map,
+        action: onOpenPdi,
+        actionLabel: pdiCompleted ? 'Ver PDI' : 'Gerar PDI',
       },
       {
         key: 'interview',
@@ -194,7 +202,7 @@ export function ApplicationPipeline({
         actionLabel: mode === 'coach' ? 'Continuar treino' : 'Treinar entrevista',
       },
     ]
-  }, [mode, onOpenJob, onOpenResume, onStartInterview, snapshot])
+  }, [mode, onOpenJob, onOpenPdi, onOpenResume, onStartInterview, snapshot])
 
   const currentIndex = steps.findIndex(step => step.status === 'available')
   const activeIndex = currentIndex === -1 ? steps.findIndex(step => step.status === 'pending') : currentIndex

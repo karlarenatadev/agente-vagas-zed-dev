@@ -13,7 +13,9 @@ Este roteiro cobre a identidade Career Arcade Pipeline e a regressão dos fluxos
 * [x] Confirmar score, evidências fortes, parciais e ausentes.
 * [x] Gerar sugestões seguras de currículo.
 * [x] Copiar uma seção e confirmar a troca temporária do texto para “Copiado”.
-* [x] Confirmar que PDI aparece apenas como fase futura, sem ação ativa.
+* [ ] Confirmar que PDI fica bloqueado antes das sugestões seguras.
+* [ ] Confirmar que PDI fica disponível após as sugestões seguras.
+* [ ] Gerar o PDI, fechar o modal e confirmar que o plano salvo reaparece ao abrir novamente.
 
 ## Fluxos de erro
 
@@ -21,6 +23,7 @@ Este roteiro cobre a identidade Career Arcade Pipeline e a regressão dos fluxos
 * [ ] Tentar comparar sem currículo analisado.
 * [ ] Tentar comparar sem vaga válida.
 * [ ] Tentar gerar sugestões sem relatório de match.
+* [ ] Tentar gerar PDI sem os artefatos obrigatórios e confirmar a mensagem amigável.
 * [ ] Parar o backend e confirmar uma mensagem amigável no frontend.
 * [ ] Simular arquivo ausente ou inválido e confirmar que a aplicação não quebra.
 * [ ] Reconectar o backend e confirmar que o chat recupera o estado de conexão.
@@ -70,6 +73,9 @@ Este roteiro cobre a identidade Career Arcade Pipeline e a regressão dos fluxos
 * [x] Confirmar que nenhuma dependência pesada foi adicionada.
 
 Bundle principal registrado em 2026-06-14: `359,10 kB` (`114,27 kB` gzip).
+
+Build após integração do PDI em 2026-06-14: bundle principal `360,51 kB`
+(`114,52 kB` gzip) e `PdiPlan` em chunk separado de `5,08 kB` (`2,01 kB` gzip).
 
 ## Polimento final de responsividade
 

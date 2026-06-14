@@ -204,8 +204,8 @@ Pendências mantidas:
 Pendências críticas confirmadas:
 
 * [x] Componente `PdiPlan` implementado no frontend (`frontend/src/components/PdiPlan.tsx`).
-* [ ] **Integrar o componente `PdiPlan` à interface visível e ao pipeline.**
-  Situação atual: O componente existe mas não está sendo renderizado na interface principal ou conectado à pipeline.
+* [x] **Integrar o componente `PdiPlan` à interface visível e ao pipeline.**
+  Implementado em modal lazy, com ação liberada após as sugestões seguras e leitura do plano salvo.
 * [x] Fazer a pipeline reconhecer uma análise de currículo concluída após upload e nos artefatos dependentes.
   Implementado via localStorage e validação de artefatos dependentes (match/tailoring).
 * [ ] **Expor `resume-analysis.md` por uma rota de leitura** para detectar o arquivo diretamente em uma nova sessão.
@@ -559,8 +559,8 @@ Transformar as lacunas entre vaga e currículo em plano de desenvolvimento indiv
 * [x] Sugerir entregáveis para portfólio.
 * [x] Sugerir ajustes futuros no currículo.
 * [x] Salvar em `data/pdi-plan.md`.
-* [ ] Integrar o componente `PdiPlan` ao fluxo visível do frontend.
-* [ ] Atualizar a etapa PDI da pipeline com estado, leitura e ação reais.
+* [x] Integrar o componente `PdiPlan` ao fluxo visível do frontend.
+* [x] Atualizar a etapa PDI da pipeline com estado, leitura e ação reais.
 
 ---
 
@@ -754,7 +754,7 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 * [ ] **CRÍTICO: Corrigir geração de `resume-analysis.md` durante upload/análise de currículo.**
   Situação: Arquivo não é criado, impedindo comparação vaga x currículo.
-* [ ] Integrar o componente `PdiPlan` ao frontend visível e à pipeline.
+* [x] Integrar o componente `PdiPlan` ao frontend visível e à pipeline.
 * [ ] Adicionar rota de leitura para `resume-analysis` em `data_files.py`.
 * [ ] Conectar a entrevista à vaga analisada e ao match.
 * [ ] Criar testes mínimos dos fluxos críticos.
@@ -777,7 +777,7 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 * [ ] **CRÍTICO: Garantir que `resume-analysis.md` seja criado durante análise de currículo.**
 * [ ] Adicionar rota GET para `resume-analysis` em `data_files.py`.
-* [ ] Disponibilizar visualização do PDI no frontend (componente existe mas não está integrado).
+* [x] Disponibilizar visualização do PDI no frontend.
 * [ ] Conectar Coach à vaga analisada e ao relatório de aderência.
 * [ ] Resolver divergência entre perfil, currículo e vaga.
 * [ ] Configurar dados reais com Firecrawl (`FIRECRAWL_API_KEY`).
@@ -914,19 +914,21 @@ Uma etapa só deve ser considerada pronta quando:
 - ✅ Fallbacks locais continuam funcionando
 - ✅ Validado: `firecrawl search "test" --json` retorna 10 resultados reais
 
-### 3. Componente PDI não está integrado à interface
-**Impacto:** MÉDIO - Funcionalidade pronta mas invisível ao usuário
+### 3. ~~Componente PDI não está integrado à interface~~ ✅ RESOLVIDO
+**Status:** RESOLVIDO em 2026-06-14
 
-**Situação atual:**
-- `PdiPlan.tsx` existe e está completo
-- Rota `/api/pdi/generate` funciona
-- Mas o componente não é renderizado em nenhuma view
-- Pipeline mostra PDI como "fase futura"
+**Correções aplicadas:**
+- `PdiPlan.tsx` é carregado sob demanda em um modal acessível.
+- Pipeline libera a ação do PDI após a conclusão das sugestões seguras.
+- Plano salvo é recuperado por `GET /api/pdi/latest`.
+- Geração bem-sucedida atualiza imediatamente o estado da pipeline.
 
-**Ação necessária:**
-- [ ] Importar e renderizar `PdiPlan` no App principal
-- [ ] Atualizar pipeline para mostrar PDI como "available" quando tailoring estiver completo
-- [ ] Adicionar botão de ação na etapa PDI da pipeline
+**Validações executadas:**
+- [x] `npm run lint`
+- [x] `npm run build`
+- [x] `py_compile` e importação do FastAPI com 27 rotas.
+- [x] Round-trip automatizado entre dados estruturados e `pdi-plan.md`.
+- [ ] Validar o modal e a geração completa em navegador com artefatos reais.
 
 ### 4. ~~Rota de leitura para resume-analysis ausente~~ ✅ RESOLVIDO
 **Status:** RESOLVIDO em 2026-06-14 (mesmo commit do item 1)
