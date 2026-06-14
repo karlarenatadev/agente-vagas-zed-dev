@@ -127,6 +127,9 @@ class MaestroAgent(BaseAgent):
     """Orquestrador principal — gerencia quiz, menu e despacho de sub-agentes."""
 
     name = "Maestro"
+    # Frase enviada pelo botão "Iniciar/Continuar diagnóstico" do frontend.
+    # É um comando, não uma resposta de quiz — interceptado em run().
+    START_PROFILE_COMMAND = "quero criar meu perfil profissional"
     COACH_EXIT_COMMANDS = {
         "sair",
         "encerrar",
@@ -293,6 +296,13 @@ class MaestroAgent(BaseAgent):
 
         message = context.get("message", "").strip()
 
+        # Comando explícito de (re)iniciar o diagnóstico. Nunca deve ser tratado
+        # como resposta de quiz; aproveita o currículo analisado para pré-preencher.
+        if message.casefold() == self.START_PROFILE_COMMAND:
+            async for token in self._start_diagnostico():
+                yield token
+            return
+
         if self.mode == "init":
             async for token in self._handle_init():
                 yield token
@@ -347,15 +357,12 @@ class MaestroAgent(BaseAgent):
             yield "\n__STATE__:quiz_resume"
 
         else:
-            # Sem quiz — inicia
+            # Sem quiz — inicia (aproveitando o currículo quando houver)
             yield "Para começar, preciso conhecer seu perfil profissional.\n"
-            if config.RESUME_ANALYSIS_FILE.exists():
-                yield "Já encontrei uma análise de currículo salva. Use o quiz para confirmar e complementar essas informações.\n"
-            else:
+            if not config.RESUME_ANALYSIS_FILE.exists():
                 yield "Se preferir, você também pode enviar um currículo para eu analisar antes do quiz.\n"
-            yield "Vou fazer algumas perguntas rápidas — uma de cada vez.\n\n"
-            yield f"**Pergunta 1/7:** {QUIZ_QUESTIONS[0]['text']}\n"
-            yield "\n__STATE__:quiz:0"
+            async for token in self._start_diagnostico():
+                yield token
 
     # ─── Quiz ─────────────────────────────────────────────────────────────────
 
@@ -408,7 +415,9 @@ class MaestroAgent(BaseAgent):
         # Salva resposta atual
         field = QUIZ_QUESTIONS[self.quiz_step]["field"]
         self.quiz_answers[field] = message
-        next_step = self.quiz_step + 1
+        # Avança para o próximo campo ainda não respondido (pula os já preenchidos
+        # pelo currículo), em vez de seguir linearmente.
+        next_step = self._next_quiz_step(self.quiz_answers)
 
         if next_step >= len(QUIZ_QUESTIONS):
             # Quiz completo
@@ -432,6 +441,128 @@ class MaestroAgent(BaseAgent):
     def _encode_answers(self) -> str:
         """Serializa respostas parciais para passar no token de estado."""
         return base64.b64encode(json.dumps(self.quiz_answers).encode()).decode()
+
+    # ─── Diagnóstico (quiz + currículo) ───────────────────────────────────────
+
+    @staticmethod
+    def _normalize_level(level: str) -> str:
+        """Mapeia o nível estimado do currículo para Júnior/Pleno/Sênior."""
+        value = level.casefold()
+        if "sênior" in value or "senior" in value:
+            return "Sênior"
+        if "pleno" in value:
+            return "Pleno"
+        if "júnior" in value or "junior" in value or "estágio" in value or "estagio" in value:
+            return "Júnior"
+        return ""
+
+    def _seed_answers_from_resume(self) -> dict[str, str]:
+        """Extrai respostas do quiz a partir de data/resume-analysis.md.
+
+        Aproveita as palavras-chave do currículo (área, nível, habilidades e
+        soft skills) para pré-preencher o quiz e perguntar só o que falta.
+        """
+        content = self._read_file(config.RESUME_ANALYSIS_FILE)
+        if not content.strip():
+            return {}
+
+        lines = [line.rstrip() for line in content.splitlines()]
+        placeholders = {"não identificado", "nao identificado", ""}
+
+        def list_after(header: str) -> list[str]:
+            items: list[str] = []
+            capturing = False
+            for line in lines:
+                stripped = line.strip()
+                if stripped == header:
+                    capturing = True
+                    continue
+                if not capturing:
+                    continue
+                if stripped.startswith("- "):
+                    items.append(stripped[2:].strip())
+                elif stripped == "":
+                    if items:
+                        break
+                else:
+                    break
+            return [item for item in items if item.casefold() not in placeholders]
+
+        def value_after(header: str) -> str:
+            capturing = False
+            for line in lines:
+                stripped = line.strip()
+                if stripped == header:
+                    capturing = True
+                    continue
+                if capturing and stripped:
+                    return stripped
+            return ""
+
+        answers: dict[str, str] = {}
+
+        areas = list_after("Áreas prováveis:")
+        if areas:
+            answers["Área de interesse"] = areas[0]
+
+        level = self._normalize_level(value_after("Nível estimado:"))
+        if level:
+            answers["Nível de experiência"] = level
+
+        skills = list_after("Habilidades técnicas detectadas:")
+        if skills:
+            answers["Habilidades atuais"] = ", ".join(skills)
+
+        soft_skills = list_after("Soft skills detectadas:")
+        if soft_skills:
+            answers["Soft skills"] = ", ".join(soft_skills)
+
+        return answers
+
+    async def _start_diagnostico(self) -> AsyncGenerator[str, None]:
+        """Inicia o diagnóstico, pré-preenchendo o quiz com o currículo analisado.
+
+        Pergunta apenas os campos que o currículo não cobre.
+        """
+        seeded = self._seed_answers_from_resume()
+        self.quiz_answers = dict(seeded)
+        self.quiz_step = self._next_quiz_step(self.quiz_answers)
+        self._save_quiz({**self.quiz_answers, "Concluído": "false"})
+
+        if seeded:
+            yield "\n◈ Aproveitei seu currículo para adiantar o diagnóstico:\n"
+            if seeded.get("Área de interesse"):
+                yield f"• Área: **{seeded['Área de interesse']}**\n"
+            if seeded.get("Nível de experiência"):
+                yield f"• Nível: **{seeded['Nível de experiência']}**\n"
+            if seeded.get("Habilidades atuais"):
+                yield f"• Habilidades: {seeded['Habilidades atuais']}\n"
+            if seeded.get("Soft skills"):
+                yield f"• Soft skills: {seeded['Soft skills']}\n"
+            yield "\n"
+
+        # Currículo já cobriu todos os campos do quiz.
+        if self.quiz_step >= len(QUIZ_QUESTIONS):
+            self.quiz_answers["Concluído"] = "true"
+            self._save_quiz(self.quiz_answers)
+            self._generate_profile(self.quiz_answers)
+            area = self.quiz_answers.get("Área de interesse", "")
+            level = self.quiz_answers.get("Nível de experiência", "")
+            yield f"✓ Perfil montado a partir do currículo — **{area}** · **{level}**\n\n"
+            yield self._profile_summary(self.quiz_answers)
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
+
+        if seeded:
+            yield "Só preciso confirmar o que o currículo não deixa claro.\n\n"
+        else:
+            yield "Vou fazer algumas perguntas rápidas — uma de cada vez.\n\n"
+
+        question = QUIZ_QUESTIONS[self.quiz_step]
+        yield f"**Pergunta {self.quiz_step + 1}/7:** {question['text']}\n"
+        yield f"\n__STATE__:quiz:{self.quiz_step}:{self._encode_answers()}"
 
     # ─── Menu ─────────────────────────────────────────────────────────────────
 
@@ -813,7 +944,7 @@ class MaestroAgent(BaseAgent):
         if final_score:
             lines.extend(["", f"Pontuação Final: {final_score}"])
         if improvements:
-            lines.extend(["Ãreas de Melhoria:", improvements])
+            lines.extend(["Áreas de Melhoria:", improvements])
         self._write_file(config.INTERVIEW_FILE, "\n".join(lines))
 
     def _extract_coach_section(self, text: str, section: str) -> str:

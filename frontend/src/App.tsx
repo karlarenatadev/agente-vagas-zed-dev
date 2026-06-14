@@ -41,7 +41,7 @@ function extractCurrentQuestion(content: string): string {
   if (match) return match[1].trim()
 
   const lines = content.split('\n').map(line => line.trim()).filter(Boolean)
-  return lines[lines.length - 1] ?? content
+  return (lines[lines.length - 1] ?? content).trim()
 }
 
 export default function App() {

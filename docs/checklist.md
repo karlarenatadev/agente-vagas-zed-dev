@@ -17,6 +17,21 @@ Validação executada nesta revisão:
 * [x] QA visual completo executado em navegadores reais.
   A estabilização responsiva foi validada no Chrome em oito resoluções. As rodadas finais de visual, acessibilidade e fluxo funcional com backend real foram validadas no Chrome e Edge.
 
+## Diagnóstico a partir do currículo
+
+Sessão executada em 2026-06-14.
+
+* [x] Maestro passou a reconhecer explicitamente o comando do botão “Iniciar/Continuar diagnóstico” como início de diagnóstico, sem tratá-lo como resposta do quiz.
+* [x] Diagnóstico reaproveita `data/resume-analysis.md` para pré-preencher área, nível, habilidades técnicas e soft skills.
+* [x] Quiz agora pula campos já detectados no currículo e pergunta somente localização, preferência de trabalho, objetivo de carreira ou qualquer outro campo ainda ausente.
+* [x] Frontend passou a aparar espaços da pergunta atual antes de renderizar o painel do quiz.
+* [x] Corrigida codificação de `backend/requirements.txt`, que havia sido salvo como UTF-16.
+* [x] Corrigido texto corrompido “Áreas de Melhoria” ao salvar a sessão de entrevista.
+* [x] Validação executada: `npm run lint`, `npm run build`, `py_compile`, `import main` e smoke do Maestro com paths temporários.
+* [x] Checagem visual curta executada no navegador interno com frontend e backend reais em localhost.
+* [ ] Criar teste automatizado cobrindo o pré-preenchimento do quiz a partir do currículo.
+* [ ] Validar o fluxo no navegador com upload real de currículo seguido de “Iniciar/Continuar diagnóstico”.
+
 ## Correção do card de perfil e limpeza do backend
 
 Sessão executada em 2026-06-14.

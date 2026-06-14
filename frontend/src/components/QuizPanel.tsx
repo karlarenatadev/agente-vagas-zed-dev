@@ -58,11 +58,11 @@ export function QuizPanel({ mode, step, question, onAnswer, disabled }: Props) {
   const safeStep = Math.min(Math.max(step, 0), TOTAL - 1)
   const isResumeMode = mode === 'quiz_resume'
   const quickOptions = isResumeMode ? ['continuar', 'refazer'] : QUICK_OPTIONS[step] ?? []
-  const currentQuestion = question || (
-    isResumeMode
+  const currentQuestion = question?.trim()
+    ? question
+    : isResumeMode
       ? 'Você quer continuar de onde parou ou refazer o quiz?'
       : FALLBACK_QUESTIONS[safeStep]
-  )
 
   useEffect(() => {
     window.setTimeout(() => inputRef.current?.focus(), 80)
