@@ -54,6 +54,8 @@ class BaseAgent(ABC):
             temperature=0.7,
         )
         async for chunk in stream:
+            if not chunk.choices:
+                continue
             delta = chunk.choices[0].delta.content
             if delta:
                 yield delta
@@ -68,6 +70,8 @@ class BaseAgent(ABC):
             ],
             temperature=0.7,
         )
+        if not response.choices:
+            return ""
         return response.choices[0].message.content or ""
 
     @abstractmethod

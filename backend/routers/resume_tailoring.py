@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 import config
+from routers.common import read_required
 from agents.resume_tailor import (
     ResumeTailor,
     tailoring_to_markdown,
@@ -44,16 +45,6 @@ class ResumeTailoringResponse(BaseModel):
     next_steps: list[str]
 
 
-def _read_required(path, missing_message: str, invalid_message: str) -> str:
-    try:
-        content = path.read_text(encoding="utf-8").strip()
-    except FileNotFoundError:
-        raise HTTPException(status_code=400, detail=missing_message)
-    if not content:
-        raise HTTPException(status_code=400, detail=invalid_message)
-    return content
-
-
 @router.post("/generate", response_model=ResumeTailoringResponse)
 async def generate_resume_tailoring(
     body: ResumeTailoringRequest | None = None,
@@ -71,7 +62,7 @@ async def generate_resume_tailoring(
             detail="Esta versão usa apenas as análises mais recentes salvas em data/.",
         )
 
-    resume_content = _read_required(
+    resume_content = read_required(
         config.RESUME_ANALYSIS_FILE,
         "Envie e analise um currículo primeiro.",
         "A análise do currículo está vazia ou inválida. Envie o currículo novamente.",
@@ -82,7 +73,7 @@ async def generate_resume_tailoring(
             detail="A análise do currículo está vazia ou inválida. Envie o currículo novamente.",
         )
 
-    job_content = _read_required(
+    job_content = read_required(
         config.JOB_DESCRIPTION_ANALYSIS_FILE,
         "Analise uma descrição de vaga primeiro.",
         "A análise da vaga está vazia ou inválida. Analise a vaga novamente.",
@@ -93,7 +84,7 @@ async def generate_resume_tailoring(
             detail="A análise da vaga está vazia ou inválida. Analise a vaga novamente.",
         )
 
-    match_content = _read_required(
+    match_content = read_required(
         config.RESUME_MATCH_REPORT_FILE,
         "Compare a vaga com o currículo primeiro.",
         "O relatório de aderência está vazio ou inválido. Execute a comparação novamente.",

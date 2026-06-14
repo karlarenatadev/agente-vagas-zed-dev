@@ -3,11 +3,11 @@ Recoloca IA — Backend Principal
 FastAPI + WebSocket para comunicação em tempo real com o frontend.
 """
 
-import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+import config
 from routers import (
     applications,
     chat,
@@ -24,9 +24,8 @@ from routers import (
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Inicializa recursos na startup e limpa no shutdown."""
-    # Garante que o diretório data/ existe
-    data_dir = os.getenv("DATA_DIR", "../data")
-    os.makedirs(data_dir, exist_ok=True)
+    # Garante que o diretório data/ existe (mesmo caminho usado para todo I/O)
+    config.DATA_DIR.mkdir(parents=True, exist_ok=True)
     yield
 
 

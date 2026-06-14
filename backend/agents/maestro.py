@@ -10,6 +10,8 @@ Responsabilidades:
 
 from __future__ import annotations
 
+import base64
+import json
 import re
 from datetime import datetime
 from typing import AsyncGenerator
@@ -429,7 +431,6 @@ class MaestroAgent(BaseAgent):
 
     def _encode_answers(self) -> str:
         """Serializa respostas parciais para passar no token de estado."""
-        import json, base64
         return base64.b64encode(json.dumps(self.quiz_answers).encode()).decode()
 
     # ─── Menu ─────────────────────────────────────────────────────────────────
@@ -810,7 +811,7 @@ class MaestroAgent(BaseAgent):
                 prefix = "P" if item["role"] == "assistant" else "R"
                 lines.append(f"  {prefix}{item['step']}: {item['content']}")
         if final_score:
-            lines.extend(["", f"PontuaÃ§Ã£o Final: {final_score}"])
+            lines.extend(["", f"Pontuação Final: {final_score}"])
         if improvements:
             lines.extend(["Ãreas de Melhoria:", improvements])
         self._write_file(config.INTERVIEW_FILE, "\n".join(lines))
