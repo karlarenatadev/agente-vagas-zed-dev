@@ -39,35 +39,37 @@ Este roteiro cobre a identidade Career Arcade Pipeline e a regressão dos fluxos
 
 ## Visual
 
-* [ ] Desktop grande: pipeline em seis colunas, sem sobreposição.
+* [x] Desktop grande: pipeline em seis colunas, sem sobreposição.
 * [ ] Notebook: pipeline em duas linhas de três etapas.
 * [ ] Tablet: pipeline em duas colunas.
-* [ ] Mobile: pipeline vertical com rolagem interna.
-* [ ] Sidebar não cobre o conteúdo principal.
-* [ ] Modal de vaga cabe na altura disponível.
-* [ ] Textarea ocupa largura confortável.
+* [x] Mobile: pipeline vertical com rolagem interna.
+* [x] Sidebar não cobre o conteúdo principal.
+* [x] Modal de vaga cabe na altura disponível.
+* [x] Textarea ocupa largura confortável.
 * [ ] Cards com textos longos não estouram.
-* [ ] Tags quebram linha sem cortar conteúdo.
-* [ ] Botões mantêm área de toque confortável.
+* [x] Tags quebram linha sem cortar conteúdo.
+* [x] Botões mantêm área de toque confortável.
 * [ ] Loading, erro, vazio e sucesso são visualmente distintos.
-* [ ] Fundo de labirinto e pellets não prejudica a leitura.
+* [x] Fundo de labirinto e pellets não prejudica a leitura.
 
 ## Acessibilidade
 
-* [ ] Navegar por botões, campos e modais usando apenas teclado.
-* [ ] Confirmar foco visível em todos os elementos interativos.
-* [ ] Confirmar que os status possuem texto e não dependem apenas de cor.
-* [ ] Confirmar labels e `aria-label` nos botões de copiar e fechar.
-* [ ] Confirmar leitura confortável dos textos principais.
-* [ ] Confirmar contraste de texto normal de pelo menos 4.5:1.
-* [ ] Confirmar contraste de bordas e elementos importantes de pelo menos 3:1.
-* [ ] Ativar redução de movimento no sistema e confirmar ausência de animações excessivas.
+* [x] Navegar por botões, campos e modais usando apenas teclado.
+* [x] Confirmar foco visível em todos os elementos interativos.
+* [x] Confirmar que os status possuem texto e não dependem apenas de cor.
+* [x] Confirmar labels e `aria-label` nos botões de copiar e fechar.
+* [x] Confirmar leitura confortável dos textos principais.
+* [x] Confirmar contraste de texto normal de pelo menos 4.5:1.
+* [x] Confirmar contraste de bordas e elementos importantes de pelo menos 3:1.
+* [x] Ativar redução de movimento no sistema e confirmar ausência de animações excessivas.
 
 ## Performance
 
-* [ ] Confirmar que ChatTerminal é carregado sob demanda.
-* [ ] Registrar o tamanho do bundle principal após o build.
-* [ ] Confirmar que nenhuma dependência pesada foi adicionada.
+* [x] Confirmar que ChatTerminal é carregado sob demanda.
+* [x] Registrar o tamanho do bundle principal após o build.
+* [x] Confirmar que nenhuma dependência pesada foi adicionada.
+
+Bundle principal registrado em 2026-06-14: `359,10 kB` (`114,27 kB` gzip).
 
 ## Polimento final de responsividade
 
@@ -77,12 +79,12 @@ Este roteiro cobre a identidade Career Arcade Pipeline e a regressão dos fluxos
 * [x] Header não sobrepõe botões em mobile.
 * [x] Pipeline vira lista vertical em mobile.
 * [x] Cards da pipeline não cortam texto.
-* [ ] Tags longas quebram linha.
+* [x] Tags longas quebram linha.
 * [x] Modal de vaga cabe na tela.
 * [x] Chat/input não cobre conteúdo.
-* [ ] Botões principais têm área de toque confortável.
+* [x] Botões principais têm área de toque confortável.
 * [x] Fundo arcade não prejudica leitura no mobile.
-* [ ] Foco por teclado continua visível.
+* [x] Foco por teclado continua visível.
 
 ## Estabilização responsiva do frontend
 
@@ -116,3 +118,34 @@ Resoluções validadas:
 * [x] `768x1024`
 * [x] `390x844`
 * [x] `360x800`
+
+## Rodada final de QA visual e acessibilidade
+
+Validação executada em 2026-06-14 sem alterações de backend, agentes ou PDI.
+
+Navegadores e viewports desta rodada:
+
+* [x] Google Chrome `149.0.7827.114` em `1366x768` e `390x844`.
+* [x] Microsoft Edge `149.0.4022.69` em `1366x768` e `390x844`.
+
+Evidências validadas:
+
+* [x] Sem overflow horizontal nos dois navegadores e nos dois viewports.
+* [x] `skill-tag`, `profile-tag` e `status-badge` contêm texto extremo sem espaços.
+* [x] Controles touch visíveis possuem área mínima de `44x44` CSS px.
+* [x] Botões principais desktop possuem altura mínima de `40` CSS px.
+* [x] Foco por teclado usa contorno sólido e halo visível.
+* [x] Modal de vaga mantém o foco interno, fecha com `Escape` e devolve o foco ao gatilho.
+* [x] Status da pipeline combinam ícone e texto, sem depender apenas de cor.
+* [x] Tokens de texto principal, secundário, muted e ghost atingem pelo menos `4.5:1` nos fundos usados.
+* [x] Foco ciano e elementos importantes atingem pelo menos `3:1`.
+* [x] `prefers-reduced-motion: reduce` reduz animações e transições CSS a uma única iteração mínima.
+* [x] Framer Motion respeita a preferência do usuário por meio de `MotionConfig`.
+* [x] `npm run lint` passa.
+* [x] `npm run build` passa.
+
+Pendências não validadas nesta rodada:
+
+* [ ] Executar o fluxo feliz completo com upload, vaga, match e sugestões.
+* [ ] Executar todos os fluxos de erro com backend disponível e indisponível.
+* [ ] Validar cards de relatórios com parágrafos longos gerados por dados reais.

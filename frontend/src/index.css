@@ -10,7 +10,7 @@
   --color-arcade-cyan: #22d3ee;
   --color-arcade-pink: #f472b6;
   --color-arcade-orange: #fb923c;
-  --color-arcade-red: #f43f5e;
+  --color-arcade-red: #fb7185;
   --color-arcade-green: #34d399;
   --color-text: #e5e7eb;
   --color-text-muted: #94a3b8;
@@ -47,7 +47,7 @@
   --text-primary: var(--color-text);
   --text-secondary: #cbd5e1;
   --text-muted: var(--color-text-muted);
-  --text-ghost: #596174;
+  --text-ghost: #8090a8;
 
   --font-sans: 'Space Grotesk', system-ui, sans-serif;
   --font-display: 'Space Grotesk', system-ui, sans-serif;
@@ -5203,5 +5203,71 @@ button.product-nav-item:hover {
 
   .pipeline-track {
     overflow: visible;
+  }
+}
+
+/* Final visual and accessibility QA */
+
+button {
+  min-height: 40px;
+}
+
+.brand-lockup,
+.icon-button,
+.send-button,
+.curator-resource-link,
+.applications-btn {
+  min-width: 40px;
+  min-height: 40px;
+}
+
+.product-nav-item,
+.profile-details summary,
+.copy-button,
+.pipeline-step button {
+  min-height: 40px;
+}
+
+.pipeline-step button {
+  padding: 8px 4px;
+}
+
+.profile-tag,
+.skill-tag,
+.status-badge {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.pipeline-step.blocked {
+  --step-color: #94a3b8;
+}
+
+*:focus-visible {
+  outline-color: #38bdf8;
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.16);
+}
+
+@media (pointer: coarse) {
+  button:not(.sidebar-backdrop):not(.resume-modal-backdrop),
+  a.curator-resource-link {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .composer {
+    grid-template-columns: minmax(0, 1fr) 44px;
+  }
+
+  .send-button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .composer textarea {
+    min-height: 44px;
   }
 }

@@ -163,7 +163,15 @@ function ApplicationCard({
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`Abrir vaga ${app.titulo} em nova aba`}
-              style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
+              style={{
+                color: 'var(--text-muted)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '40px',
+                height: '40px',
+                borderRadius: 'var(--radius-sm)',
+              }}
             >
               <ExternalLink size={13} />
             </a>
@@ -173,7 +181,18 @@ function ApplicationCard({
             type="button"
             onClick={() => onDelete(app.id)}
             aria-label={`Remover candidatura ${app.titulo}`}
-            style={{ color: 'var(--text-ghost)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '2px' }}
+            style={{
+              color: 'var(--text-ghost)',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '40px',
+              height: '40px',
+              padding: 0,
+            }}
           >
             <X size={13} />
           </button>
@@ -240,7 +259,6 @@ function ApplicationCard({
                 padding: '6px 8px',
                 fontSize: '12px', color: 'var(--text-primary)',
                 fontFamily: 'var(--font-sans)',
-                outline: 'none',
               }}
             />
             <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>

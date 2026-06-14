@@ -1,5 +1,5 @@
-import { lazy, Suspense, useMemo, useState } from 'react'
-import { motion } from 'framer-motion'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { MotionConfig, motion } from 'framer-motion'
 import {
   Briefcase,
   BriefcaseBusiness,
@@ -58,6 +58,8 @@ export default function App() {
   const [trackerOpen, setTrackerOpen] = useState(false)
   const [resumeModalOpen, setResumeModalOpen] = useState(false)
   const [jobAnalyzerOpen, setJobAnalyzerOpen] = useState(false)
+  const resumeModalRef = useRef<HTMLElement>(null)
+  const jobAnalyzerModalRef = useRef<HTMLElement>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
     typeof window !== 'undefined'
       ? window.matchMedia('(max-width: 1024px)').matches
@@ -83,6 +85,69 @@ export default function App() {
     setJobAnalyzerOpen(false)
   }
 
+  useEffect(() => {
+    const modal = resumeModalOpen
+      ? resumeModalRef.current
+      : jobAnalyzerOpen
+        ? jobAnalyzerModalRef.current
+        : null
+
+    if (!modal) return
+
+    const previousFocus = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
+    const focusableSelector = [
+      'button:not(:disabled)',
+      'a[href]',
+      'input:not(:disabled)',
+      'textarea:not(:disabled)',
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(',')
+
+    const focusableElements = () => [...modal.querySelectorAll<HTMLElement>(focusableSelector)]
+      .filter(element => element.getClientRects().length > 0)
+
+    window.requestAnimationFrame(() => {
+      const preferredTarget = modal.querySelector<HTMLElement>('textarea, input:not([type="hidden"])')
+      if (preferredTarget) {
+        preferredTarget.focus()
+      } else {
+        focusableElements()[0]?.focus()
+      }
+    })
+
+    const handleModalKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        if (resumeModalOpen) setResumeModalOpen(false)
+        if (jobAnalyzerOpen) setJobAnalyzerOpen(false)
+        return
+      }
+
+      if (event.key !== 'Tab') return
+
+      const elements = focusableElements()
+      if (!elements.length) return
+      const first = elements[0]
+      const last = elements[elements.length - 1]
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleModalKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleModalKeyDown)
+      previousFocus?.focus()
+    }
+  }, [jobAnalyzerOpen, resumeModalOpen])
+
   const handleGoHome = () => {
     closeOverlays()
     if (window.matchMedia('(max-width: 1024px)').matches) {
@@ -103,7 +168,8 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell arcade-shell noise">
+    <MotionConfig reducedMotion="user">
+      <div className="app-shell arcade-shell noise">
       <div className="arcade-background" aria-hidden="true">
         <span className="maze-grid" />
         <span className="pellet-field" />
@@ -249,7 +315,7 @@ export default function App() {
             aria-label="Fechar upload de currículo"
             onClick={() => setResumeModalOpen(false)}
           />
-          <section className="resume-modal-panel">
+          <section ref={resumeModalRef} className="resume-modal-panel">
             <div className="resume-modal-header">
               <div>
                 <p className="eyebrow">Currículo</p>
@@ -277,7 +343,7 @@ export default function App() {
             aria-label="Fechar análise de vaga"
             onClick={() => setJobAnalyzerOpen(false)}
           />
-          <section className="resume-modal-panel job-analyzer-modal">
+          <section ref={jobAnalyzerModalRef} className="resume-modal-panel job-analyzer-modal">
             <div className="resume-modal-header">
               <div>
                 <p className="eyebrow">Inteligência de oportunidade</p>
@@ -298,6 +364,7 @@ export default function App() {
           </section>
         </div>
       )}
-    </div>
+      </div>
+    </MotionConfig>
   )
 }

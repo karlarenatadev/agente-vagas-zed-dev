@@ -37,7 +37,9 @@ export function CopyButton({ value, label }: { value: string; label: string }) {
       onClick={copy}
       aria-label={`Copiar ${label}`}
     >
-      {copied ? <Check size={13} /> : <Clipboard size={13} />}
+      {copied
+        ? <Check size={13} aria-hidden="true" />
+        : <Clipboard size={13} aria-hidden="true" />}
       {copied ? 'Copiado' : 'Copiar'}
     </button>
   )

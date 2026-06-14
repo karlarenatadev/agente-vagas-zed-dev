@@ -2,7 +2,7 @@
 
 ## Auditoria atual
 
-Última revisão: 2026-06-13.
+Última revisão: 2026-06-14.
 
 Validação executada nesta revisão:
 
@@ -15,7 +15,7 @@ Validação executada nesta revisão:
 * [ ] `FIRECRAWL_API_KEY` configurada no ambiente.
 * [ ] Suíte automatizada de testes disponível.
 * [ ] QA visual completo executado em navegadores reais.
-  Validação de estabilização executada no Chrome em 1366x768, 1440x900, 768x1024, 390x844 e 360x800.
+  A estabilização responsiva foi validada no Chrome em oito resoluções. A rodada final de visual e acessibilidade foi validada no Chrome e Edge em `1366x768` e `390x844`; os fluxos funcionais completos permanecem pendentes.
 
 ## Estabilização responsiva do frontend
 
@@ -49,6 +49,28 @@ Resoluções validadas no Chrome:
 * [x] `768x1024`
 * [x] `390x844`
 * [x] `360x800`
+
+## QA final visual e acessibilidade
+
+Etapa executada em 2026-06-14, sem alterações de backend, agentes, PDI ou dependências.
+
+* [x] Tags e textos extremos não causam overflow horizontal.
+* [x] Botões principais têm altura mínima confortável para clique.
+* [x] Controles em dispositivos touch têm área mínima de `44x44` CSS px.
+* [x] Foco por teclado permanece visível nos controles e campos.
+* [x] Modais mantêm o foco, fecham com `Escape` e restauram o foco.
+* [x] Status combinam texto e ícone e não dependem apenas de cor.
+* [x] Contraste dos textos principais, badges, botões e alertas foi revisado.
+* [x] Redução de movimento foi validada para CSS e Framer Motion.
+* [x] Chrome `149.0.7827.114` validado em `1366x768` e `390x844`.
+* [x] Edge `149.0.4022.69` validado em `1366x768` e `390x844`.
+* [x] `npm run lint` passa.
+* [x] `npm run build` passa.
+
+Pendências mantidas:
+
+* [ ] Executar fluxo funcional completo com backend nos dois navegadores.
+* [ ] Validar cards alimentados por relatórios reais com parágrafos extremos.
 
 Pendências críticas confirmadas:
 
@@ -651,5 +673,6 @@ Uma etapa só deve ser considerada pronta quando:
 * [x] Criar `docs/frontend-qa-checklist.md`.
 * [x] Aplicar lazy loading ao terminal de chat.
 * [ ] Executar checklist visual completo em navegadores reais.
+* [x] Executar a rodada final de QA visual e acessibilidade em Chrome e Edge.
 * [x] Corrigir a sidebar para manter navegação fixa e perfil rolável sem cortes.
 * [x] Validar ausência de scroll horizontal nos cinco viewports prioritários.
