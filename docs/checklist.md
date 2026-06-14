@@ -543,7 +543,25 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 ---
 
-# 6. Dados reais com Firecrawl
+# 6. Governança de dados locais e privacidade
+
+## O que temos
+
+* [x] Persistência local em Markdown dentro de `data/`.
+* [x] `data/` contém estado de execução, perfil, currículo analisado, resultados e relatórios gerados.
+* [x] Risco identificado: o repositório remoto é público, então arquivos reais de `data/` podem expor informações pessoais ou dados de candidatura se forem commitados.
+
+## O que iremos acrescentar
+
+* [ ] Decidir quais arquivos de `data/` são seed/demo e quais são estado local privado.
+* [ ] Adicionar `data/` ao `.gitignore` para impedir novos artefatos locais no Git.
+* [ ] Remover do rastreamento os arquivos reais de runtime com `git rm --cached -r data`, preservando os arquivos no disco.
+* [ ] Manter apenas `data/.gitkeep`, `data/README.md` ou exemplos sanitizados quando o projeto precisar documentar a estrutura da pasta.
+* [ ] Documentar no README que `data/` é armazenamento local de execução e pode conter dados sensíveis.
+
+---
+
+# 7. Dados reais com Firecrawl
 
 ## O que temos
 
@@ -568,7 +586,7 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 ---
 
-# 7. Testes e validação
+# 8. Testes e validação
 
 ## O que temos
 
@@ -616,7 +634,7 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 ---
 
-# 8. Performance e organização
+# 9. Performance e organização
 
 ## O que temos
 
@@ -640,7 +658,7 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 ---
 
-# 9. Documentação
+# 10. Documentação
 
 ## O que temos
 
@@ -668,7 +686,7 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 ---
 
-# 10. Ordem prática de evolução
+# 11. Ordem prática de evolução
 
 ## Etapa atual
 
@@ -699,12 +717,13 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 * [ ] Conectar Coach à vaga analisada.
 * [ ] Resolver divergência entre perfil, currículo e vaga.
 * [ ] Configurar dados reais com Firecrawl.
+* [ ] Separar arquivos locais de `data/` do que deve ser versionado.
 * [ ] Criar testes mínimos.
 * [ ] Atualizar documentação.
 
 ---
 
-# 11. Definição de pronto
+# 12. Definição de pronto
 
 Uma etapa só deve ser considerada pronta quando:
 
@@ -721,7 +740,7 @@ Uma etapa só deve ser considerada pronta quando:
 
 ---
 
-# 12. Career Arcade Pipeline
+# 13. Career Arcade Pipeline
 
 ## Identidade e jornada
 
