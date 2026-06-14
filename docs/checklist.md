@@ -17,6 +17,45 @@ Validação executada nesta revisão:
 * [x] QA visual completo executado em navegadores reais.
   A estabilização responsiva foi validada no Chrome em oito resoluções. As rodadas finais de visual, acessibilidade e fluxo funcional com backend real foram validadas no Chrome e Edge.
 
+## Correção do card de perfil e limpeza do backend
+
+Sessão executada em 2026-06-14.
+
+### Frontend
+
+* [x] Corrigir bug em que o card de perfil (`.profile-summary`) era esmagado de
+  ~66px para ~9px ao abrir "Detalhes do perfil", parecendo sumir.
+  Causa: `overflow: hidden` zera o `min-height` automático do flex item, então o
+  card encolhia quando o `<details>` fazia o container transbordar.
+  Correção: `flex-shrink: 0` em `.profile-summary` (mantém o card sticky fixo).
+* [x] Reproduzido e validado no navegador (antes 9px, depois 66px com detalhes abertos).
+
+### Backend — bugs e qualidade de código
+
+* [x] Maestro: corrigir mojibake `"PontuaÃ§Ã£o Final"`/`"Ãreas de Melhoria"`
+  gravado em `data/interview-session.md` → `"Pontuação Final"`/`"Áreas de Melhoria"`.
+* [x] Maestro: mover imports `json`/`base64` do corpo de `_encode_answers` para o topo.
+* [x] `base.py`: proteger `stream_llm`/`call_llm` contra chunks/respostas com `choices` vazio.
+* [x] `main.py`: usar `config.DATA_DIR` (absoluto) no `lifespan` em vez de caminho
+  relativo `../data`, alinhando com o I/O real dos agentes.
+* [x] Extrair `read_required` duplicado para `routers/common.py`
+  (usado por resume_match, resume_tailoring e pdi).
+* [x] Validação: `py_compile` em todos os arquivos alterados + `import main`
+  com sucesso no `backend/.venv` (25 rotas).
+
+### Itens identificados e NÃO resolvidos (registro)
+
+* [ ] Isolamento multiusuário: agentes leem/escrevem `data/*.md` globais sem
+  `session_id`; usuários simultâneos sobrescrevem dados uns dos outros
+  (refactor arquitetural, fora do escopo desta sessão).
+* [ ] `applications.json`: read-modify-write sem lock (possível corrida).
+* [ ] Limpar checagens defensivas de mojibake espalhadas (curator/coach) após
+  garantir UTF-8 na origem dos dados.
+
+### Git
+
+* [x] Dois commits na `fable` (frontend + backend), push e merge fast-forward na `main`.
+
 ## Estabilização responsiva do frontend
 
 Etapa executada em 2026-06-14, sem alterações de backend, agentes ou escopo do PDI.
