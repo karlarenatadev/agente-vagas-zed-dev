@@ -147,7 +147,7 @@ export function ResumeTailoringSuggestions() {
             <Map size={17} aria-hidden="true" />
             <span>
               <strong>Próximo movimento: PDI personalizado</strong>
-              <small>Esta fase futura vai transformar as lacunas em um plano de evolução por vaga.</small>
+              <small>Use a etapa PDI da pipeline para transformar as lacunas em um plano de evolução por vaga.</small>
             </span>
           </div>
         </div>

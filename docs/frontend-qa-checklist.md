@@ -13,9 +13,9 @@ Este roteiro cobre a identidade Career Arcade Pipeline e a regressão dos fluxos
 * [x] Confirmar score, evidências fortes, parciais e ausentes.
 * [x] Gerar sugestões seguras de currículo.
 * [x] Copiar uma seção e confirmar a troca temporária do texto para “Copiado”.
-* [ ] Confirmar que PDI fica bloqueado antes das sugestões seguras.
-* [ ] Confirmar que PDI fica disponível após as sugestões seguras.
-* [ ] Gerar o PDI, fechar o modal e confirmar que o plano salvo reaparece ao abrir novamente.
+* [x] Confirmar que PDI fica bloqueado antes das sugestões seguras.
+* [x] Confirmar que PDI fica disponível após as sugestões seguras.
+* [x] Gerar o PDI, fechar o modal e confirmar que o plano salvo reaparece ao abrir novamente.
 
 ## Fluxos de erro
 
@@ -23,7 +23,9 @@ Este roteiro cobre a identidade Career Arcade Pipeline e a regressão dos fluxos
 * [ ] Tentar comparar sem currículo analisado.
 * [ ] Tentar comparar sem vaga válida.
 * [ ] Tentar gerar sugestões sem relatório de match.
-* [ ] Tentar gerar PDI sem os artefatos obrigatórios e confirmar a mensagem amigável.
+* [x] Confirmar que a ação do PDI fica desabilitada sem sugestões seguras.
+* [x] Simular ausência de `pdi-plan.md` e confirmar estado vazio amigável.
+* [x] Simular erro `500` na geração do PDI e confirmar mensagem amigável.
 * [ ] Parar o backend e confirmar uma mensagem amigável no frontend.
 * [ ] Simular arquivo ausente ou inválido e confirmar que a aplicação não quebra.
 * [ ] Reconectar o backend e confirmar que o chat recupera o estado de conexão.
@@ -76,6 +78,20 @@ Bundle principal registrado em 2026-06-14: `359,10 kB` (`114,27 kB` gzip).
 
 Build após integração do PDI em 2026-06-14: bundle principal `360,51 kB`
 (`114,52 kB` gzip) e `PdiPlan` em chunk separado de `5,08 kB` (`2,01 kB` gzip).
+
+## Validação manual do PDI
+
+Validação executada em 2026-06-14 com backend real e Google Chrome
+`149.0.7827.114`.
+
+* [x] Fluxo completo Currículo → Vaga → Match → Sugestões → PDI.
+* [x] Pipeline alterou PDI de bloqueado para disponível e depois concluído.
+* [x] Modal abriu e exibiu loading, sucesso e conteúdo estruturado.
+* [x] PDI persistido foi recuperado por `GET /api/pdi/latest`.
+* [x] Ausência de plano retornou `404` sem exibir erro indevido.
+* [x] Erro `500` simulado exibiu mensagem amigável e permitiu nova tentativa.
+* [x] Sem overflow horizontal em `1366x768`.
+* [x] Sem overflow horizontal em `390x844`.
 
 ## Polimento final de responsividade
 

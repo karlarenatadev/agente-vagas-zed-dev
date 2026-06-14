@@ -812,7 +812,7 @@ Uma etapa só deve ser considerada pronta quando:
 * [x] Aplicar fundo sutil com referência a labirinto e pellets.
 * [x] Criar pipeline visual com Currículo, Vaga, Match, Sugestões, PDI e Entrevista.
 * [x] Exibir status com texto para não depender apenas de cor.
-* [x] Manter PDI como fase futura sem ação ativa nesta interface.
+* [x] Liberar a ação do PDI somente após a conclusão das sugestões seguras.
 * [x] Mostrar PDI como concluído quando `/api/data/pdi` contém um plano válido.
 * [x] Padronizar botões primários, secundários e estados de alerta.
 * [x] Criar cards e tags reutilizáveis para os relatórios.
@@ -928,7 +928,8 @@ Uma etapa só deve ser considerada pronta quando:
 - [x] `npm run build`
 - [x] `py_compile` e importação do FastAPI com 27 rotas.
 - [x] Round-trip automatizado entre dados estruturados e `pdi-plan.md`.
-- [ ] Validar o modal e a geração completa em navegador com artefatos reais.
+- [x] Validar o modal e a geração completa no Chrome em `1366x768` e `390x844`.
+- [x] Validar estado vazio, erro de geração, persistência e ausência de overflow horizontal.
 
 ### 4. ~~Rota de leitura para resume-analysis ausente~~ ✅ RESOLVIDO
 **Status:** RESOLVIDO em 2026-06-14 (mesmo commit do item 1)

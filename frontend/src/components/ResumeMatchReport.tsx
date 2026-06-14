@@ -167,7 +167,7 @@ export function ResumeMatchReport({ report, loading, error, onCompare }: Props) 
 
           <p className="match-future-note">
             <Sparkles size={14} aria-hidden="true" />
-            Este relatório está pronto para alimentar sugestões de adaptação e o futuro PDI,
+            Este relatório está pronto para alimentar sugestões de adaptação e o PDI personalizado,
             sem editar o currículo nesta etapa.
           </p>
 
