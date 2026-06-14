@@ -229,12 +229,17 @@ class CuratorAgent(BaseAgent):
 
     def _normalize_search_payload(self, payload: Any) -> list[dict[str, str]]:
         """Aceita formatos comuns do Firecrawl CLI e devolve itens uniformes."""
+        candidates = []
+        
         if isinstance(payload, dict):
-            candidates = payload.get("data") or payload.get("results") or payload.get("items") or []
+            # Novo formato: {"success": true, "data": {"web": [...]}}
+            if "data" in payload and isinstance(payload["data"], dict):
+                candidates = payload["data"].get("web", [])
+            # Formato alternativo: {"data": [...]} ou {"results": [...]}
+            elif "data" in payload or "results" in payload or "items" in payload:
+                candidates = payload.get("data") or payload.get("results") or payload.get("items") or []
         elif isinstance(payload, list):
             candidates = payload
-        else:
-            candidates = []
 
         normalized: list[dict[str, str]] = []
         for item in candidates:

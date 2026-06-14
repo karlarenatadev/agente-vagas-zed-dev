@@ -40,6 +40,16 @@ async def get_interview_session():
         return {"exists": False, "content": ""}
 
 
+@router.get("/resume-analysis")
+async def get_resume_analysis():
+    """Retorna a última análise de currículo."""
+    try:
+        content = config.RESUME_ANALYSIS_FILE.read_text(encoding="utf-8")
+        return {"exists": True, "content": content}
+    except FileNotFoundError:
+        return {"exists": False, "content": ""}
+
+
 @router.get("/job-description")
 async def get_job_description_analysis():
     """Retorna a última análise de descrição de vaga."""

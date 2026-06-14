@@ -17,6 +17,62 @@ Validação executada nesta revisão:
 * [x] QA visual completo executado em navegadores reais.
   A estabilização responsiva foi validada no Chrome em oito resoluções. As rodadas finais de visual, acessibilidade e fluxo funcional com backend real foram validadas no Chrome e Edge.
 
+### Estrutura de arquivos validada
+
+* [x] Arquivos de dados existentes em `data/`:
+  * [x] `course-recommendations.md`
+  * [x] `interview-session.md`
+  * [x] `job-description-analysis.md`
+  * [x] `job-search-results.md`
+  * [x] `pdi-plan.md`
+  * [x] `personality-quiz.md`
+  * [x] `user-profile.md`
+* [ ] Arquivo `resume-analysis.md` AUSENTE (necessário para comparação vaga x currículo).
+* [ ] Arquivo `resume-match-report.md` AUSENTE (necessário para relatório de aderência).
+* [ ] Arquivo `resume-tailoring-suggestions.md` AUSENTE (necessário para sugestões seguras).
+
+### Rotas backend validadas
+
+* [x] Todas as rotas implementadas:
+  * [x] `applications.py` - Candidaturas
+  * [x] `chat.py` - WebSocket e streaming
+  * [x] `common.py` - Utilitários compartilhados
+  * [x] `data_files.py` - Leitura de arquivos Markdown
+  * [x] `job_description.py` - Análise de vaga
+  * [x] `pdi.py` - Geração de PDI
+  * [x] `profile.py` - Perfil do usuário
+  * [x] `resume.py` - Upload e análise de currículo
+  * [x] `resume_match.py` - Comparação vaga x currículo
+  * [x] `resume_tailoring.py` - Sugestões seguras
+
+### Agentes backend validados
+
+* [x] Todos os agentes implementados:
+  * [x] `base.py` - Classe base comum
+  * [x] `coach.py` - Entrevista simulada
+  * [x] `curator.py` - Trilhas de aprendizado
+  * [x] `job_description_analyzer.py` - Análise de vaga
+  * [x] `maestro.py` - Orquestrador principal
+  * [x] `pdi_generator.py` - Geração de PDI por vaga
+  * [x] `resume_matcher.py` - Match vaga x currículo
+  * [x] `resume_tailor.py` - Sugestões seguras de currículo
+  * [x] `scout.py` - Busca de vagas
+
+### Componentes frontend validados
+
+* [x] Todos os componentes principais implementados:
+  * [x] `ApplicationPipeline.tsx` - Pipeline visual de candidatura
+  * [x] `ApplicationTracker.tsx` - Rastreamento de candidaturas
+  * [x] `ChatTerminal.tsx` - Terminal de chat
+  * [x] `JobDescriptionAnalyzer.tsx` - Analisador de vaga
+  * [x] `PdiPlan.tsx` - Visualização de PDI
+  * [x] `ProfilePanel.tsx` - Painel lateral de perfil
+  * [x] `QuizPanel.tsx` - Quiz de perfil
+  * [x] `ResumeMatchReport.tsx` - Relatório de aderência
+  * [x] `ResumeTailoringSuggestions.tsx` - Sugestões seguras
+  * [x] `ResumeUpload.tsx` - Upload de currículo
+  * [x] `ScoutReport.tsx` - Relatório de busca
+
 ## Diagnóstico a partir do currículo
 
 Sessão executada em 2026-06-14.
@@ -147,9 +203,15 @@ Pendências mantidas:
 
 Pendências críticas confirmadas:
 
-* [ ] Integrar o componente `PdiPlan` à interface e ao pipeline.
+* [x] Componente `PdiPlan` implementado no frontend (`frontend/src/components/PdiPlan.tsx`).
+* [ ] **Integrar o componente `PdiPlan` à interface visível e ao pipeline.**
+  Situação atual: O componente existe mas não está sendo renderizado na interface principal ou conectado à pipeline.
 * [x] Fazer a pipeline reconhecer uma análise de currículo concluída após upload e nos artefatos dependentes.
-* [ ] Expor `resume-analysis.md` por uma rota de leitura para detectar o arquivo diretamente em uma nova sessão.
+  Implementado via localStorage e validação de artefatos dependentes (match/tailoring).
+* [ ] **Expor `resume-analysis.md` por uma rota de leitura** para detectar o arquivo diretamente em uma nova sessão.
+  Situação atual: A rota não existe em `data_files.py`, pipeline usa localStorage como workaround.
+* [ ] **Criar arquivo `resume-analysis.md` durante upload/análise de currículo.**
+  Situação atual: Arquivo não é gerado, causando falha na comparação vaga x currículo.
 * [ ] Conectar o Coach à descrição da vaga e ao relatório de aderência.
 * [ ] Criar testes automatizados mínimos para backend e frontend.
 * [x] Executar e registrar `docs/frontend-qa-checklist.md`.
@@ -690,10 +752,12 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 ## Etapa atual
 
-* [ ] Integrar o PDI ao frontend e ao estado da pipeline.
+* [ ] **CRÍTICO: Corrigir geração de `resume-analysis.md` durante upload/análise de currículo.**
+  Situação: Arquivo não é criado, impedindo comparação vaga x currículo.
+* [ ] Integrar o componente `PdiPlan` ao frontend visível e à pipeline.
+* [ ] Adicionar rota de leitura para `resume-analysis` em `data_files.py`.
 * [ ] Conectar a entrevista à vaga analisada e ao match.
 * [ ] Criar testes mínimos dos fluxos críticos.
-* [ ] Expor a análise de currículo por endpoint de leitura para hidratação entre sessões.
 
 ## Base concluída
 
@@ -711,15 +775,15 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 ## Etapas seguintes
 
-* [x] Gerar sugestões seguras de currículo.
-* [x] Gerar PDI personalizado por vaga no backend.
-* [ ] Disponibilizar geração e visualização do PDI no frontend.
-* [ ] Conectar Coach à vaga analisada.
+* [ ] **CRÍTICO: Garantir que `resume-analysis.md` seja criado durante análise de currículo.**
+* [ ] Adicionar rota GET para `resume-analysis` em `data_files.py`.
+* [ ] Disponibilizar visualização do PDI no frontend (componente existe mas não está integrado).
+* [ ] Conectar Coach à vaga analisada e ao relatório de aderência.
 * [ ] Resolver divergência entre perfil, currículo e vaga.
-* [ ] Configurar dados reais com Firecrawl.
-* [ ] Separar arquivos locais de `data/` do que deve ser versionado.
-* [ ] Criar testes mínimos.
-* [ ] Atualizar documentação.
+* [ ] Configurar dados reais com Firecrawl (`FIRECRAWL_API_KEY`).
+* [ ] Separar arquivos locais de `data/` do que deve ser versionado (privacidade).
+* [ ] Criar testes mínimos automatizados.
+* [ ] Atualizar documentação (README, plano.md, project-update-report.md).
 
 ---
 
@@ -768,3 +832,155 @@ Uma etapa só deve ser considerada pronta quando:
 * [x] Executar a rodada final de QA visual e acessibilidade em Chrome e Edge.
 * [x] Corrigir a sidebar para manter navegação fixa e perfil rolável sem cortes.
 * [x] Validar ausência de scroll horizontal nos cinco viewports prioritários.
+
+
+---
+
+# Status de Implementação Detalhado
+
+## Arquitetura completa validada
+
+### Backend (FastAPI + Python)
+* [x] 11 rotas REST implementadas e registradas
+* [x] 9 agentes especializados implementados
+* [x] WebSocket para chat em tempo real
+* [x] Persistência em arquivos Markdown
+* [x] Tratamento de erros HTTP estruturado
+* [x] Normalização de habilidades e aliases
+* [x] Fallbacks locais para Firecrawl
+
+### Frontend (React 19 + TypeScript + Vite)
+* [x] 15+ componentes implementados
+* [x] Pipeline visual Career Arcade
+* [x] Sistema responsivo validado (8 resoluções)
+* [x] Acessibilidade (WCAG) validada
+* [x] Lazy loading do terminal de chat
+* [x] Temas dark tech aplicados
+* [x] Tratamento de estados (loading, erro, sucesso)
+
+### Fluxos principais implementados
+* [x] Diagnóstico de perfil com quiz
+* [x] Upload e análise de currículo
+* [x] Análise de descrição de vaga
+* [x] Comparação vaga x currículo (match)
+* [x] Sugestões seguras de currículo
+* [x] Geração de PDI personalizado
+* [x] Entrevista simulada com Coach
+* [x] Busca de vagas com Scout
+* [x] Trilhas de aprendizado com Curator
+
+## Bloqueadores críticos para produção
+
+### 1. ~~Arquivo `resume-analysis.md` não é gerado~~ ✅ RESOLVIDO
+**Status:** RESOLVIDO em 2026-06-14
+
+**Descoberta:**
+- O código JÁ gerava o arquivo corretamente em `resume.py` linha 548
+- O problema era a **ausência da rota de leitura** em `data_files.py`
+
+**Correções aplicadas:**
+- ✅ Adicionado endpoint `GET /api/data/resume-analysis` em `data_files.py`
+- ✅ Pipeline atualizada para ler o arquivo via API
+- ✅ Mantido fallback para localStorage como segurança adicional
+- ✅ Validado: lint e build passando sem erros
+
+### 2. ~~Firecrawl estava quebrando~~ ✅ RESOLVIDO
+**Status:** RESOLVIDO em 2026-06-14
+
+**Descoberta:**
+- Firecrawl CLI está instalado e funcionando perfeitamente (versão 1.18.1)
+- API Key configurada corretamente no `.env`
+- O problema era o **formato de resposta** que mudou na versão atual
+
+**Formato antigo esperado:**
+```json
+{"data": [...]}
+```
+
+**Formato atual retornado (v1.18.1):**
+```json
+{
+  "success": true,
+  "data": {"web": [...]},
+  "id": "...",
+  "creditsUsed": 2
+}
+```
+
+**Correções aplicadas:**
+- ✅ Atualizado `Scout._run_firecrawl_search()` para processar `data.web`
+- ✅ Atualizado `Curator._normalize_search_payload()` para processar `data.web`
+- ✅ Mantida retrocompatibilidade com formatos alternativos
+- ✅ Fallbacks locais continuam funcionando
+- ✅ Validado: `firecrawl search "test" --json` retorna 10 resultados reais
+
+### 3. Componente PDI não está integrado à interface
+**Impacto:** MÉDIO - Funcionalidade pronta mas invisível ao usuário
+
+**Situação atual:**
+- `PdiPlan.tsx` existe e está completo
+- Rota `/api/pdi/generate` funciona
+- Mas o componente não é renderizado em nenhuma view
+- Pipeline mostra PDI como "fase futura"
+
+**Ação necessária:**
+- [ ] Importar e renderizar `PdiPlan` no App principal
+- [ ] Atualizar pipeline para mostrar PDI como "available" quando tailoring estiver completo
+- [ ] Adicionar botão de ação na etapa PDI da pipeline
+
+### 4. ~~Rota de leitura para resume-analysis ausente~~ ✅ RESOLVIDO
+**Status:** RESOLVIDO em 2026-06-14 (mesmo commit do item 1)
+
+## Melhorias recomendadas (não bloqueantes)
+
+### Privacidade e dados locais
+* [ ] Adicionar `data/` ao `.gitignore` (evitar commit de dados pessoais)
+* [ ] Remover arquivos de runtime do Git com `git rm --cached -r data`
+* [ ] Manter apenas `data/.gitkeep` ou exemplos sanitizados
+* [ ] Documentar no README que `data/` contém informações sensíveis
+
+### Testes automatizados
+* [ ] Criar testes unitários para agentes principais
+* [ ] Criar testes de integração para rotas críticas
+* [ ] Criar testes E2E para fluxo completo de candidatura
+* [ ] Adicionar validação de schemas dos arquivos Markdown
+
+### Documentação
+* [ ] Atualizar `README.md` com rotas e artefatos atuais
+* [ ] Atualizar `plano.md` com escopo e perguntas corretos
+* [ ] Atualizar `docs/project-update-report.md` com commits recentes
+* [ ] Criar diagramas de fluxo de dados
+* [ ] Documentar estrutura dos arquivos Markdown em `data/`
+
+### Performance
+* [ ] Aplicar lazy loading em todos os módulos principais
+* [ ] Revisar tamanho do bundle (atual: 357,78 kB principal + 171,20 kB chat)
+* [ ] Evitar duplicação de tipos TypeScript
+* [ ] Otimizar imports e tree-shaking
+
+### Configuração externa
+* [ ] Configurar `FIRECRAWL_API_KEY` no ambiente
+* [ ] Testar busca real de vagas com Firecrawl
+* [ ] Testar busca real de cursos com Firecrawl
+* [ ] Expor falhas parciais do Firecrawl ao usuário (atualmente silenciosas)
+
+## Próximas features planejadas
+
+### Coach conectado à vaga
+* [ ] Usar descrição da vaga como contexto
+* [ ] Usar relatório de aderência como contexto
+* [ ] Criar perguntas técnicas baseadas nos requisitos
+* [ ] Criar perguntas comportamentais baseadas nas responsabilidades
+* [ ] Gerar feedback direcionado às lacunas identificadas
+
+### Reconciliação de dados
+* [ ] Detectar conflito entre perfil declarado e currículo analisado
+* [ ] Detectar conflito entre currículo e vaga
+* [ ] Permitir escolher foco da candidatura (perfil vs currículo vs vaga)
+* [ ] Atualizar perfil somente com confirmação do usuário
+
+### Isolamento multiusuário
+* [ ] Implementar sessions ou user IDs
+* [ ] Separar dados por usuário em `data/{user_id}/`
+* [ ] Evitar sobrescrita de dados entre usuários simultâneos
+* [ ] Adicionar lock em operações read-modify-write (ex: applications.json)

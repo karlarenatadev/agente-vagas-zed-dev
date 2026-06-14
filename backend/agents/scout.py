@@ -85,11 +85,22 @@ class ScoutAgent(BaseAgent):
             )
             if result.returncode == 0 and result.stdout:
                 parsed = json.loads(result.stdout)
+                
+                # Firecrawl retorna {"success":true,"data":{"web":[...]}}
+                if isinstance(parsed, dict):
+                    # Novo formato: {"success": true, "data": {"web": [...]}}
+                    if "data" in parsed and isinstance(parsed["data"], dict):
+                        web_results = parsed["data"].get("web", [])
+                        if isinstance(web_results, list):
+                            return web_results
+                    # Formato alternativo: {"data": [...]}
+                    data = parsed.get("data") or parsed.get("results") or parsed.get("items")
+                    if isinstance(data, list):
+                        return data
+                
+                # Formato legado: lista direta
                 if isinstance(parsed, list):
                     return parsed
-                if isinstance(parsed, dict):
-                    data = parsed.get("data") or parsed.get("results") or parsed.get("items")
-                    return data if isinstance(data, list) else []
         except (subprocess.TimeoutExpired, json.JSONDecodeError, FileNotFoundError):
             pass
         return []

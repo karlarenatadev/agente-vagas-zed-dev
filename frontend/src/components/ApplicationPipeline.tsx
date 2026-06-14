@@ -73,7 +73,8 @@ export function ApplicationPipeline({
 
   const refresh = useCallback(async () => {
     try {
-      const [job, match, tailoring, pdi] = await Promise.all([
+      const [resumeAnalysis, job, match, tailoring, pdi] = await Promise.all([
+        readDataFile('/api/data/resume-analysis'),
         readDataFile('/api/data/job-description'),
         readDataFile('/api/data/resume-match'),
         readDataFile('/api/data/resume-tailoring'),
@@ -81,7 +82,10 @@ export function ApplicationPipeline({
       ])
       const matchCompleted = hasValidContent(match)
       const tailoringCompleted = hasValidContent(tailoring)
-      const resumeCompleted = window.localStorage.getItem(RESUME_ANALYSIS_STORAGE_KEY) === 'true'
+      
+      // Prioriza arquivo real, fallback para localStorage, fallback para artefatos dependentes
+      const resumeCompleted = hasValidContent(resumeAnalysis)
+        || window.localStorage.getItem(RESUME_ANALYSIS_STORAGE_KEY) === 'true'
         || matchCompleted
         || tailoringCompleted
 
