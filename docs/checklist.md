@@ -17,6 +17,39 @@ Validação executada nesta revisão:
 * [ ] QA visual completo executado em navegadores reais.
   Validação de estabilização executada no Chrome em 1366x768, 1440x900, 768x1024, 390x844 e 360x800.
 
+## Estabilização responsiva do frontend
+
+Etapa executada em 2026-06-14, sem alterações de backend, agentes ou escopo do PDI.
+
+* [x] Sidebar não corta conteúdo em `1366x768`.
+* [x] Sidebar não corta conteúdo em `1280x720`.
+* [x] Sidebar não possui scroll duplo.
+* [x] Painel inferior da sidebar rola corretamente.
+* [x] Tags da sidebar não vazam.
+* [x] Barra de progresso respeita a largura.
+* [x] Lista de agentes permanece acessível.
+* [x] Logo `import vagas` continua clicável.
+* [x] Item ativo continua visível.
+* [x] Header não sobrepõe ações.
+* [x] Pipeline continua legível em notebook menor.
+* [x] Chat/input não cobre conteúdo.
+* [x] Não existe scroll horizontal em notebook menor.
+* [x] Não existe scroll horizontal em mobile.
+* [x] Mobile mantém navegação utilizável.
+* [x] `npm run lint` passa.
+* [x] `npm run build` passa.
+
+Resoluções validadas no Chrome:
+
+* [x] `1440x900`
+* [x] `1366x768`
+* [x] `1280x720`
+* [x] `1024x768`
+* [x] `900x720`
+* [x] `768x1024`
+* [x] `390x844`
+* [x] `360x800`
+
 Pendências críticas confirmadas:
 
 * [ ] Integrar o componente `PdiPlan` à interface e ao pipeline.

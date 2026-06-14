@@ -71,15 +71,48 @@ Este roteiro cobre a identidade Career Arcade Pipeline e a regressão dos fluxos
 
 ## Polimento final de responsividade
 
-* [ ] Não existe scroll horizontal em `390x844`.
-* [ ] Não existe scroll horizontal em `360x800`.
-* [ ] Sidebar vira layout compacto em mobile.
-* [ ] Header não sobrepõe botões em mobile.
-* [ ] Pipeline vira lista vertical em mobile.
-* [ ] Cards da pipeline não cortam texto.
+* [x] Não existe scroll horizontal em `390x844`.
+* [x] Não existe scroll horizontal em `360x800`.
+* [x] Sidebar vira layout compacto em mobile.
+* [x] Header não sobrepõe botões em mobile.
+* [x] Pipeline vira lista vertical em mobile.
+* [x] Cards da pipeline não cortam texto.
 * [ ] Tags longas quebram linha.
-* [ ] Modal de vaga cabe na tela.
-* [ ] Chat/input não cobre conteúdo.
+* [x] Modal de vaga cabe na tela.
+* [x] Chat/input não cobre conteúdo.
 * [ ] Botões principais têm área de toque confortável.
-* [ ] Fundo arcade não prejudica leitura no mobile.
+* [x] Fundo arcade não prejudica leitura no mobile.
 * [ ] Foco por teclado continua visível.
+
+## Estabilização responsiva do frontend
+
+Validação executada em Chrome em 2026-06-14, com sidebar aberta e fechada quando aplicável.
+
+* [x] Sidebar não corta conteúdo em `1366x768`.
+* [x] Sidebar não corta conteúdo em `1280x720`.
+* [x] Sidebar não possui scroll duplo.
+* [x] Painel inferior da sidebar rola corretamente.
+* [x] Tags da sidebar não vazam.
+* [x] Barra de progresso respeita a largura.
+* [x] Lista de agentes permanece acessível.
+* [x] Logo `import vagas` continua clicável.
+* [x] Item ativo continua visível.
+* [x] Header não sobrepõe ações.
+* [x] Pipeline continua legível em notebook menor.
+* [x] Chat/input não cobre conteúdo.
+* [x] Não existe scroll horizontal em notebook menor.
+* [x] Não existe scroll horizontal em mobile.
+* [x] Mobile mantém navegação utilizável.
+* [x] `npm run lint` passa.
+* [x] `npm run build` passa.
+
+Resoluções validadas:
+
+* [x] `1440x900`
+* [x] `1366x768`
+* [x] `1280x720`
+* [x] `1024x768`
+* [x] `900x720`
+* [x] `768x1024`
+* [x] `390x844`
+* [x] `360x800`
