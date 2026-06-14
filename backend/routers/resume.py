@@ -513,6 +513,91 @@ Concluído: true
 """
 
 
+def _analysis_from_markdown(content: str) -> dict[str, Any] | None:
+    scalar_fields = {
+        "Nome detectado": "detected_name",
+        "Nível estimado": "estimated_level",
+        "Experiências detectadas": "experience_summary",
+        "Formação detectada": "education_summary",
+    }
+    list_fields = {
+        "Áreas prováveis": "probable_areas",
+        "Habilidades técnicas detectadas": "technical_skills",
+        "Soft skills detectadas": "soft_skills",
+        "Funções alvo sugeridas": "suggested_target_roles",
+        "Pontos fortes": "strengths",
+        "Pontos de melhoria": "improvement_points",
+        "Campos que precisam de confirmação no quiz": "fields_to_confirm",
+    }
+    result: dict[str, Any] = {
+        "detected_name": "",
+        "professional_summary": "",
+        "probable_areas": [],
+        "estimated_level": "",
+        "technical_skills": [],
+        "soft_skills": [],
+        "experience_summary": "",
+        "education_summary": "",
+        "suggested_target_roles": [],
+        "strengths": [],
+        "improvement_points": [],
+        "fields_to_confirm": [],
+    }
+    lines = content.splitlines()
+    current_list = ""
+
+    for index, raw_line in enumerate(lines):
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        if line == "Resumo profissional:":
+            result["professional_summary"] = next(
+                (
+                    candidate.strip()
+                    for candidate in lines[index + 1 :]
+                    if candidate.strip()
+                ),
+                "",
+            )
+            current_list = ""
+            continue
+
+        heading = line.rstrip(":")
+        if line.endswith(":") and heading in list_fields:
+            current_list = list_fields[heading]
+            continue
+
+        if line.endswith(":") and heading in scalar_fields:
+            result[scalar_fields[heading]] = next(
+                (
+                    candidate.strip()
+                    for candidate in lines[index + 1 :]
+                    if candidate.strip()
+                ),
+                "",
+            )
+            current_list = ""
+            continue
+
+        if line.startswith(("- ", "* ")) and current_list:
+            value = line[2:].strip()
+            if value.casefold() != "não identificado":
+                result[current_list].append(value)
+            continue
+
+        if ":" in line and not line.startswith(("-", "*")):
+            key, _, value = line.partition(":")
+            field = scalar_fields.get(key.strip())
+            if field:
+                result[field] = value.strip()
+
+    if not result["technical_skills"] and not result["soft_skills"]:
+        return None
+
+    return result
+
+
 def _parse_profile(content: str) -> dict[str, str]:
     profile: dict[str, str] = {}
 
@@ -610,6 +695,26 @@ def _merge_profile_suggestions(analysis: dict[str, Any]) -> bool:
     return updated
 
 
+@router.get("/latest")
+async def get_latest_resume_analysis():
+    try:
+        content = config.RESUME_ANALYSIS_FILE.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "Nenhum currículo foi analisado ainda."},
+        )
+
+    analysis = _analysis_from_markdown(content)
+    if analysis is None:
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "Nenhuma análise de currículo válida foi encontrada."},
+        )
+
+    return analysis
+
+
 @router.post("/upload")
 async def upload_resume(file: UploadFile = File(...)):
     filename = file.filename or ""
@@ -654,4 +759,3 @@ async def upload_resume(file: UploadFile = File(...)):
         "analysis": analysis,
         "profile_updated": profile_updated,
     }
-

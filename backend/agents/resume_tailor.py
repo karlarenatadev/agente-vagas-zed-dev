@@ -194,6 +194,54 @@ def tailoring_to_markdown(result: dict[str, Any]) -> str:
 """
 
 
+def tailoring_from_markdown(content: str) -> dict[str, Any] | None:
+    """Restaura sugestões persistidas pelo ``tailoring_to_markdown``."""
+    parsed = _parse_markdown(content)
+    score_match = re.match(
+        r"^(\d{1,3})/100$",
+        _value(parsed, "score_de_aderencia", ""),
+    )
+    if not score_match:
+        return None
+
+    return {
+        "job_title": _value(parsed, "vaga_analisada", "Vaga analisada"),
+        "match_score": int(score_match.group(1)),
+        "readiness_level": _value(
+            parsed,
+            "nivel_de_prontidao",
+            "Não calculado",
+        ),
+        "summary_suggestions": _list(
+            parsed,
+            "sugestao_para_resumo_profissional",
+        ),
+        "skills_suggestions": _list(
+            parsed,
+            "sugestoes_para_secao_de_habilidades",
+        ),
+        "project_suggestions": _list(parsed, "sugestoes_para_projetos"),
+        "experience_suggestions": _list(
+            parsed,
+            "sugestoes_para_experiencias",
+        ),
+        "keywords_to_include": _list(
+            parsed,
+            "palavras-chave_que_podem_entrar_com_seguranca",
+        ),
+        "keywords_to_avoid_claiming": _list(
+            parsed,
+            "palavras-chave_que_exigem_cuidado",
+        ),
+        "can_highlight_better": _list(parsed, "pode_destacar_melhor"),
+        "can_reposition": _list(parsed, "pode_reposicionar"),
+        "needs_evidence": _list(parsed, "precisa_criar_evidencia"),
+        "do_not_claim": _list(parsed, "nao_afirmar_ainda"),
+        "safety_alerts": _list(parsed, "alertas_de_seguranca"),
+        "next_steps": _list(parsed, "proximos_passos"),
+    }
+
+
 class ResumeTailor:
     """Transforma o match em orientações, sem escrever experiências fictícias."""
 

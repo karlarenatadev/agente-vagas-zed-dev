@@ -11,6 +11,7 @@ import config
 from routers.common import read_required
 from agents.resume_tailor import (
     ResumeTailor,
+    tailoring_from_markdown,
     tailoring_to_markdown,
     validate_job_analysis,
     validate_match_report,
@@ -43,6 +44,28 @@ class ResumeTailoringResponse(BaseModel):
     do_not_claim: list[str]
     safety_alerts: list[str]
     next_steps: list[str]
+
+
+@router.get("/latest", response_model=ResumeTailoringResponse)
+async def get_latest_resume_tailoring() -> dict[str, Any]:
+    try:
+        content = config.RESUME_TAILORING_SUGGESTIONS_FILE.read_text(
+            encoding="utf-8"
+        )
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail="Nenhuma sugestão de currículo foi gerada ainda.",
+        )
+
+    result = tailoring_from_markdown(content)
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Nenhuma sugestão de currículo válida foi encontrada.",
+        )
+
+    return result
 
 
 @router.post("/generate", response_model=ResumeTailoringResponse)

@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException
 import config
 from agents.job_description_analyzer import (
     JobDescriptionAnalyzer,
+    analysis_from_markdown,
     analysis_to_markdown,
 )
 
@@ -34,6 +35,23 @@ class JobDescriptionAnalysisResponse(BaseModel):
     nice_to_have: list[str]
     alerts: list[str]
     next_steps: list[str]
+
+
+@router.get("/latest", response_model=JobDescriptionAnalysisResponse)
+async def get_latest_job_description():
+    try:
+        content = config.JOB_DESCRIPTION_ANALYSIS_FILE.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Nenhuma vaga foi analisada ainda.")
+
+    analysis = analysis_from_markdown(content)
+    if analysis is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Nenhuma análise de vaga válida foi encontrada.",
+        )
+
+    return analysis
 
 
 @router.post("/analyze", response_model=JobDescriptionAnalysisResponse)

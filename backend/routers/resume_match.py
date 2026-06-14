@@ -11,6 +11,7 @@ import config
 from routers.common import read_required
 from agents.resume_matcher import (
     ResumeMatcher,
+    match_report_from_markdown,
     match_report_to_markdown,
     validate_job_analysis,
     validate_resume_analysis,
@@ -55,6 +56,26 @@ class ResumeMatchResponse(BaseModel):
     safe_resume_suggestions: list[str]
     do_not_claim: list[str]
     next_steps: list[str]
+
+
+@router.get("/latest", response_model=ResumeMatchResponse)
+async def get_latest_resume_match() -> dict[str, Any]:
+    try:
+        content = config.RESUME_MATCH_REPORT_FILE.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail="Nenhum relatório de aderência foi gerado ainda.",
+        )
+
+    report = match_report_from_markdown(content)
+    if report is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Nenhum relatório de aderência válido foi encontrado.",
+        )
+
+    return report
 
 
 @router.post("/analyze", response_model=ResumeMatchResponse)

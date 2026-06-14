@@ -516,6 +516,70 @@ def analysis_to_markdown(analysis: dict[str, Any]) -> str:
 """
 
 
+def analysis_from_markdown(content: str) -> dict[str, Any] | None:
+    """Restaura uma análise persistida pelo ``analysis_to_markdown``."""
+    fields = {
+        "title": "",
+        "company": "",
+        "seniority": "",
+        "modality": "",
+        "location": "",
+    }
+    section_map = {
+        "palavras-chave principais": "keywords",
+        "hard skills": "hard_skills",
+        "soft skills": "soft_skills",
+        "ferramentas": "tools",
+        "responsabilidades": "responsibilities",
+        "requisitos obrigatorios": "required_requirements",
+        "requisitos desejaveis": "nice_to_have",
+        "alertas": "alerts",
+        "proximos passos sugeridos": "next_steps",
+    }
+    lists: dict[str, list[str]] = {
+        value: [] for value in section_map.values()
+    }
+    current_section = ""
+
+    for raw_line in content.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        if line.startswith("## "):
+            current_section = _normalize(line[3:])
+            continue
+
+        if not line.startswith(("* ", "- ")):
+            continue
+
+        value = line[2:].strip()
+        if current_section == "resumo" and ":" in value:
+            key, _, field_value = value.partition(":")
+            field_key = {
+                "titulo": "title",
+                "empresa": "company",
+                "senioridade": "seniority",
+                "modalidade": "modality",
+                "localizacao": "location",
+            }.get(_normalize(key))
+            if field_key:
+                fields[field_key] = field_value.strip()
+            continue
+
+        list_key = section_map.get(current_section)
+        if list_key and _normalize(value) not in {
+            "nao identificado",
+            "nenhuma analise realizada",
+        }:
+            lists[list_key].append(value)
+
+    if not lists["keywords"] and not lists["hard_skills"] and not lists["tools"]:
+        return None
+
+    return {**fields, **lists}
+
+
 class JobDescriptionAnalyzer:
     """Extrai sinais acionáveis sem depender de API externa."""
 

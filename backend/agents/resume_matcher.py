@@ -408,6 +408,62 @@ def match_report_to_markdown(report: dict[str, Any]) -> str:
 """
 
 
+def match_report_from_markdown(content: str) -> dict[str, Any] | None:
+    """Restaura um relatório persistido pelo ``match_report_to_markdown``."""
+    parsed = _parse_markdown(content)
+    score_match = re.match(
+        r"^(\d{1,3})/100$",
+        str(parsed.get("score_geral", "")),
+    )
+    if not score_match:
+        return None
+
+    def items(key: str) -> list[str]:
+        value = parsed.get(key, [])
+        return _unique(value if isinstance(value, list) else [str(value)])
+
+    def score(key: str) -> int:
+        value = str(parsed.get(key, "0"))
+        match = re.match(r"^(\d{1,3})/", value)
+        return int(match.group(1)) if match else 0
+
+    return {
+        "overall_score": int(score_match.group(1)),
+        "readiness_level": str(
+            parsed.get("nivel_de_prontidao", "Não calculado")
+        ),
+        "job_title": str(parsed.get("vaga_analisada", "Vaga analisada")),
+        "resume_summary": str(
+            parsed.get("curriculo_analisado", "Currículo analisado")
+        ),
+        "score_breakdown": {
+            "hard_skills": score("hard_skills"),
+            "tools": score("ferramentas"),
+            "soft_skills": score("soft_skills"),
+            "keywords": score("palavras-chave"),
+            "seniority_area": score("senioridade_e_area"),
+        },
+        "strong_evidence": items("evidencias_fortes_no_curriculo"),
+        "partial_evidence": items("evidencias_parciais"),
+        "missing_requirements": items("requisitos_ausentes"),
+        "hard_skills_found": items("hard_skills_encontradas"),
+        "hard_skills_missing": items("hard_skills_ausentes"),
+        "soft_skills_found": items("soft_skills_encontradas"),
+        "soft_skills_missing": items("soft_skills_ausentes"),
+        "tools_found": items("ferramentas_encontradas"),
+        "tools_missing": items("ferramentas_ausentes"),
+        "matched_keywords": items("palavras-chave_encontradas"),
+        "missing_keywords": items("palavras-chave_ausentes"),
+        "strengths": items("pontos_fortes_para_essa_vaga"),
+        "critical_gaps": items("lacunas_criticas"),
+        "safe_resume_suggestions": items(
+            "sugestoes_seguras_para_melhorar_o_curriculo"
+        ),
+        "do_not_claim": items("nao_afirmar_ainda"),
+        "next_steps": items("proximos_passos_recomendados"),
+    }
+
+
 class ResumeMatcher:
     """Compara os dois artefatos Markdown sem inventar dados."""
 
