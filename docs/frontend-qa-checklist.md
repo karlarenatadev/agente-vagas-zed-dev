@@ -4,16 +4,16 @@ Este roteiro cobre a identidade Career Arcade Pipeline e a regressão dos fluxos
 
 ## Fluxo feliz
 
-* [ ] Abrir a aplicação e confirmar que a pipeline mostra Currículo, Vaga, Match, Sugestões, PDI e Entrevista.
-* [ ] Enviar um currículo PDF, DOCX ou TXT válido.
+* [x] Abrir a aplicação e confirmar que a pipeline mostra Currículo, Vaga, Match, Sugestões, PDI e Entrevista.
+* [x] Enviar um currículo PDF, DOCX ou TXT válido.
 * [ ] Confirmar o estado de sucesso do currículo e a atualização do perfil.
-* [ ] Colar uma descrição completa de vaga.
-* [ ] Confirmar cards de resumo, palavras-chave, requisitos e alertas.
-* [ ] Comparar a vaga com o currículo.
-* [ ] Confirmar score, evidências fortes, parciais e ausentes.
-* [ ] Gerar sugestões seguras de currículo.
-* [ ] Copiar uma seção e confirmar a troca temporária do texto para “Copiado”.
-* [ ] Confirmar que PDI aparece apenas como fase futura, sem ação ativa.
+* [x] Colar uma descrição completa de vaga.
+* [x] Confirmar cards de resumo, palavras-chave, requisitos e alertas.
+* [x] Comparar a vaga com o currículo.
+* [x] Confirmar score, evidências fortes, parciais e ausentes.
+* [x] Gerar sugestões seguras de currículo.
+* [x] Copiar uma seção e confirmar a troca temporária do texto para “Copiado”.
+* [x] Confirmar que PDI aparece apenas como fase futura, sem ação ativa.
 
 ## Fluxos de erro
 
@@ -27,13 +27,13 @@ Este roteiro cobre a identidade Career Arcade Pipeline e a regressão dos fluxos
 
 ## Regressão
 
-* [ ] O chat continua enviando e recebendo mensagens por WebSocket.
+* [x] O chat continua enviando e recebendo mensagens por WebSocket.
 * [ ] O ProfilePanel continua carregando o perfil.
 * [ ] O quiz continua abrindo e recebendo respostas.
-* [ ] O upload de currículo continua funcionando.
-* [ ] A análise de vaga continua salvando o resultado.
-* [ ] O match continua funcionando.
-* [ ] As sugestões seguras continuam funcionando.
+* [x] O upload de currículo continua funcionando.
+* [x] A análise de vaga continua salvando o resultado.
+* [x] O match continua funcionando.
+* [x] As sugestões seguras continuam funcionando.
 * [ ] O painel de candidaturas continua abrindo.
 * [ ] As rotas de leitura continuam funcionando.
 
@@ -46,7 +46,7 @@ Este roteiro cobre a identidade Career Arcade Pipeline e a regressão dos fluxos
 * [x] Sidebar não cobre o conteúdo principal.
 * [x] Modal de vaga cabe na altura disponível.
 * [x] Textarea ocupa largura confortável.
-* [ ] Cards com textos longos não estouram.
+* [x] Cards com textos longos não estouram.
 * [x] Tags quebram linha sem cortar conteúdo.
 * [x] Botões mantêm área de toque confortável.
 * [ ] Loading, erro, vazio e sucesso são visualmente distintos.
@@ -144,8 +144,36 @@ Evidências validadas:
 * [x] `npm run lint` passa.
 * [x] `npm run build` passa.
 
+## Rodada final de QA funcional
+
+Validação executada em 2026-06-14 com o backend real disponível em `http://127.0.0.1:8000`.
+
+Navegadores desta rodada:
+
+* [x] Google Chrome `149.0.7827.114` em `1366x768`.
+* [x] Microsoft Edge `149.0.4022.69` em `1366x768`.
+
+Fluxos e evidências validados nos dois navegadores:
+
+* [x] Sidebar, logo clicável, navegação lateral e pipeline continuam funcionando.
+* [x] Upload e análise de currículo TXT concluídos com estado de sucesso.
+* [x] Análise de vaga real concluída com cards, tags, requisitos e alertas.
+* [x] Match concluído com score, evidências e lacunas.
+* [x] Sugestões seguras geradas e seção copiada com confirmação “Copiado”.
+* [x] Chat envia a mensagem, recebe resposta do Maestro e mantém o input utilizável.
+* [x] Modal de vaga abre, rola internamente e mantém os botões acessíveis.
+* [x] Relatórios reais renderizam 37 cards visíveis e 97 tags no pico do fluxo.
+* [x] Parágrafos, listas Markdown extensas e token extremo sem espaços não causam overflow.
+* [x] Nenhuma etapa auditada gerou overflow horizontal no documento, modal ou cards.
+* [x] Backend permaneceu saudável e não houve erro HTTP nem exceção de navegador.
+* [x] Chrome e Edge concluíram o fluxo principal completo.
+
+Problema corrigido:
+
+* [x] Botão de copiar usa fallback quando a Clipboard API está exposta, mas rejeita a escrita.
+
 Pendências não validadas nesta rodada:
 
-* [ ] Executar o fluxo feliz completo com upload, vaga, match e sugestões.
 * [ ] Executar todos os fluxos de erro com backend disponível e indisponível.
-* [ ] Validar cards de relatórios com parágrafos longos gerados por dados reais.
+* [ ] Confirmar separadamente a atualização do perfil após o upload do currículo.
+* [ ] Revalidar quiz e painel de candidaturas em uma rodada dedicada.

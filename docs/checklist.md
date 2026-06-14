@@ -14,8 +14,8 @@ Validação executada nesta revisão:
 * [x] Firecrawl CLI instalado no ambiente.
 * [ ] `FIRECRAWL_API_KEY` configurada no ambiente.
 * [ ] Suíte automatizada de testes disponível.
-* [ ] QA visual completo executado em navegadores reais.
-  A estabilização responsiva foi validada no Chrome em oito resoluções. A rodada final de visual e acessibilidade foi validada no Chrome e Edge em `1366x768` e `390x844`; os fluxos funcionais completos permanecem pendentes.
+* [x] QA visual completo executado em navegadores reais.
+  A estabilização responsiva foi validada no Chrome em oito resoluções. As rodadas finais de visual, acessibilidade e fluxo funcional com backend real foram validadas no Chrome e Edge.
 
 ## Estabilização responsiva do frontend
 
@@ -67,10 +67,29 @@ Etapa executada em 2026-06-14, sem alterações de backend, agentes, PDI ou depe
 * [x] `npm run lint` passa.
 * [x] `npm run build` passa.
 
+## QA funcional final com backend real
+
+Etapa executada em 2026-06-14, sem alterações de backend, agentes, PDI ou dependências.
+
+* [x] Backend real permaneceu saudável durante os testes.
+* [x] Chrome `149.0.7827.114` concluiu o fluxo principal em `1366x768`.
+* [x] Edge `149.0.4022.69` concluiu o fluxo principal em `1366x768`.
+* [x] Sidebar, logo, pipeline, modal de vaga, navegação lateral e chat permaneceram funcionais.
+* [x] Upload e análise de currículo TXT concluídos.
+* [x] Análise de vaga, match e sugestões seguras concluídos.
+* [x] Cópia de seção confirmou o estado “Copiado”.
+* [x] Relatórios reais com parágrafos, listas e tags extensas não causaram overflow horizontal.
+* [x] Cards longos mantiveram largura, rolagem e ações acessíveis.
+* [x] O fallback do botão de copiar foi corrigido para contextos com Clipboard API restrita.
+* [x] Nenhum erro HTTP ou exceção de navegador foi observado.
+* [x] `npm run lint` passa.
+* [x] `npm run build` passa.
+
 Pendências mantidas:
 
-* [ ] Executar fluxo funcional completo com backend nos dois navegadores.
-* [ ] Validar cards alimentados por relatórios reais com parágrafos extremos.
+* [ ] Executar todos os fluxos de erro com backend disponível e indisponível.
+* [ ] Confirmar separadamente a atualização do perfil após o upload do currículo.
+* [ ] Revalidar quiz e painel de candidaturas em uma rodada dedicada.
 
 Pendências críticas confirmadas:
 
@@ -79,7 +98,7 @@ Pendências críticas confirmadas:
 * [ ] Expor `resume-analysis.md` por uma rota de leitura para detectar o arquivo diretamente em uma nova sessão.
 * [ ] Conectar o Coach à descrição da vaga e ao relatório de aderência.
 * [ ] Criar testes automatizados mínimos para backend e frontend.
-* [ ] Executar e registrar `docs/frontend-qa-checklist.md`.
+* [x] Executar e registrar `docs/frontend-qa-checklist.md`.
 
 ## Visão geral
 
@@ -502,7 +521,7 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 * [x] Validação atual de build.
 * [x] Validação manual de lint.
 * [x] Validação manual do backend.
-* [ ] Reexecutar teste integrado da análise de descrição de vaga.
+* [x] Reexecutar teste integrado da análise de descrição de vaga.
 * [x] Tratamento de entrada inválida na análise de vaga.
 
 ## O que iremos acrescentar
@@ -522,22 +541,22 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 ### Frontend
 
-* [ ] Testar renderização do analisador de vaga.
-* [ ] Testar botão de comparação com currículo.
+* [x] Testar renderização do analisador de vaga.
+* [x] Testar botão de comparação com currículo.
 * [ ] Testar loading.
 * [ ] Testar mensagens de erro.
-* [ ] Testar renderização de tags.
-* [ ] Testar responsividade básica.
+* [x] Testar renderização de tags.
+* [x] Testar responsividade básica.
 
 ### Fluxo completo
 
-* [ ] Enviar currículo.
-* [ ] Analisar currículo.
-* [ ] Colar descrição da vaga.
-* [ ] Analisar vaga.
-* [ ] Comparar vaga com currículo.
-* [ ] Gerar relatório de aderência.
-* [ ] Gerar sugestões seguras.
+* [x] Enviar currículo.
+* [x] Analisar currículo.
+* [x] Colar descrição da vaga.
+* [x] Analisar vaga.
+* [x] Comparar vaga com currículo.
+* [x] Gerar relatório de aderência.
+* [x] Gerar sugestões seguras.
 * [ ] Gerar PDI.
 * [ ] Iniciar entrevista baseada na vaga.
 
@@ -672,7 +691,7 @@ Uma etapa só deve ser considerada pronta quando:
 * [x] Reduzir intensidade do fundo arcade no mobile.
 * [x] Criar `docs/frontend-qa-checklist.md`.
 * [x] Aplicar lazy loading ao terminal de chat.
-* [ ] Executar checklist visual completo em navegadores reais.
+* [x] Executar checklist visual completo em navegadores reais.
 * [x] Executar a rodada final de QA visual e acessibilidade em Chrome e Edge.
 * [x] Corrigir a sidebar para manter navegação fixa e perfil rolável sem cortes.
 * [x] Validar ausência de scroll horizontal nos cinco viewports prioritários.

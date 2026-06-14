@@ -3,8 +3,12 @@ import { Check, Clipboard } from 'lucide-react'
 
 async function copyText(value: string): Promise<void> {
   if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(value)
-    return
+    try {
+      await navigator.clipboard.writeText(value)
+      return
+    } catch {
+      // Restricted browser contexts can expose Clipboard API but reject writes.
+    }
   }
 
   const textarea = document.createElement('textarea')
