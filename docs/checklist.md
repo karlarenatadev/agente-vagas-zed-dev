@@ -239,6 +239,8 @@ Sessão executada em 2026-06-15.
 * [x] Animações com `AnimatePresence`: troca barra↔cards com fade/slide e
   stagger por card; hover/tap nos cards.
 * [x] Removidos os textos auxiliares acima/abaixo da barra.
+* [x] Shell do input deixado totalmente transparente (removida a faixa de
+  gradiente que tampava o conteúdo atrás dos cards) — só os botões flutuam.
 * [x] `npm run build` passa.
 
 ## Centralização vertical da barra e animação de expandir

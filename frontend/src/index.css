@@ -2292,9 +2292,9 @@ textarea::placeholder {
   flex-shrink: 0;
   padding: 0 24px 20px;
   border-top: 0;
-  /* Barra flutuante: sem fundo sólido. Um fade deixa o conteúdo do chat
-     passar por baixo dela. O shell não captura cliques fora dos filhos. */
-  background: linear-gradient(180deg, transparent, rgba(5, 8, 22, 0.6) 42%, rgba(5, 8, 22, 0.9));
+  /* Barra flutuante: shell totalmente transparente, sem faixa de fundo.
+     Só os botões/barra flutuam; o shell não captura cliques fora dos filhos. */
+  background: transparent;
   box-shadow: none;
   pointer-events: none;
 }
