@@ -28,6 +28,19 @@ function isMeaningful(value?: string) {
   return !!value && !NA.test(value.trim())
 }
 
+function normalizeLink(value?: string): string | null {
+  if (!isMeaningful(value)) return null
+  const trimmed = value!.trim()
+  // Já tem protocolo absoluto (http, https, mailto, etc.) — usa direto
+  if (/^https?:\/\//i.test(trimmed)) return trimmed
+  // Sem protocolo: só aceita se parecer um domínio real (sem espaços e com TLD,
+  // ex: "linkedin.com/jobs/..."). Texto descritivo de vaga simulada
+  // (ex: "oportunidade simulada a partir do perfil") não é link — descarta.
+  const looksLikeDomain = /^[^\s]+\.[a-z]{2,}([/?#].*)?$/i.test(trimmed)
+  if (!looksLikeDomain) return null
+  return `https://${trimmed.replace(/^\/+/, '')}`
+}
+
 function splitSkills(value?: string): string[] {
   if (!isMeaningful(value)) return []
   return value!
@@ -84,6 +97,7 @@ export function ScoutReport({ data }: { data: ScoutData }) {
           const matched = splitSkills(job.habilidades_correspondentes)
           const soft = splitSkills(job.soft_skills_correspondentes)
           const missing = splitSkills(job.habilidades_faltantes)
+          const jobLink = normalizeLink(job.link)
 
           return (
             <article className="scout-card" key={index}>
@@ -141,8 +155,8 @@ export function ScoutReport({ data }: { data: ScoutData }) {
                 </p>
               )}
 
-              {isMeaningful(job.link) && (
-                <a className="scout-link" href={job.link} target="_blank" rel="noopener noreferrer">
+              {jobLink && (
+                <a className="scout-link" href={jobLink} target="_blank" rel="noopener noreferrer">
                   Ver vaga <ExternalLink size={13} aria-hidden="true" />
                 </a>
               )}
