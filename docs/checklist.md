@@ -234,8 +234,13 @@ Rota de candidatura recolhida vira barra de progresso:
 
 * [x] `ApplicationPipeline`: quando recolhida, renderiza `.pipeline-minibar`
   com 6 nós ligados por conectores, no estilo do mock de baixa fidelidade.
-* [x] Cores seguem a paleta de status (concluído=verde, disponível=amarelo,
-  bloqueado=cinza); nó atual com leve glow/escala; conector concluído em verde.
+* [x] Refino de layout: recolhida, a barra fica inline no cabeçalho entre o
+  rótulo "Career Arcade Pipeline" e o badge "X de 4"; a seta de toggle fica à
+  direita do badge; o título "Sua rota de candidatura" e o subtexto só aparecem
+  quando expandida.
+* [x] Visual futurista: nós concluídos com núcleo neon ciano e brilho;
+  conectores concluídos em gradiente ciano→rosa com glow; etapa atual com anel
+  rosa pulsante (respeita `prefers-reduced-motion`).
 
 Correção do fluxo do chat (resposta aparecendo na bolha de cima):
 

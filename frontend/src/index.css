@@ -4018,16 +4018,29 @@ textarea::placeholder {
 
 .application-pipeline.collapsed {
   padding-bottom: 0;
+  gap: 0;
 }
 
-/* Barra de progresso compacta exibida quando a rota está recolhida */
+/* Recolhido: cabeçalho vira uma única linha com a barra de progresso no meio */
+.application-pipeline.collapsed .pipeline-header {
+  align-items: center;
+}
+
+.pipeline-heading {
+  display: grid;
+  gap: 4px;
+}
+
+/* Barra de progresso futurista exibida quando a rota está recolhida.
+   Ocupa o espaço entre o rótulo "Career Arcade Pipeline" e o badge. */
 .pipeline-minibar {
   position: relative;
   z-index: 1;
   display: flex;
   align-items: center;
-  width: 100%;
-  margin-top: 14px;
+  flex: 1;
+  min-width: 120px;
+  margin: 0 24px;
 }
 
 .minibar-segment {
@@ -4041,48 +4054,78 @@ textarea::placeholder {
 }
 
 .minibar-node {
-  --node-color: #64748b;
+  --node-color: #3b4a6b;
+  --node-glow: rgba(34, 211, 238, 0.55);
   flex: 0 0 auto;
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  border: 2px solid var(--node-color);
-  background: #070b14;
-  transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  border: 1.5px solid var(--node-color);
+  background: #0a1120;
+  transition: background 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
 }
 
+/* Etapas concluídas: núcleo neon ciano com brilho */
 .minibar-node.completed {
-  --node-color: var(--color-arcade-green);
-  background: var(--color-arcade-green);
+  --node-color: var(--color-arcade-cyan);
+  border-color: var(--color-arcade-cyan);
+  background: radial-gradient(circle at 50% 40%, #aef4ff 0%, var(--color-arcade-cyan) 60%, #0aa8c4 100%);
+  box-shadow: 0 0 8px var(--node-glow), 0 0 2px var(--color-arcade-cyan);
 }
 
-.minibar-node.available {
-  --node-color: var(--color-arcade-yellow);
-}
-
+.minibar-node.available,
 .minibar-node.pending {
   --node-color: var(--color-arcade-cyan);
+  border-color: color-mix(in srgb, var(--color-arcade-cyan) 70%, transparent);
 }
 
 .minibar-node.blocked {
-  --node-color: #64748b;
+  --node-color: #3b4a6b;
 }
 
+/* Etapa atual: anel pulsante ciano→rosa */
 .minibar-node.current {
-  transform: scale(1.35);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--node-color) 28%, transparent);
+  --node-color: var(--color-arcade-pink);
+  border-color: var(--color-arcade-pink);
+  background: #0a1120;
+  transform: scale(1.4);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--color-arcade-pink) 22%, transparent),
+    0 0 12px color-mix(in srgb, var(--color-arcade-pink) 60%, transparent);
+  animation: minibar-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes minibar-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--color-arcade-pink) 20%, transparent),
+      0 0 10px color-mix(in srgb, var(--color-arcade-pink) 45%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 5px color-mix(in srgb, var(--color-arcade-pink) 8%, transparent),
+      0 0 16px color-mix(in srgb, var(--color-arcade-pink) 75%, transparent);
+  }
 }
 
 .minibar-link {
   flex: 1;
   height: 2px;
-  margin: 0 4px;
-  background: #2a3550;
+  margin: 0 5px;
   border-radius: 2px;
+  background: linear-gradient(90deg, rgba(59, 74, 107, 0.5), rgba(59, 74, 107, 0.5));
 }
 
+/* Conector concluído: trilha de energia ciano→rosa com brilho */
 .minibar-link.filled {
-  background: var(--color-arcade-green);
+  background: linear-gradient(90deg, var(--color-arcade-cyan), var(--color-arcade-pink));
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .minibar-node.current {
+    animation: none;
+  }
 }
 
 .pipeline-sync-note {

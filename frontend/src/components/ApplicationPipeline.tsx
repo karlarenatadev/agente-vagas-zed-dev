@@ -227,17 +227,38 @@ export function ApplicationPipeline({
   return (
     <section
       className={`application-pipeline ${collapsed ? 'collapsed' : ''}`}
-      aria-labelledby="pipeline-title"
+      aria-label="Rota de candidatura"
     >
       <header className="pipeline-header">
-        <div>
+        <div className="pipeline-heading">
           <p className="eyebrow">
             <Flag size={13} aria-hidden="true" />
             Career Arcade Pipeline
           </p>
-          <h2 id="pipeline-title">Sua rota de candidatura</h2>
-          <p>Avance uma etapa por vez. Cada ponto iluminado libera o próximo movimento.</p>
+          {!collapsed && <h2 id="pipeline-title">Sua rota de candidatura</h2>}
+          {!collapsed && <p>Avance uma etapa por vez. Cada ponto iluminado libera o próximo movimento.</p>}
         </div>
+
+        {collapsed && (
+          <div
+            className="pipeline-minibar"
+            role="img"
+            aria-label={`Progresso da rota: ${steps.slice(0, 4).filter(step => step.status === 'completed').length} de 4 etapas-base concluídas`}
+          >
+            {steps.map((step, index) => (
+              <div className="minibar-segment" key={step.key}>
+                <span
+                  className={`minibar-node ${step.status} ${index === activeIndex ? 'current' : ''}`}
+                  title={`${step.label} — ${step.status === 'completed' ? 'concluído' : step.status === 'available' ? 'disponível' : step.status === 'blocked' ? 'bloqueado' : 'pendente'}`}
+                />
+                {index < steps.length - 1 && (
+                  <span className={`minibar-link ${step.status === 'completed' ? 'filled' : ''}`} aria-hidden="true" />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="pipeline-header-actions">
           <span className="pipeline-progress-label">
             <FileCheck2 size={14} aria-hidden="true" />
@@ -259,26 +280,6 @@ export function ApplicationPipeline({
           </button>
         </div>
       </header>
-
-      {collapsed && (
-        <div
-          className="pipeline-minibar"
-          role="img"
-          aria-label={`Progresso da rota: ${steps.slice(0, 4).filter(step => step.status === 'completed').length} de 4 etapas-base concluídas`}
-        >
-          {steps.map((step, index) => (
-            <div className="minibar-segment" key={step.key}>
-              <span
-                className={`minibar-node ${step.status} ${index === activeIndex ? 'current' : ''}`}
-                title={`${step.label} — ${step.status === 'completed' ? 'concluído' : step.status === 'available' ? 'disponível' : step.status === 'blocked' ? 'bloqueado' : 'pendente'}`}
-              />
-              {index < steps.length - 1 && (
-                <span className={`minibar-link ${step.status === 'completed' ? 'filled' : ''}`} aria-hidden="true" />
-              )}
-            </div>
-          ))}
-        </div>
-      )}
 
       {!collapsed && snapshot.failed && (
         <p className="pipeline-sync-note">
