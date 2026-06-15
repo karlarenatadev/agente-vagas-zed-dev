@@ -3953,7 +3953,10 @@ textarea::placeholder {
   gap: 20px;
 }
 
-.pipeline-header > div {
+/* Apenas o bloco de título usa grid. Antes era `.pipeline-header > div`, que
+   por ter especificidade maior sobrescrevia o display:flex da .pipeline-minibar
+   e da .pipeline-header-actions — empilhando segmentos e a seta na vertical. */
+.pipeline-heading {
   display: grid;
   gap: 4px;
 }
@@ -3964,10 +3967,16 @@ textarea::placeholder {
   line-height: 1.2;
 }
 
-.pipeline-header > div > p:last-child {
+.pipeline-heading > p:last-child {
   margin: 0;
   color: var(--text-muted);
   font-size: 12px;
+}
+
+/* "Career Arcade Pipeline" em ciano neon */
+.pipeline-header .eyebrow {
+  color: var(--color-arcade-cyan);
+  text-shadow: 0 0 10px rgba(34, 211, 238, 0.45);
 }
 
 .pipeline-progress-label {
@@ -4022,9 +4031,16 @@ textarea::placeholder {
   gap: 0;
 }
 
-/* Recolhido: cabeçalho vira uma única linha com a barra de progresso no meio */
+/* Recolhido: cabeçalho vira uma única linha com a barra de progresso no meio.
+   O título e o subtexto somem (mas continuam no DOM, para que o seletor
+   `:last-child` siga mirando o subtexto e nunca o eyebrow ciano). */
 .application-pipeline.collapsed .pipeline-header {
   align-items: center;
+}
+
+.application-pipeline.collapsed .pipeline-heading h2,
+.application-pipeline.collapsed .pipeline-heading > p:not(.eyebrow) {
+  display: none;
 }
 
 .pipeline-heading {

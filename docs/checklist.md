@@ -241,6 +241,12 @@ Rota de candidatura recolhida vira barra de progresso:
 * [x] Visual futurista: nós concluídos com núcleo neon ciano e brilho;
   conectores concluídos em gradiente ciano→rosa com glow; etapa atual com anel
   rosa pulsante (respeita `prefers-reduced-motion`).
+* [x] Bug de layout corrigido: `.pipeline-header > div` (especificidade 0,1,1)
+  sobrescrevia o `display:flex` da minibar e das ações (segmentos e seta
+  empilhavam na vertical). A regra grid passou a mirar só `.pipeline-heading`.
+* [x] Eyebrow "Career Arcade Pipeline" forçado em ciano neon; título/subtexto
+  ficam no DOM e somem via CSS quando recolhido, evitando que o `:last-child`
+  atinja o eyebrow.
 
 Correção do fluxo do chat (resposta aparecendo na bolha de cima):
 

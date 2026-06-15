@@ -235,8 +235,8 @@ export function ApplicationPipeline({
             <Flag size={13} aria-hidden="true" />
             Career Arcade Pipeline
           </p>
-          {!collapsed && <h2 id="pipeline-title">Sua rota de candidatura</h2>}
-          {!collapsed && <p>Avance uma etapa por vez. Cada ponto iluminado libera o próximo movimento.</p>}
+          <h2 id="pipeline-title">Sua rota de candidatura</h2>
+          <p>Avance uma etapa por vez. Cada ponto iluminado libera o próximo movimento.</p>
         </div>
 
         {collapsed && (
