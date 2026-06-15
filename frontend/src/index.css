@@ -432,6 +432,7 @@ textarea::placeholder {
 }
 
 .main-content {
+  position: relative;
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -1345,8 +1346,9 @@ textarea::placeholder {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 24px 28px 28px;
-  scroll-padding-bottom: 112px;
+  /* padding-bottom reserva espaço para a barra flutuante sobreposta */
+  padding: 24px 28px 104px;
+  scroll-padding-bottom: 120px;
 
   background:
     radial-gradient(circle at 18% 18%, rgba(0, 229, 255, 0.10), transparent 26%),
@@ -2289,11 +2291,16 @@ textarea::placeholder {
 }
 
 .chat-input-shell {
-  flex-shrink: 0;
+  /* Barra flutuante: sobreposta ao fundo do chat (posição absoluta), para que
+     o fundo do terminal seja contínuo por baixo e não exista uma faixa/seam.
+     Shell transparente; só os botões/barra capturam cliques. */
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
   padding: 0 24px 20px;
   border-top: 0;
-  /* Barra flutuante: shell totalmente transparente, sem faixa de fundo.
-     Só os botões/barra flutuam; o shell não captura cliques fora dos filhos. */
   background: transparent;
   box-shadow: none;
   pointer-events: none;

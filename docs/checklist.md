@@ -241,6 +241,10 @@ Sessão executada em 2026-06-15.
 * [x] Removidos os textos auxiliares acima/abaixo da barra.
 * [x] Shell do input deixado totalmente transparente (removida a faixa de
   gradiente que tampava o conteúdo atrás dos cards) — só os botões flutuam.
+* [x] Faixa/seam eliminada de vez: a barra agora é `position: absolute` no rodapé
+  do `.main-content` (z-index 6), sobreposta ao `.chat-terminal`, que passa a
+  preencher toda a altura por baixo — fundo contínuo, sem emenda. Terminal ganhou
+  `padding-bottom` para a última mensagem não ficar atrás da barra.
 * [x] `npm run build` passa.
 
 ## Centralização vertical da barra e animação de expandir
