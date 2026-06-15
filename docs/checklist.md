@@ -220,6 +220,26 @@ Pendências críticas confirmadas:
 * [ ] Criar testes automatizados mínimos para backend e frontend.
 * [x] Executar e registrar `docs/frontend-qa-checklist.md`.
 
+## Barra de progresso recolhida + correção de ordem do chat
+
+Sessão executada em 2026-06-15.
+
+Rota de candidatura recolhida vira barra de progresso:
+
+* [x] `ApplicationPipeline`: quando recolhida, renderiza `.pipeline-minibar`
+  com 6 nós ligados por conectores, no estilo do mock de baixa fidelidade.
+* [x] Cores seguem a paleta de status (concluído=verde, disponível=amarelo,
+  bloqueado=cinza); nó atual com leve glow/escala; conector concluído em verde.
+
+Correção do fluxo do chat (resposta aparecendo na bolha de cima):
+
+* [x] `useWebSocket`: a mutação de `streamingIdRef` saiu de dentro do updater do
+  `setMessages` (no modo concorrente o updater pode rodar/descartar mais de uma
+  vez, mandando tokens para a bolha errada).
+* [x] `sendMessage` zera `streamingIdRef` ao enviar, garantindo que a resposta
+  abra uma bolha nova abaixo da mensagem do usuário.
+* [x] `npm run build` passa.
+
 ## Filtro de data nas vagas + rota de candidatura retraível
 
 Sessão executada em 2026-06-15.

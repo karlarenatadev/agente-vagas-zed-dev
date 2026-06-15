@@ -147,35 +147,38 @@ export function useWebSocket() {
 
         if (data.type === 'token') {
           const token = data.content as string
-
-          setMessages(prev => {
-            const streamId = streamingIdRef.current
-
-            if (!streamId) {
-              const newId = generateId()
-              streamingIdRef.current = newId
-
-              return [
-                ...prev,
-                {
-                  id: newId,
-                  role: 'agent',
-                  content: token,
-                  agent: activeAgentRef.current,
-                  timestamp: new Date(),
-                  isStreaming: true,
-                },
-              ]
-            }
-
-            return prev.map(msg =>
-              msg.id === streamId
-                ? { ...msg, content: msg.content + token, agent: activeAgentRef.current }
-                : msg
-            )
-          })
-
           setIsStreaming(true)
+
+          // A mutação do ref fica FORA do updater do setMessages: no modo
+          // concorrente do React o updater pode ser chamado e descartado mais
+          // de uma vez, e setar o ref ali dentro fazia tokens irem para uma
+          // bolha errada (resposta aparecia acima da mensagem do usuário).
+          const agent = activeAgentRef.current
+          const streamId = streamingIdRef.current
+
+          if (!streamId) {
+            const newId = generateId()
+            streamingIdRef.current = newId
+            setMessages(prev => [
+              ...prev,
+              {
+                id: newId,
+                role: 'agent',
+                content: token,
+                agent,
+                timestamp: new Date(),
+                isStreaming: true,
+              },
+            ])
+          } else {
+            setMessages(prev =>
+              prev.map(msg =>
+                msg.id === streamId
+                  ? { ...msg, content: msg.content + token, agent }
+                  : msg
+              )
+            )
+          }
         }
 
         else if (data.type === 'state') {
@@ -242,6 +245,10 @@ export function useWebSocket() {
   function sendMessage(content: string, dateFilter?: DateFilter) {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
     if (isStreaming) return
+
+    // Nova mensagem do usuário → a próxima resposta deve abrir uma bolha nova
+    // logo abaixo, nunca anexar à resposta anterior.
+    streamingIdRef.current = null
 
     setMessages(prev => [
       ...prev,

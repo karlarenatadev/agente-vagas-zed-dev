@@ -260,6 +260,26 @@ export function ApplicationPipeline({
         </div>
       </header>
 
+      {collapsed && (
+        <div
+          className="pipeline-minibar"
+          role="img"
+          aria-label={`Progresso da rota: ${steps.slice(0, 4).filter(step => step.status === 'completed').length} de 4 etapas-base concluídas`}
+        >
+          {steps.map((step, index) => (
+            <div className="minibar-segment" key={step.key}>
+              <span
+                className={`minibar-node ${step.status} ${index === activeIndex ? 'current' : ''}`}
+                title={`${step.label} — ${step.status === 'completed' ? 'concluído' : step.status === 'available' ? 'disponível' : step.status === 'blocked' ? 'bloqueado' : 'pendente'}`}
+              />
+              {index < steps.length - 1 && (
+                <span className={`minibar-link ${step.status === 'completed' ? 'filled' : ''}`} aria-hidden="true" />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       {!collapsed && snapshot.failed && (
         <p className="pipeline-sync-note">
           O mapa não conseguiu sincronizar os arquivos agora. As ações continuam disponíveis.

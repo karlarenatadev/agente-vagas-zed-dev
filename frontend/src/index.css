@@ -4020,6 +4020,71 @@ textarea::placeholder {
   padding-bottom: 0;
 }
 
+/* Barra de progresso compacta exibida quando a rota está recolhida */
+.pipeline-minibar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin-top: 14px;
+}
+
+.minibar-segment {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.minibar-segment:last-child {
+  flex: 0 0 auto;
+}
+
+.minibar-node {
+  --node-color: #64748b;
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid var(--node-color);
+  background: #070b14;
+  transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.minibar-node.completed {
+  --node-color: var(--color-arcade-green);
+  background: var(--color-arcade-green);
+}
+
+.minibar-node.available {
+  --node-color: var(--color-arcade-yellow);
+}
+
+.minibar-node.pending {
+  --node-color: var(--color-arcade-cyan);
+}
+
+.minibar-node.blocked {
+  --node-color: #64748b;
+}
+
+.minibar-node.current {
+  transform: scale(1.35);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--node-color) 28%, transparent);
+}
+
+.minibar-link {
+  flex: 1;
+  height: 2px;
+  margin: 0 4px;
+  background: #2a3550;
+  border-radius: 2px;
+}
+
+.minibar-link.filled {
+  background: var(--color-arcade-green);
+}
+
 .pipeline-sync-note {
   margin: 0;
   color: var(--color-arcade-orange);
