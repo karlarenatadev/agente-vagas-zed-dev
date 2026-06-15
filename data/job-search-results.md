@@ -1,4 +1,4 @@
-🔍 Buscando vagas de **Frontend** em **Salvador bahia**...
+🔍 Buscando vagas de **Ciência de Dados** em **bahia**...
 
 ⚠ Nenhum resultado real retornado pelo Firecrawl. Vou simular oportunidades compatíveis com seu perfil para orientar a estratégia.
 
@@ -8,64 +8,64 @@
 sucesso
 
 ### resumo
-Analisei 3 oportunidades simuladas para **Frontend** em **Salvador bahia**. Abaixo estão os matches com score de aderência, lacunas, requisitos recorrentes e prioridade de candidatura.
+Analisei 3 oportunidades simuladas para **Ciência de Dados** em **bahia**. Abaixo estão os matches com score de aderência, lacunas, requisitos recorrentes e prioridade de candidatura.
 
 ### dados
 
 requisitos_mais_recorrentes:
-1. requisito: JavaScript
+1. requisito: Excel
    ocorrencias: 3
-2. requisito: TypeScript
+2. requisito: Power BI
    ocorrencias: 3
-3. requisito: React
+3. requisito: Pandas
    ocorrencias: 3
-4. requisito: HTML
+4. requisito: Python
    ocorrencias: 2
-5. requisito: CSS
+5. requisito: SQL
    ocorrencias: 2
-6. requisito: Git
+6. requisito: Estatística
    ocorrencias: 2
 
 vagas_compativeis:
-1. titulo: Engenheiro Frontend Sênior Sênior
+1. titulo: Analista de Dados Júnior
    empresa: Núcleo Digital
-   localizacao: Salvador bahia
+   localizacao: bahia
    salario: Não informado na descrição
    beneficios: Não informado na descrição
    link: Oportunidade simulada a partir do perfil
-   score_aderencia: 30/100
-   prioridade_candidatura: Baixa - Alta se você já tiver projetos práticos no portfólio.
-   habilidades_correspondentes: Nenhuma
-   soft_skills_correspondentes: comunicação, pensamento critico, Comunicação
-   habilidades_faltantes: HTML, CSS, JavaScript, TypeScript, React
-   contagem_correspondencia: 0 de 5 habilidades correspondem
-   dica_curriculo: Mostre projetos ou estudos recentes ligados a HTML para reduzir a lacuna principal.
+   score_aderencia: 59/100
+   prioridade_candidatura: Média - Alta se você já tiver projetos práticos no portfólio.
+   habilidades_correspondentes: Python, SQL, Power BI
+   soft_skills_correspondentes: pensamento analitico
+   habilidades_faltantes: Excel, Pandas
+   contagem_correspondencia: 3 de 5 habilidades correspondem
+   dica_curriculo: Destaque evidências práticas de Python e conecte essa experiência a resultados.
 
-2. titulo: Arquiteto Frontend Sênior
+2. titulo: Analista BI Júnior
    empresa: Vetor Consultoria
-   localizacao: Salvador bahia
+   localizacao: bahia
    salario: Não informado na descrição
    beneficios: Não informado na descrição
    link: Oportunidade simulada a partir do perfil
-   score_aderencia: 30/100
+   score_aderencia: 40/100
    prioridade_candidatura: Baixa - Média; priorize após ajustar lacunas técnicas principais.
-   habilidades_correspondentes: Nenhuma
-   soft_skills_correspondentes: comunicação, pensamento critico, Comunicação
-   habilidades_faltantes: JavaScript, TypeScript, React, Git, Consumo de APIs, HTML
-   contagem_correspondencia: 0 de 6 habilidades correspondem
-   dica_curriculo: Mostre projetos ou estudos recentes ligados a JavaScript para reduzir a lacuna principal.
+   habilidades_correspondentes: Power BI, Python
+   soft_skills_correspondentes: pensamento analitico
+   habilidades_faltantes: Excel, Pandas, Estatística, Machine Learning
+   contagem_correspondencia: 2 de 6 habilidades correspondem
+   dica_curriculo: Destaque evidências práticas de Power BI e conecte essa experiência a resultados.
 
-3. titulo: Líder de Desenvolvimento UI Sênior
+3. titulo: Cientista de Dados Júnior Júnior
    empresa: DataBridge Labs
-   localizacao: Salvador bahia
+   localizacao: bahia
    salario: Não informado na descrição
    beneficios: Não informado na descrição
    link: Oportunidade simulada a partir do perfil
-   score_aderencia: 23/100
+   score_aderencia: 38/100
    prioridade_candidatura: Baixa - Média a alta; boa vaga para reforçar experiência aplicada.
-   habilidades_correspondentes: Nenhuma
-   soft_skills_correspondentes: pensamento critico, Comunicação
-   habilidades_faltantes: CSS, JavaScript, TypeScript, React, Git
-   contagem_correspondencia: 0 de 5 habilidades correspondem
-   dica_curriculo: Mostre projetos ou estudos recentes ligados a CSS para reduzir a lacuna principal.
+   habilidades_correspondentes: SQL, Power BI
+   soft_skills_correspondentes: Nenhuma
+   habilidades_faltantes: Excel, Pandas, Estatística
+   contagem_correspondencia: 2 de 5 habilidades correspondem
+   dica_curriculo: Destaque evidências práticas de SQL e conecte essa experiência a resultados.
 
