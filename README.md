@@ -305,6 +305,7 @@ A interface foi projetada com estética **dark tech** — escura, densa e funcio
 - **Efeitos**: dot grid, scanline sutil, noise texture, glow nos elementos ativos
 - **Animações**: Framer Motion — streaming token a token, fade-in nas mensagens, pulse no agente ativo, expansão suave da pipeline
 - **Career Arcade Pipeline**: rota de 6 fases que recolhe numa barra de progresso futurista (nós neon ciano, conectores ciano→rosa, etapa atual pulsante)
+- **Barra de escrita flutuante**: input translúcido com blur e glow; nos momentos de escolha (menu) ela vira cards de opção animados, voltando ao texto livre depois
 - **Sidebar**: perfil do usuário com barra de progresso, funções alvo, skills em tags e filtro de recência das vagas; recolhe para modo compacto (ícones)
 
 ---

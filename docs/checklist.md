@@ -226,6 +226,21 @@ Pendências críticas confirmadas:
 * [ ] Criar testes automatizados mínimos para backend e frontend.
 * [x] Executar e registrar `docs/frontend-qa-checklist.md`.
 
+## Barra de escrita flutuante + cards de opção no chat
+
+Sessão executada em 2026-06-15.
+
+* [x] `ChatInput`: barra de escrita agora é flutuante (translúcida, com blur,
+  glow e cantos arredondados; shell sem fundo sólido, fade por baixo).
+* [x] No modo `menu`, a barra é substituída por cards de opção (A/B/C/D) com
+  ícone, atalho e cor por agente (Scout/Curator/Coach/Maestro).
+* [x] Durante o streaming a barra permanece; os cards só entram quando o agente
+  termina (`showOptions = mode === 'menu' && !isStreaming`).
+* [x] Animações com `AnimatePresence`: troca barra↔cards com fade/slide e
+  stagger por card; hover/tap nos cards.
+* [x] Removidos os textos auxiliares acima/abaixo da barra.
+* [x] `npm run build` passa.
+
 ## Centralização vertical da barra e animação de expandir
 
 Sessão executada em 2026-06-15.

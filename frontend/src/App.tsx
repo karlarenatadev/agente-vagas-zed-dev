@@ -356,6 +356,7 @@ export default function App() {
               <ChatInput
                 onSend={sendMessage}
                 disabled={disabled}
+                isStreaming={isStreaming}
                 mode={session.mode}
               />
             </>
