@@ -85,7 +85,10 @@ export default function App() {
 
   const handleContinueQuizAfterResume = () => {
     setResumeModalOpen(false)
-    handleQuickStart('Iniciar/Continuar diagnóstico')
+    // Comando exato que o Maestro intercepta para (re)iniciar o diagnóstico
+    // (ver START_PROFILE_COMMAND no backend). Reinicia o fluxo e pré-preenche
+    // o quiz com as palavras-chave do currículo, perguntando só o que falta.
+    handleQuickStart('quero criar meu perfil profissional')
   }
 
   const closeOverlays = () => {

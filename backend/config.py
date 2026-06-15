@@ -7,7 +7,11 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Carrega o .env ao lado deste arquivo (backend/.env), independente do
+# diretório de onde o servidor foi iniciado. Sem isso, iniciar o backend a
+# partir da raiz do projeto deixava FIRECRAWL_API_KEY vazia e o Scout caía
+# no modo simulado.
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 # Raiz do projeto (dois níveis acima de backend/)
 PROJECT_ROOT = Path(__file__).parent.parent

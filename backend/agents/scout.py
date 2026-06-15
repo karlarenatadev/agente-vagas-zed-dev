@@ -12,12 +12,38 @@ Fluxo:
 from __future__ import annotations
 
 import json
+import os
+import shutil
 import subprocess
 from collections import Counter
 from typing import AsyncGenerator
 
 import config
 from agents.base import BaseAgent
+
+
+def _firecrawl_env() -> dict[str, str]:
+    """Ambiente para o subprocess do firecrawl, garantindo a API key.
+
+    O subprocess herda o ambiente do backend, mas se o servidor foi iniciado
+    sem FIRECRAWL_API_KEY exportada, injetamos a chave lida do backend/.env
+    via config para que o CLI autentique e não retorne vazio (modo simulado).
+    """
+    env = os.environ.copy()
+    if config.FIRECRAWL_API_KEY:
+        env["FIRECRAWL_API_KEY"] = config.FIRECRAWL_API_KEY
+    return env
+
+
+def _firecrawl_executable() -> str | None:
+    """Resolve o caminho real do CLI firecrawl.
+
+    No Windows, subprocess.run(["firecrawl", ...]) sem shell=True usa
+    CreateProcess, que não resolve extensões via PATHEXT — então "firecrawl"
+    (que é firecrawl.cmd) levanta FileNotFoundError e o Scout caía no modo
+    simulado. shutil.which respeita PATHEXT e acha o .cmd/.exe correto.
+    """
+    return shutil.which("firecrawl")
 
 
 SCOUT_SYSTEM_PROMPT = """Você é o Scout, agente especializado em busca de vagas de emprego do sistema Recoloca IA.
@@ -76,12 +102,18 @@ class ScoutAgent(BaseAgent):
 
     def _run_firecrawl_search(self, query: str) -> list[dict]:
         """Executa firecrawl search via CLI e retorna resultados JSON."""
+        executable = _firecrawl_executable()
+        if not executable:
+            return []
         try:
             result = subprocess.run(
-                ["firecrawl", "search", query, "--json"],
+                [executable, "search", query, "--json"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
+                env=_firecrawl_env(),
             )
             if result.returncode == 0 and result.stdout:
                 parsed = json.loads(result.stdout)
@@ -107,12 +139,18 @@ class ScoutAgent(BaseAgent):
 
     def _run_firecrawl_scrape(self, url: str) -> str:
         """Executa firecrawl scrape via CLI e retorna markdown."""
+        executable = _firecrawl_executable()
+        if not executable:
+            return ""
         try:
             result = subprocess.run(
-                ["firecrawl", "scrape", url, "--format", "markdown"],
+                [executable, "scrape", url, "--format", "markdown"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
+                env=_firecrawl_env(),
             )
             if result.returncode == 0:
                 return result.stdout

@@ -220,6 +220,55 @@ Pendências críticas confirmadas:
 * [ ] Criar testes automatizados mínimos para backend e frontend.
 * [x] Executar e registrar `docs/frontend-qa-checklist.md`.
 
+## Correção do botão "Continuar para o quiz" (descasamento de comando)
+
+Sessão executada em 2026-06-15.
+
+Causa raiz: o botão "Continuar para o quiz" enviava a mensagem
+`'Iniciar/Continuar diagnóstico'`, mas o Maestro só intercepta o comando de
+(re)iniciar o diagnóstico quando a mensagem é exatamente
+`"quero criar meu perfil profissional"` (`START_PROFILE_COMMAND`). Sem casar, a
+mensagem caía em `_handle_menu` como opção inválida e o menu A/B/C/D reaparecia.
+
+Correção:
+
+* [x] `App.tsx` (`handleContinueQuizAfterResume`): envia a string exata de
+  `START_PROFILE_COMMAND`. Agora o clique sempre reinicia o diagnóstico.
+* [x] Verificado que `_start_diagnostico` → `_seed_answers_from_resume` já
+  pré-preenche Área, Nível, Habilidades e Soft skills a partir de
+  `resume-analysis.md` e pergunta só os 3 campos restantes (Preferências de
+  trabalho, Localização, Objetivo de carreira). Testado contra o arquivo real.
+* [x] `npm run build` do frontend passa.
+
+## Correção do link "Ver vaga" e do Scout caindo em modo simulado
+
+Sessão executada em 2026-06-15.
+
+Causa raiz: o Scout caía em `_simulate_opportunities`, gravando
+`link="Oportunidade simulada a partir do perfil"`, e o frontend tentava abrir
+esse texto como URL. O modo simulado disparava porque o subprocess do Firecrawl
+falhava silenciosamente no Windows por dois motivos:
+
+* `subprocess.run(["firecrawl", ...])` sem `shell=True` usa CreateProcess, que
+  não resolve PATHEXT → `firecrawl.cmd` não era encontrado → `FileNotFoundError`
+  capturado → lista vazia → modo simulado.
+* Mesmo resolvendo o executável, `text=True` decodificava a saída em cp1252 e
+  quebrava com `UnicodeDecodeError` na saída UTF-8 do CLI.
+
+Correções:
+
+* [x] `scout.py`: resolve o executável com `shutil.which("firecrawl")` (respeita PATHEXT/.cmd).
+* [x] `scout.py`: subprocess com `encoding="utf-8", errors="replace"` no search e no scrape.
+* [x] `scout.py`: injeta `FIRECRAWL_API_KEY` no env do subprocess via `_firecrawl_env()`.
+* [x] `config.py`: `load_dotenv` aponta para `backend/.env` absoluto, independente do CWD.
+* [x] `ScoutReport.normalizeLink()`: só renderiza "Ver vaga" quando o link parece domínio real (`*.tld`); texto descritivo é descartado. Defesa para vagas simuladas residuais.
+* [x] Validado em PowerShell: `firecrawl search` retorna 10 vagas reais com URLs; `py_compile` de scout.py e config.py OK.
+
+Pendências relacionadas:
+
+* [ ] `CuratorReport` ("Abrir recurso") tem o mesmo padrão de link cru e pode reproduzir o bug — aplicar a mesma normalização.
+* [ ] Reiniciar o backend para carregar as correções e revalidar "Ver vaga" abrindo URL real no navegador.
+
 ## Estabilização funcional de perfil, candidaturas e reconexão
 
 Sessão executada em 2026-06-14, sem alterações de backend, Coach, Firecrawl,
