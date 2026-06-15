@@ -256,19 +256,20 @@ export default function App() {
         <main className="main-content" aria-label="Conversa com o Maestro">
           <section className="workspace-header" aria-label="Contexto atual">
             <div className="workspace-title">
-              <button
-                className="icon-button"
-                type="button"
-                aria-expanded={isMobileLayout ? !sidebarCollapsed : !sidebarCompact}
-                aria-label={
-                  isMobileLayout
-                    ? sidebarCollapsed ? 'Abrir painel de perfil' : 'Fechar painel de perfil'
-                    : sidebarCompact ? 'Expandir menu' : 'Recolher menu'
-                }
-                onClick={toggleSidebar}
-              >
-                <PanelLeft size={18} />
-              </button>
+              {/* No desktop o toggle fica só dentro da sidebar (ProfilePanel).
+                  No mobile, este botão é o único jeito de abrir o painel
+                  off-canvas, então só aparece nessa largura. */}
+              {isMobileLayout && (
+                <button
+                  className="icon-button"
+                  type="button"
+                  aria-expanded={!sidebarCollapsed}
+                  aria-label={sidebarCollapsed ? 'Abrir painel de perfil' : 'Fechar painel de perfil'}
+                  onClick={toggleSidebar}
+                >
+                  <PanelLeft size={18} />
+                </button>
+              )}
 
               <div>
                 <p className="eyebrow">

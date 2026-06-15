@@ -226,6 +226,19 @@ Pendências críticas confirmadas:
 * [ ] Criar testes automatizados mínimos para backend e frontend.
 * [x] Executar e registrar `docs/frontend-qa-checklist.md`.
 
+## Polimento da barra recolhida e da sidebar
+
+Sessão executada em 2026-06-15.
+
+* [x] Barra de progresso recolhida centralizada (`align-self: center`) com
+  animação de entrada (`minibar-enter`, fade + slide, respeita reduced-motion).
+* [x] Removido o toggle de sidebar duplicado no header do workspace (mantido só
+  no mobile, onde é o único jeito de abrir o painel off-canvas); no desktop fica
+  apenas o toggle dentro do ProfilePanel.
+* [x] Transição da sidebar/`profile-panel` suavizada (cubic-bezier 0.34s +
+  `will-change`) para reduzir o travamento ao recolher/expandir.
+* [x] `npm run build` passa.
+
 ## Barra de progresso recolhida + correção de ordem do chat
 
 Sessão executada em 2026-06-15.
