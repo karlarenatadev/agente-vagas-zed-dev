@@ -2,7 +2,7 @@
 
 ## Auditoria atual
 
-Última revisão: 2026-06-14.
+Última revisão: 2026-06-15.
 
 Validação executada nesta revisão:
 
@@ -12,21 +12,27 @@ Validação executada nesta revisão:
 * [x] Backend compilado e aplicação FastAPI importada com sucesso.
 * [x] Rotas REST e WebSocket registradas na aplicação.
 * [x] Firecrawl CLI instalado no ambiente.
-* [ ] `FIRECRAWL_API_KEY` configurada no ambiente.
+* [x] `FIRECRAWL_API_KEY` configurada em `backend/.env` e carregada por caminho absoluto.
 * [ ] Suíte automatizada de testes disponível.
 * [x] QA visual completo executado em navegadores reais.
   A estabilização responsiva foi validada no Chrome em oito resoluções. As rodadas finais de visual, acessibilidade e fluxo funcional com backend real foram validadas no Chrome e Edge.
 
 ### Estrutura de arquivos validada
 
-* [x] Arquivos de dados existentes em `data/`:
+* [x] Arquivos gerados em `data/` tratados como estado local e ignorados pelo Git.
+* [x] `data/README.md` mantido como único arquivo versionado da pasta.
+* [x] Artefatos locais presentes após os fluxos executados:
   * [x] `course-recommendations.md`
-  * [x] `interview-session.md`
   * [x] `job-description-analysis.md`
   * [x] `job-search-results.md`
   * [x] `pdi-plan.md`
   * [x] `personality-quiz.md`
+  * [x] `resume-analysis.md`
+  * [x] `resume-match-report.md`
+  * [x] `resume-tailoring-suggestions.md`
   * [x] `user-profile.md`
+* [x] `interview-session.md` tratado como artefato opcional, criado somente após
+  iniciar uma entrevista simulada.
 * [x] Geração e leitura de `resume-analysis.md` validadas.
   O artefato pode estar ausente no estado inicial limpo e é criado pelo upload.
 * [x] Geração e leitura de `resume-match-report.md` validadas.
@@ -240,6 +246,19 @@ Correção do fluxo do chat (resposta aparecendo na bolha de cima):
   abra uma bolha nova abaixo da mensagem do usuário.
 * [x] `npm run build` passa.
 
+## Privacidade dos dados locais
+
+Sessão executada em 2026-06-15.
+
+* [x] Arquivos Markdown gerados em `data/` deixaram de ser rastreados pelo Git.
+* [x] `.gitignore` passou a ignorar `data/*.md`.
+* [x] `data/README.md` e futuros arquivos `*.example.md` permanecem permitidos
+  para documentar a pasta sem versionar dados pessoais.
+* [x] `data/README.md` documenta que perfil, vagas, análises e planos são estado
+  local, variam por pessoa/sessão e podem conter informações sensíveis.
+* [x] Artefatos locais continuam disponíveis em runtime, mas somente
+  `data/README.md` permanece rastreado no repositório.
+
 ## Filtro de data nas vagas + rota de candidatura retraível
 
 Sessão executada em 2026-06-15.
@@ -261,7 +280,7 @@ Rota de candidatura (ApplicationPipeline) retraível:
 * [x] Botão de toggle (chevron) no cabeçalho; estado persistido em
   localStorage (`import-vagas:pipeline-collapsed`).
 * [x] Track e nota de sync ocultados quando recolhido; chevron rotaciona.
-* [x] `npm run build` e `py_compile` passam.
+* [x] `npm run lint`, `npm run build`, `py_compile` e importação do FastAPI passam.
 
 ## Correção do botão "Continuar para o quiz" (descasamento de comando)
 
@@ -739,11 +758,12 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 ## O que iremos acrescentar
 
-* [ ] Decidir quais arquivos de `data/` são seed/demo e quais são estado local privado.
-* [ ] Adicionar `data/` ao `.gitignore` para impedir novos artefatos locais no Git.
-* [ ] Remover do rastreamento os arquivos reais de runtime com `git rm --cached -r data`, preservando os arquivos no disco.
-* [ ] Manter apenas `data/.gitkeep`, `data/README.md` ou exemplos sanitizados quando o projeto precisar documentar a estrutura da pasta.
-* [ ] Documentar no README que `data/` é armazenamento local de execução e pode conter dados sensíveis.
+* [x] Definir os arquivos gerados em `data/` como estado local privado.
+* [x] Adicionar `data/*.md` ao `.gitignore` para impedir novos artefatos locais no Git.
+* [x] Remover do rastreamento os arquivos reais de runtime, preservando a geração local.
+* [x] Manter somente `data/README.md` rastreado e permitir exemplos sanitizados `*.example.md`.
+* [x] Documentar em `data/README.md` que a pasta armazena estado local e pode conter dados sensíveis.
+* [ ] Ignorar também `data/applications.json` e futuros formatos de runtime não Markdown.
 
 ---
 
@@ -759,10 +779,12 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 ## O que iremos acrescentar
 
 * [x] Instalar Firecrawl CLI.
-* [ ] Configurar `FIRECRAWL_API_KEY`.
-* [ ] Testar busca real de vagas.
+* [x] Configurar `FIRECRAWL_API_KEY`.
+* [x] Testar busca real de vagas diretamente pelo Firecrawl CLI.
 * [ ] Testar busca real de cursos.
-* [ ] Validar links retornados.
+* [x] Validar que a busca real retorna URLs de vagas no CLI.
+* [ ] Revalidar a busca completa pelo Scout com backend reiniciado e abertura do
+  link de vaga no navegador.
 * [ ] Validar salários.
 * [ ] Validar requisitos extraídos.
 * [ ] Registrar origem dos dados.
@@ -904,8 +926,8 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 * [x] Disponibilizar visualização do PDI no frontend.
 * [ ] Conectar Coach à vaga analisada e ao relatório de aderência.
 * [ ] Resolver divergência entre perfil, currículo e vaga.
-* [ ] Configurar dados reais com Firecrawl (`FIRECRAWL_API_KEY`).
-* [ ] Separar arquivos locais de `data/` do que deve ser versionado (privacidade).
+* [x] Configurar dados reais com Firecrawl (`FIRECRAWL_API_KEY`).
+* [x] Separar arquivos locais de `data/` do que deve ser versionado (privacidade).
 * [ ] Criar testes mínimos automatizados.
 * [ ] Atualizar documentação (README, plano.md, project-update-report.md).
 
@@ -1061,10 +1083,10 @@ Uma etapa só deve ser considerada pronta quando:
 ## Melhorias recomendadas (não bloqueantes)
 
 ### Privacidade e dados locais
-* [ ] Adicionar `data/` ao `.gitignore` (evitar commit de dados pessoais)
-* [ ] Remover arquivos de runtime do Git com `git rm --cached -r data`
-* [ ] Manter apenas `data/.gitkeep` ou exemplos sanitizados
-* [ ] Documentar no README que `data/` contém informações sensíveis
+* [x] Adicionar `data/*.md` ao `.gitignore` (evitar commit de dados pessoais)
+* [x] Remover arquivos de runtime do rastreamento do Git
+* [x] Manter `data/README.md` e permitir exemplos sanitizados `*.example.md`
+* [x] Documentar em `data/README.md` que `data/` contém estado local potencialmente sensível
 
 ### Testes automatizados
 * [ ] Criar testes unitários para agentes principais
@@ -1086,9 +1108,10 @@ Uma etapa só deve ser considerada pronta quando:
 * [ ] Otimizar imports e tree-shaking
 
 ### Configuração externa
-* [ ] Configurar `FIRECRAWL_API_KEY` no ambiente
-* [ ] Testar busca real de vagas com Firecrawl
+* [x] Configurar `FIRECRAWL_API_KEY` no ambiente
+* [x] Testar busca real de vagas diretamente pelo Firecrawl CLI
 * [ ] Testar busca real de cursos com Firecrawl
+* [ ] Revalidar o fluxo Scout/backend e a abertura da vaga no navegador
 * [ ] Expor falhas parciais do Firecrawl ao usuário (atualmente silenciosas)
 
 ## Próximas features planejadas
