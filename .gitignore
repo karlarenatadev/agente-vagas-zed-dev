@@ -6,3 +6,8 @@ __pycache__/
 *.pyc
 node_modules/
 .firecrawl/
+
+# Local agent state. Each user keeps their own generated Markdown data.
+data/*.md
+!data/README.md
+!data/*.example.md
