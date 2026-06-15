@@ -27,6 +27,8 @@ const ChatTerminal = lazy(() =>
   import('./components/ChatTerminal').then(module => ({ default: module.ChatTerminal }))
 )
 
+const SIDEBAR_COMPACT_STORAGE_KEY = 'import-vagas:sidebar-compact'
+
 const MODE_STATUS: Record<SessionMode, (step: number) => string> = {
   init: () => 'Preparando a conversa',
   quiz: step => `Quiz de perfil: pergunta ${Math.min(step + 1, 7)} de 7`,
@@ -64,10 +66,19 @@ export default function App() {
   const resumeModalRef = useRef<HTMLElement>(null)
   const jobAnalyzerModalRef = useRef<HTMLElement>(null)
   const pdiModalRef = useRef<HTMLElement>(null)
+  const [isMobileLayout, setIsMobileLayout] = useState(() =>
+    typeof window !== 'undefined'
+      ? window.matchMedia('(max-width: 1024px)').matches
+      : false
+  )
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
     typeof window !== 'undefined'
       ? window.matchMedia('(max-width: 1024px)').matches
       : false
+  )
+  const [sidebarCompact, setSidebarCompact] = useState(() =>
+    typeof window !== 'undefined'
+      && window.localStorage.getItem(SIDEBAR_COMPACT_STORAGE_KEY) === 'true'
   )
 
   const isQuiz = session.mode === 'quiz' || session.mode === 'quiz_resume'
@@ -97,6 +108,17 @@ export default function App() {
     setJobAnalyzerOpen(false)
     setPdiModalOpen(false)
   }
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 1024px)')
+    const handleChange = (event: MediaQueryListEvent) => {
+      setIsMobileLayout(event.matches)
+      setSidebarCollapsed(event.matches)
+    }
+
+    media.addEventListener('change', handleChange)
+    return () => media.removeEventListener('change', handleChange)
+  }, [])
 
   useEffect(() => {
     const modal = resumeModalOpen
@@ -183,6 +205,19 @@ export default function App() {
     }
   }
 
+  const toggleSidebar = () => {
+    if (isMobileLayout) {
+      setSidebarCollapsed(value => !value)
+      return
+    }
+
+    setSidebarCompact(value => {
+      const next = !value
+      window.localStorage.setItem(SIDEBAR_COMPACT_STORAGE_KEY, String(next))
+      return next
+    })
+  }
+
   return (
     <MotionConfig reducedMotion="user">
       <div className="app-shell arcade-shell noise">
@@ -208,11 +243,13 @@ export default function App() {
           />
         )}
 
-        <div className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+        <div className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''} ${sidebarCompact ? 'compact' : ''}`}>
           <ProfilePanel
             activeAgent={activeAgent}
+            compact={sidebarCompact && !isMobileLayout}
             onStartProfile={() => handleQuickStart('Quero criar meu perfil profissional')}
             onNavigate={handleSidebarNavigate}
+            onToggleCompact={toggleSidebar}
           />
         </div>
 
@@ -222,8 +259,13 @@ export default function App() {
               <button
                 className="icon-button"
                 type="button"
-                aria-label={sidebarCollapsed ? 'Abrir painel de perfil' : 'Fechar painel de perfil'}
-                onClick={() => setSidebarCollapsed(value => !value)}
+                aria-expanded={isMobileLayout ? !sidebarCollapsed : !sidebarCompact}
+                aria-label={
+                  isMobileLayout
+                    ? sidebarCollapsed ? 'Abrir painel de perfil' : 'Fechar painel de perfil'
+                    : sidebarCompact ? 'Expandir menu' : 'Recolher menu'
+                }
+                onClick={toggleSidebar}
               >
                 <PanelLeft size={18} />
               </button>

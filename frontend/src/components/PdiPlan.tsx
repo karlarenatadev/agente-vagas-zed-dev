@@ -7,7 +7,9 @@ import {
   Loader2,
   Target,
 } from 'lucide-react'
+import { useScrollToResult } from '../hooks/useScrollToResult'
 import type { PdiPlan as PdiPlanData } from '../types'
+import { GeneratedResultNotice } from './ui/GeneratedResultNotice'
 
 async function copyText(value: string): Promise<void> {
   if (navigator.clipboard?.writeText) {
@@ -68,6 +70,15 @@ export function PdiPlan() {
   const [loadingSaved, setLoadingSaved] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [generatedNow, setGeneratedNow] = useState(false)
+  const {
+    reveal,
+    targetRef,
+  } = useScrollToResult<HTMLDivElement>()
+  const {
+    reveal: revealError,
+    targetRef: errorRef,
+  } = useScrollToResult<HTMLDivElement>()
 
   useEffect(() => {
     let active = true
@@ -121,6 +132,8 @@ export function PdiPlan() {
         throw new Error(result.detail || 'Não foi possível gerar o PDI.')
       }
       setData(result as PdiPlanData)
+      setGeneratedNow(true)
+      reveal()
       window.dispatchEvent(new Event('pipeline-updated'))
     } catch (requestError) {
       console.error('Falha ao gerar PDI:', requestError)
@@ -129,6 +142,7 @@ export function PdiPlan() {
           ? requestError.message
           : 'Não foi possível gerar o PDI.'
       )
+      revealError()
     } finally {
       setLoading(false)
     }
@@ -165,14 +179,29 @@ export function PdiPlan() {
       </div>
 
       {error && (
-        <div className="resume-upload-message error" role="alert">
+        <div
+          ref={errorRef}
+          className="resume-upload-message error"
+          role="alert"
+          tabIndex={-1}
+        >
           <AlertCircle size={15} aria-hidden="true" />
           <span>{error}</span>
         </div>
       )}
 
       {data && (
-        <div className="pdi-result">
+        <div
+          ref={targetRef}
+          className="pdi-result generated-result"
+          tabIndex={-1}
+        >
+          {generatedNow && (
+            <GeneratedResultNotice
+              title="Plano de desenvolvimento gerado"
+              nextStep="Próximo passo: use o plano e avance para o treino de entrevista."
+            />
+          )}
           <div className="pdi-summary">
             <div><span>Vaga</span><strong>{data.target_role}</strong></div>
             <div><span>Score atual</span><strong>{data.overall_score}/100</strong></div>

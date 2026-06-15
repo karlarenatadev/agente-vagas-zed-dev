@@ -223,3 +223,30 @@ Validação executada em 2026-06-14 com Google Chrome `149.0.7827.114`.
 * [x] Sem overflow horizontal em `1366x768` e `390x844`.
 * [x] `npm run lint` passa.
 * [x] `npm run build` passa.
+
+## UX pós-ação e sidebar compacta
+
+Validação executada em 2026-06-15 no Google Chrome, sem alterações de backend,
+agentes ou dependências.
+
+* [x] Currículo analisado rola para o resultado, recebe foco e destaque temporário.
+* [x] Análise de vaga rola para os cards gerados e exibe orientação do próximo passo.
+* [x] Match rola para score e resumo do relatório de aderência.
+* [x] Sugestões rolam para o início da seção de próximos passos.
+* [x] PDI mantém o modal e posiciona o conteúdo estruturado dentro dele.
+* [x] Resultados usam texto, ícone, badge “Gerado agora” e `aria-live="polite"`.
+* [x] `prefers-reduced-motion` troca a rolagem suave por comportamento instantâneo.
+* [x] Sidebar alterna entre 232 px e modo compacto de 76 px no desktop.
+* [x] Preferência da sidebar persiste após recarregar a aplicação.
+* [x] Navegação e agentes permanecem acessíveis no modo compacto.
+* [x] Sidebar mobile continua funcionando como painel de 280 px.
+* [x] Foco por teclado permanece visível no botão de recolher/expandir.
+* [x] Sem overflow horizontal em `1366x768`, `1280x720` e `390x844`.
+* [x] `npm run lint` passa.
+* [x] `npm run build` passa.
+
+Bundle principal registrado nesta rodada: `366,56 kB` (`116,05 kB` gzip).
+
+Pendente desta rodada:
+
+* [ ] Revalidar especificamente o auto-scroll para mensagens de erro em todos os fluxos.

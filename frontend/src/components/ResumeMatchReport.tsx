@@ -1,12 +1,15 @@
+import { useEffect } from 'react'
 import {
   CheckCircle2,
   Loader2,
   Scale,
   Sparkles,
 } from 'lucide-react'
+import { useScrollToResult } from '../hooks/useScrollToResult'
 import type { ResumeMatchReport as ResumeMatchReportData } from '../types'
 import { ResumeTailoringSuggestions } from './ResumeTailoringSuggestions'
 import { FeedbackState } from './ui/FeedbackState'
+import { GeneratedResultNotice } from './ui/GeneratedResultNotice'
 import { SectionCard } from './ui/SectionCard'
 import { SkillTag } from './ui/SkillTag'
 
@@ -68,6 +71,23 @@ function MatchList({
 }
 
 export function ResumeMatchReport({ report, loading, error, onCompare }: Props) {
+  const {
+    reveal,
+    targetRef,
+  } = useScrollToResult<HTMLDivElement>()
+  const {
+    reveal: revealError,
+    targetRef: errorRef,
+  } = useScrollToResult<HTMLDivElement>()
+
+  useEffect(() => {
+    if (report) reveal()
+  }, [report, reveal])
+
+  useEffect(() => {
+    if (error) revealError()
+  }, [error, revealError])
+
   return (
     <section className="resume-match">
       <div className="resume-match-callout">
@@ -93,11 +113,13 @@ export function ResumeMatchReport({ report, loading, error, onCompare }: Props) 
       </div>
 
       {error && (
-        <FeedbackState
-          tone="error"
-          title={error}
-          description="Antes de comparar, precisamos de currículo e vaga analisados."
-        />
+        <div ref={errorRef} tabIndex={-1}>
+          <FeedbackState
+            tone="error"
+            title={error}
+            description="Antes de comparar, precisamos de currículo e vaga analisados."
+          />
+        </div>
       )}
 
       {loading && (
@@ -109,7 +131,15 @@ export function ResumeMatchReport({ report, loading, error, onCompare }: Props) 
       )}
 
       {report && (
-        <div className="resume-match-result">
+        <div
+          ref={targetRef}
+          className="resume-match-result generated-result"
+          tabIndex={-1}
+        >
+          <GeneratedResultNotice
+            title="Relatório de aderência gerado"
+            nextStep="Próximo passo: gere sugestões seguras para adaptar a apresentação do currículo."
+          />
           <div className="match-score-card">
             <div
               className="match-score-ring"

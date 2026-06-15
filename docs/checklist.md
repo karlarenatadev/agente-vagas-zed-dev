@@ -364,6 +364,24 @@ Pendências mantidas:
 * [ ] Testar diretamente match sem vaga válida e sugestões sem relatório de match.
 * [ ] Revisar estados visuais dos componentes restantes em uma rodada global.
 
+## UX pós-ação e sidebar compacta
+
+Sessão executada em 2026-06-15, limitada ao frontend e à documentação.
+
+* [x] Criado hook reutilizável para foco, `scrollIntoView`, redução de movimento e destaque temporário.
+* [x] Currículo, vaga, match, sugestões e PDI mostram confirmação textual “Gerado agora”.
+* [x] Resultados gerados recebem foco acessível e orientação curta para a próxima etapa.
+* [x] PDI mantém o modal e ajusta a rolagem no container interno.
+* [x] Sidebar desktop alterna entre 232 px e 76 px, com preferência persistida em `localStorage`.
+* [x] Modo compacto preserva logo, navegação principal, agentes, tooltips e `aria-label`.
+* [x] Mobile mantém o comportamento de painel lateral, sem aplicar o rail compacto.
+* [x] Chrome validado em `1366x768`, `1280x720` e `390x844`.
+* [x] Sem overflow horizontal nas três resoluções.
+* [x] Foco visível e `prefers-reduced-motion` preservados.
+* [x] `npm run lint` passa.
+* [x] `npm run build` passa.
+* [ ] Revalidar especificamente o auto-scroll para mensagens de erro em todos os fluxos.
+
 ## Visão geral
 
 O Import Vagas está evoluindo de uma plataforma conversacional de carreira para um copiloto completo de candidatura.

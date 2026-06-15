@@ -1,7 +1,9 @@
 import { type ChangeEvent, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { AlertCircle, CheckCircle2, FileText, Loader2, UploadCloud } from 'lucide-react'
+import { useScrollToResult } from '../hooks/useScrollToResult'
 import type { ResumeAnalysis, ResumeUploadResponse } from '../types'
+import { GeneratedResultNotice } from './ui/GeneratedResultNotice'
 
 interface Props {
   onContinueQuiz: () => void
@@ -58,6 +60,14 @@ export function ResumeUpload({ onContinueQuiz }: Props) {
   const [status, setStatus] = useState<UploadStatus>('idle')
   const [message, setMessage] = useState('')
   const [analysis, setAnalysis] = useState<ResumeAnalysis | null>(null)
+  const {
+    reveal,
+    targetRef,
+  } = useScrollToResult<HTMLDivElement>()
+  const {
+    reveal: revealError,
+    targetRef: errorRef,
+  } = useScrollToResult<HTMLDivElement>()
 
   const validateFile = (file: File): string | null => {
     if (!isValidExtension(file.name)) {
@@ -87,6 +97,7 @@ export function ResumeUpload({ onContinueQuiz }: Props) {
       setSelectedFile(null)
       setStatus('error')
       setMessage(validationError)
+      revealError()
       return
     }
 
@@ -121,6 +132,7 @@ export function ResumeUpload({ onContinueQuiz }: Props) {
       setAnalysis(data.analysis)
       setMessage(data.message)
       setStatus('success')
+      reveal()
       window.localStorage.setItem(RESUME_ANALYSIS_STORAGE_KEY, 'true')
       window.dispatchEvent(new Event('profile-updated'))
       window.dispatchEvent(new Event('pipeline-updated'))
@@ -128,6 +140,7 @@ export function ResumeUpload({ onContinueQuiz }: Props) {
       console.error('Falha no upload do currículo:', error)
       setStatus('error')
       setMessage('Não foi possível analisar o currículo. Envie um PDF, DOCX ou TXT com texto legível.')
+      revealError()
     }
   }
 
@@ -182,7 +195,12 @@ export function ResumeUpload({ onContinueQuiz }: Props) {
       )}
 
       {message && (
-        <div className={`resume-upload-message ${status === 'error' ? 'error' : ''}`} role="status">
+        <div
+          ref={status === 'error' ? errorRef : undefined}
+          className={`resume-upload-message ${status === 'error' ? 'error' : ''}`}
+          role={status === 'error' ? 'alert' : 'status'}
+          tabIndex={status === 'error' ? -1 : undefined}
+        >
           {status === 'uploading'
             ? <Loader2 size={15} className="spin" aria-hidden="true" />
             : status === 'error'
@@ -193,13 +211,21 @@ export function ResumeUpload({ onContinueQuiz }: Props) {
       )}
 
       {analysis && (
-        <>
+        <div
+          ref={targetRef}
+          className="generated-result"
+          tabIndex={-1}
+        >
+          <GeneratedResultNotice
+            title="Análise do currículo concluída"
+            nextStep="Próximo passo: confirme seu perfil e depois analise a vaga desejada."
+          />
           <ResumeAnalysisSummary analysis={analysis} />
           <p className="resume-success-note">
             Encontrei possíveis áreas, habilidades e funções alvo. Agora confirme essas informações
             no quiz para melhorar as recomendações.
           </p>
-        </>
+        </div>
       )}
 
       <div className="resume-upload-actions">
