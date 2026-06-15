@@ -226,6 +226,18 @@ Pendências críticas confirmadas:
 * [ ] Criar testes automatizados mínimos para backend e frontend.
 * [x] Executar e registrar `docs/frontend-qa-checklist.md`.
 
+## Centralização vertical da barra e animação de expandir
+
+Sessão executada em 2026-06-15.
+
+* [x] Barra recolhida centralizada na vertical: `padding-bottom: 0` virou
+  padding vertical simétrico (16px), o badge não encosta mais na borda.
+* [x] Animação de expandir mais bonita: `pipeline-track` agora abre com
+  `AnimatePresence` (altura 0→auto + fade) e cada etapa entra com stagger
+  (framer-motion), em vez de aparecer instantânea.
+* [x] README da raiz atualizado com o estado completo do projeto.
+* [x] `npm run build` passa.
+
 ## Polimento da barra recolhida e da sidebar
 
 Sessão executada em 2026-06-15.

@@ -30,6 +30,22 @@ O sistema é orquestrado pelo **Maestro**, que coordena três agentes especializ
 
 ---
 
+## Funcionalidades
+
+Além da busca de vagas, cursos e entrevista, a plataforma cobre o ciclo completo de candidatura:
+
+- **Diagnóstico de perfil** — quiz de 7 perguntas (área, nível, localização, preferências, soft skills, objetivo, habilidades).
+- **Currículo → quiz automático** — envie um currículo em **PDF, DOCX ou TXT** e o sistema extrai área, nível, habilidades e soft skills, **pré-preenchendo o quiz** e perguntando só o que falta.
+- **Filtro de recência das vagas** — escolha **24h, 7 dias, 1 mês ou todas**; o Scout aplica o filtro `--tbs` do Firecrawl na busca.
+- **Análise de descrição de vaga** — cole o anúncio e receba requisitos, hard/soft skills, ferramentas e alertas estruturados.
+- **Match currículo × vaga** — relatório de aderência com score, evidências fortes/parciais e lacunas.
+- **Sugestões de currículo** — ajustes seguros (sem inventar experiência) para a vaga analisada.
+- **PDI** — plano de desenvolvimento individual de 7, 30 e 60 dias a partir das lacunas.
+- **Candidaturas** — tracker para salvar vagas e acompanhar o status (salva, aplicada, entrevista, oferta…).
+- **Career Arcade Pipeline** — rota visual de 6 fases (Currículo · Vaga · Match · Sugestões · PDI · Entrevista) que ilumina o próximo passo; recolhível, virando uma barra de progresso futurista.
+
+---
+
 ## Demonstração rápida
 
 ```
@@ -111,25 +127,42 @@ import-vagas/
 │   │   ├── curator.py     # Recomendação de cursos
 │   │   └── coach.py       # Entrevista simulada
 │   ├── routers/
-│   │   ├── chat.py        # WebSocket com protocolo de estado
-│   │   ├── profile.py     # REST: perfil do usuário
-│   │   └── data_files.py  # REST: vagas, cursos, entrevista
+│   │   ├── chat.py             # WebSocket com protocolo de estado (+ date_filter)
+│   │   ├── profile.py          # REST: perfil do usuário
+│   │   ├── resume.py           # REST: upload e análise de currículo (PDF/DOCX/TXT)
+│   │   ├── job_description.py  # REST: análise de descrição de vaga
+│   │   ├── resume_match.py     # REST: match currículo × vaga
+│   │   ├── resume_tailoring.py # REST: sugestões seguras de currículo
+│   │   ├── pdi.py              # REST: plano de desenvolvimento individual
+│   │   ├── applications.py     # REST: tracker de candidaturas
+│   │   └── data_files.py       # REST: vagas, cursos, entrevista, análises
 │   ├── main.py            # FastAPI app
-│   ├── config.py          # Configurações e paths
+│   ├── config.py          # Configurações e paths (.env por caminho absoluto)
 │   ├── mock_server.py     # Servidor mock para testes sem API key
 │   └── requirements.txt
 │
 ├── frontend/
 │   └── src/
 │       ├── components/
-│       │   ├── StatusBar.tsx      # Topbar com status de conexão
-│       │   ├── ProfilePanel.tsx   # Sidebar com perfil do usuário
-│       │   ├── ChatTerminal.tsx   # Lista de mensagens
-│       │   ├── ChatMessage.tsx    # Mensagem individual com markdown
-│       │   ├── ChatInput.tsx      # Input com atalhos de menu
-│       │   └── AgentBadge.tsx     # Indicador de agente ativo
+│       │   ├── StatusBar.tsx                  # Topbar com status de conexão
+│       │   ├── ProfilePanel.tsx               # Sidebar: perfil, nav e filtro de data
+│       │   ├── ApplicationPipeline.tsx        # Career Arcade Pipeline (recolhível)
+│       │   ├── ChatTerminal.tsx               # Lista de mensagens
+│       │   ├── ChatMessage.tsx                # Mensagem individual com markdown
+│       │   ├── ChatInput.tsx                  # Input com atalhos de menu
+│       │   ├── ScoutReport.tsx                # Cartões de vagas do Scout
+│       │   ├── CuratorReport.tsx              # Trilha de aprendizado
+│       │   ├── QuizPanel.tsx                  # Quiz de perfil
+│       │   ├── ResumeUpload.tsx               # Upload e análise de currículo
+│       │   ├── JobDescriptionAnalyzer.tsx     # Análise de descrição de vaga
+│       │   ├── ResumeMatchReport.tsx          # Match currículo × vaga
+│       │   ├── ResumeTailoringSuggestions.tsx # Sugestões de currículo
+│       │   ├── PdiPlan.tsx                     # Plano de desenvolvimento (PDI)
+│       │   ├── ApplicationTracker.tsx         # Tracker de candidaturas
+│       │   └── AgentBadge.tsx                  # Indicador de agente ativo
 │       ├── hooks/
-│       │   └── useWebSocket.ts    # Conexão WebSocket com streaming
+│       │   ├── useWebSocket.ts    # Conexão WebSocket com streaming
+│       │   └── useScrollToResult.ts # Scroll automático para resultados gerados
 │       ├── types.ts
 │       └── App.tsx
 │
@@ -144,13 +177,23 @@ import-vagas/
 │   ├── course-analysis.md # Fluxo de busca de cursos
 │   └── firecrawl.md       # Comandos e regras do Firecrawl
 │
-└── data/                  # Estado persistido (gerado em runtime)
+└── data/                  # Estado local (gerado em runtime, *.md ignorado pelo Git)
+    ├── README.md           # Único arquivo versionado da pasta
     ├── personality-quiz.md
     ├── user-profile.md
+    ├── resume-analysis.md
     ├── job-search-results.md
+    ├── job-description-analysis.md
+    ├── resume-match-report.md
+    ├── resume-tailoring-suggestions.md
+    ├── pdi-plan.md
     ├── course-recommendations.md
     └── interview-session.md
 ```
+
+> **Privacidade:** os arquivos `data/*.md` são estado local por pessoa/sessão e
+> podem conter dados sensíveis (currículo, perfil). Eles são ignorados pelo Git —
+> apenas `data/README.md` é versionado.
 
 ---
 
@@ -224,13 +267,15 @@ O mock simula todas as respostas dos agentes com dados realistas e streaming tok
 
 ```
 1. Perfil
-   └── Responda 7 perguntas para criar seu perfil profissional
-       (área, nível, localização, habilidades, objetivos)
+   ├── Envie um currículo (PDF/DOCX/TXT) — opcional
+   │   e o sistema pré-preenche o quiz com o que extrair
+   └── Responda só o que faltar das 7 perguntas
+       (área, nível, localização, preferências, soft skills, objetivo, habilidades)
 
 2. Menu principal
    ├── [A] Buscar Vagas
-   │       Scout pesquisa vagas compatíveis com seu perfil
-   │       e calcula o match de habilidades para cada uma
+   │       Scout pesquisa vagas compatíveis com seu perfil e calcula o
+   │       match de habilidades. Filtro de recência: 24h · 7 dias · 1 mês · todas
    │
    ├── [B] Encontrar Cursos
    │       Curator analisa as habilidades faltantes das vagas
@@ -242,6 +287,11 @@ O mock simula todas as respostas dos agentes com dados realistas e streaming tok
    │
    └── [D] Refazer Quiz
            Reseta o perfil e reinicia do zero
+
+3. Esteira de candidatura (Career Arcade Pipeline)
+   Currículo → Vaga → Match → Sugestões → PDI → Entrevista
+   Analise uma vaga, veja o match, gere sugestões seguras de currículo,
+   monte um PDI de 7/30/60 dias e salve candidaturas no tracker.
 ```
 
 ---
@@ -251,10 +301,11 @@ O mock simula todas as respostas dos agentes com dados realistas e streaming tok
 A interface foi projetada com estética **dark tech** — escura, densa e funcional, com toques de cor para hierarquia visual.
 
 - **Tipografia**: Space Grotesk (corpo) · Syne (títulos) · JetBrains Mono (código e dados)
-- **Paleta**: fundo `#050508` · violeta `#7c3aed` · ciano `#22d3ee` · emerald `#34d399`
+- **Paleta**: fundo `#050508` · ciano `#22d3ee` · rosa `#f472b6` · emerald `#34d399`
 - **Efeitos**: dot grid, scanline sutil, noise texture, glow nos elementos ativos
-- **Animações**: Framer Motion — streaming token a token, fade-in nas mensagens, pulse no agente ativo
-- **Sidebar**: perfil do usuário com barra de XP, funções alvo e skills em tags
+- **Animações**: Framer Motion — streaming token a token, fade-in nas mensagens, pulse no agente ativo, expansão suave da pipeline
+- **Career Arcade Pipeline**: rota de 6 fases que recolhe numa barra de progresso futurista (nós neon ciano, conectores ciano→rosa, etapa atual pulsante)
+- **Sidebar**: perfil do usuário com barra de progresso, funções alvo, skills em tags e filtro de recência das vagas; recolhe para modo compacto (ícones)
 
 ---
 

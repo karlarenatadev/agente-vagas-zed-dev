@@ -4034,7 +4034,10 @@ textarea::placeholder {
 }
 
 .application-pipeline.collapsed {
-  padding-bottom: 0;
+  /* Padding vertical simétrico para centralizar a linha recolhida
+     (antes o padding-bottom: 0 fazia o badge encostar na borda). */
+  padding-top: 16px;
+  padding-bottom: 16px;
   gap: 0;
 }
 

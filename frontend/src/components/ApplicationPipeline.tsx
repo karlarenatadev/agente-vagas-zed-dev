@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
   ChevronDown,
   FileCheck2,
@@ -287,42 +288,60 @@ export function ApplicationPipeline({
         </p>
       )}
 
-      {!collapsed && (
-      <div className="pipeline-track" id="pipeline-track">
-        {steps.map((step, index) => {
-          const Icon = step.icon
-          const isCurrent = index === activeIndex
-          const isDisabled = !step.action || step.status === 'blocked' || step.status === 'pending'
+      <AnimatePresence initial={false}>
+        {!collapsed && (
+          <motion.div
+            className="pipeline-track-wrap"
+            key="pipeline-track-wrap"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{
+              height: { duration: 0.4, ease: [0.22, 1, 0.36, 1] },
+              opacity: { duration: 0.28, ease: 'easeOut' },
+            }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div className="pipeline-track" id="pipeline-track">
+              {steps.map((step, index) => {
+                const Icon = step.icon
+                const isCurrent = index === activeIndex
+                const isDisabled = !step.action || step.status === 'blocked' || step.status === 'pending'
 
-          return (
-            <article
-              key={step.key}
-              className={`pipeline-step ${step.status} ${isCurrent ? 'current' : ''}`}
-              aria-current={isCurrent ? 'step' : undefined}
-            >
-              <span className="pipeline-connector" aria-hidden="true" />
-              <span className="pipeline-node" aria-hidden="true">
-                <Icon size={17} />
-              </span>
-              <div className="pipeline-step-copy">
-                <div className="pipeline-step-title">
-                  <small>Fase {String(index + 1).padStart(2, '0')}</small>
-                  <StatusBadge status={step.status} />
-                </div>
-                <h3>{step.label}</h3>
-                <p>{step.description}</p>
-                <span>{step.next}</span>
-                {step.action && (
-                  <button type="button" onClick={step.action} disabled={isDisabled}>
-                    {step.actionLabel}
-                  </button>
-                )}
-              </div>
-            </article>
-          )
-        })}
-      </div>
-      )}
+                return (
+                  <motion.article
+                    key={step.key}
+                    className={`pipeline-step ${step.status} ${isCurrent ? 'current' : ''}`}
+                    aria-current={isCurrent ? 'step' : undefined}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.06 + index * 0.05, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <span className="pipeline-connector" aria-hidden="true" />
+                    <span className="pipeline-node" aria-hidden="true">
+                      <Icon size={17} />
+                    </span>
+                    <div className="pipeline-step-copy">
+                      <div className="pipeline-step-title">
+                        <small>Fase {String(index + 1).padStart(2, '0')}</small>
+                        <StatusBadge status={step.status} />
+                      </div>
+                      <h3>{step.label}</h3>
+                      <p>{step.description}</p>
+                      <span>{step.next}</span>
+                      {step.action && (
+                        <button type="button" onClick={step.action} disabled={isDisabled}>
+                          {step.actionLabel}
+                        </button>
+                      )}
+                    </div>
+                  </motion.article>
+                )
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   )
 }
