@@ -5,9 +5,11 @@ import {
   Loader2,
   Map,
 } from 'lucide-react'
+import { useScrollToResult } from '../hooks/useScrollToResult'
 import type { ResumeTailoringSuggestions as TailoringData } from '../types'
 import { CopyButton } from './ui/CopyButton'
 import { FeedbackState } from './ui/FeedbackState'
+import { GeneratedResultNotice } from './ui/GeneratedResultNotice'
 import { SectionCard } from './ui/SectionCard'
 
 function CopyableSection({
@@ -39,6 +41,14 @@ export function ResumeTailoringSuggestions() {
   const [data, setData] = useState<TailoringData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const {
+    reveal,
+    targetRef,
+  } = useScrollToResult<HTMLDivElement>()
+  const {
+    reveal: revealError,
+    targetRef: errorRef,
+  } = useScrollToResult<HTMLDivElement>()
 
   const generate = async () => {
     setLoading(true)
@@ -58,6 +68,7 @@ export function ResumeTailoringSuggestions() {
         throw new Error(result.detail || 'Não foi possível gerar as sugestões.')
       }
       setData(result as TailoringData)
+      reveal()
       window.dispatchEvent(new Event('pipeline-updated'))
     } catch (requestError) {
       console.error('Falha ao gerar sugestões de currículo:', requestError)
@@ -66,6 +77,7 @@ export function ResumeTailoringSuggestions() {
           ? requestError.message
           : 'Não foi possível gerar as sugestões de currículo.'
       )
+      revealError()
     } finally {
       setLoading(false)
     }
@@ -96,11 +108,13 @@ export function ResumeTailoringSuggestions() {
       </div>
 
       {error && (
-        <FeedbackState
-          tone="error"
-          title={error}
-          description="Conclua o match antes de pedir os ajustes."
-        />
+        <div ref={errorRef} tabIndex={-1}>
+          <FeedbackState
+            tone="error"
+            title={error}
+            description="Conclua o match antes de pedir os ajustes."
+          />
+        </div>
       )}
 
       {loading && (
@@ -112,7 +126,15 @@ export function ResumeTailoringSuggestions() {
       )}
 
       {data && (
-        <div className="tailoring-result">
+        <div
+          ref={targetRef}
+          className="tailoring-result generated-result"
+          tabIndex={-1}
+        >
+          <GeneratedResultNotice
+            title="Sugestões seguras prontas"
+            nextStep="Próximo passo: gere o PDI para transformar as lacunas em um plano de evolução."
+          />
           <div className="tailoring-summary">
             <div><span>Vaga</span><strong>{data.job_title}</strong></div>
             <div><span>Score</span><strong>{data.match_score}/100</strong></div>

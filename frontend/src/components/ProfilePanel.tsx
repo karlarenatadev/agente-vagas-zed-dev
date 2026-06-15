@@ -11,6 +11,8 @@ import {
   GraduationCap,
   LayoutDashboard,
   MapPin,
+  PanelLeftClose,
+  PanelLeftOpen,
   Radio,
   Search,
   Sparkles,
@@ -25,8 +27,10 @@ import { SkillTag } from './ui/SkillTag'
 
 interface Props {
   activeAgent: AgentName
+  compact?: boolean
   onStartProfile?: () => void
   onNavigate: (key: string, options?: { dateFilter?: DateFilter }) => void
+  onToggleCompact?: () => void
 }
 
 const DATE_FILTERS: Array<{ value: DateFilter; label: string }> = [
@@ -235,9 +239,11 @@ function AISquad({ activeAgent }: { activeAgent: AgentName }) {
 
 function ProductNav({
   activeAgent,
+  compact,
   onNavigate,
 }: {
   activeAgent: AgentName
+  compact: boolean
   onNavigate: (key: string, options?: { dateFilter?: DateFilter }) => void
 }) {
   const [dateFilter, setDateFilter] = useState<DateFilter>('all')
@@ -274,6 +280,7 @@ function ProductNav({
                 className={`product-nav-item ${item.className} ${isActive ? 'active' : ''} disabled`}
                 aria-current={isActive ? 'page' : undefined}
                 aria-disabled="true"
+                title={compact ? item.label : undefined}
               >
                 <Icon size={15} aria-hidden="true" />
                 <span>
@@ -290,6 +297,8 @@ function ProductNav({
                 type="button"
                 className={`product-nav-item ${item.className} ${isActive ? 'active' : ''}`}
                 aria-current={isActive ? 'page' : undefined}
+                aria-label={compact ? item.label : undefined}
+                title={compact ? item.label : undefined}
                 onClick={() => onNavigate(item.key)}
               >
                 <Icon size={15} aria-hidden="true" />
@@ -324,8 +333,10 @@ function ProductNav({
 
 export function ProfilePanel({
   activeAgent,
+  compact = false,
   onStartProfile,
   onNavigate,
+  onToggleCompact,
 }: Props) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -405,16 +416,30 @@ export function ProfilePanel({
   const hasProfileDraft = Boolean(profile)
 
   return (
-    <aside className="profile-panel" aria-label="Perfil profissional usado pela IA">
+    <aside className={`profile-panel ${compact ? 'compact' : ''}`} aria-label="Perfil profissional usado pela IA">
       <div className="sidebar-primary">
         <div className="profile-panel-header">
           <div>
             <p className="eyebrow">import vagas</p>
             <h2>Career Maze</h2>
           </div>
+          {onToggleCompact && (
+            <button
+              type="button"
+              className="sidebar-compact-toggle"
+              onClick={onToggleCompact}
+              aria-expanded={!compact}
+              aria-label={compact ? 'Expandir menu' : 'Recolher menu'}
+              title={compact ? 'Expandir menu' : 'Recolher menu'}
+            >
+              {compact
+                ? <PanelLeftOpen size={17} aria-hidden="true" />
+                : <PanelLeftClose size={17} aria-hidden="true" />}
+            </button>
+          )}
         </div>
 
-        <ProductNav activeAgent={activeAgent} onNavigate={onNavigate} />
+        <ProductNav activeAgent={activeAgent} compact={compact} onNavigate={onNavigate} />
       </div>
 
       <div
@@ -422,6 +447,7 @@ export function ProfilePanel({
         tabIndex={0}
         aria-label="Resumo e detalhes do perfil profissional"
       >
+        {compact && <AISquad activeAgent={activeAgent} />}
         {loading ? (
         <div className="profile-loading">
           <div className="shimmer profile-avatar-skeleton" />
@@ -524,7 +550,7 @@ export function ProfilePanel({
             </div>
           </section>
 
-          <AISquad activeAgent={activeAgent} />
+          {!compact && <AISquad activeAgent={activeAgent} />}
 
           <details className="profile-details">
             <summary>

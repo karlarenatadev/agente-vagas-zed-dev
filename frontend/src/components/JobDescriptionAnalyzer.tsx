@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { BriefcaseBusiness, Loader2, Search } from 'lucide-react'
+import { useScrollToResult } from '../hooks/useScrollToResult'
 import type { JobDescriptionAnalysis, ResumeMatchReport as ResumeMatchReportData } from '../types'
 import { ResumeMatchReport } from './ResumeMatchReport'
 import { FeedbackState } from './ui/FeedbackState'
+import { GeneratedResultNotice } from './ui/GeneratedResultNotice'
 import { SectionCard } from './ui/SectionCard'
 import { SkillTag } from './ui/SkillTag'
 
@@ -78,11 +80,20 @@ export function JobDescriptionAnalyzer() {
   const [matchReport, setMatchReport] = useState<ResumeMatchReportData | null>(null)
   const [matchLoading, setMatchLoading] = useState(false)
   const [matchError, setMatchError] = useState('')
+  const {
+    reveal,
+    targetRef,
+  } = useScrollToResult<HTMLDivElement>()
+  const {
+    reveal: revealError,
+    targetRef: errorRef,
+  } = useScrollToResult<HTMLDivElement>()
 
   const analyze = async () => {
     const cleanDescription = description.trim()
     if (cleanDescription.length < MIN_DESCRIPTION_LENGTH) {
       setError('Texto muito curto. Cole uma descrição mais completa da vaga para análise.')
+      revealError()
       return
     }
 
@@ -104,6 +115,7 @@ export function JobDescriptionAnalyzer() {
       setAnalysis(data as JobDescriptionAnalysis)
       setMatchReport(null)
       setMatchError('')
+      reveal()
       window.dispatchEvent(new Event('pipeline-updated'))
     } catch (requestError) {
       console.error('Falha na análise da descrição da vaga:', requestError)
@@ -112,6 +124,7 @@ export function JobDescriptionAnalyzer() {
           ? requestError.message
           : 'Não foi possível analisar a descrição da vaga.'
       )
+      revealError()
     } finally {
       setLoading(false)
     }
@@ -180,15 +193,9 @@ export function JobDescriptionAnalyzer() {
       </label>
 
       {error && (
-        <FeedbackState tone="error" title={error} description="Revise o texto e tente novamente." />
-      )}
-
-      {analysis && (
-        <FeedbackState
-          tone="success"
-          title="Etapa concluída"
-          description="A vaga foi mapeada. Agora você pode comparar com seu currículo."
-        />
+        <div ref={errorRef} tabIndex={-1}>
+          <FeedbackState tone="error" title={error} description="Revise o texto e tente novamente." />
+        </div>
       )}
 
       <div className="job-analyzer-actions">
@@ -214,7 +221,15 @@ export function JobDescriptionAnalyzer() {
       )}
 
       {analysis && (
-        <>
+        <div
+          ref={targetRef}
+          className="generated-result"
+          tabIndex={-1}
+        >
+          <GeneratedResultNotice
+            title="Análise da vaga concluída"
+            nextStep="Próximo passo: compare os requisitos com seu currículo."
+          />
           <JobAnalysisResult analysis={analysis} />
           <ResumeMatchReport
             report={matchReport}
@@ -222,7 +237,7 @@ export function JobDescriptionAnalyzer() {
             error={matchError}
             onCompare={compareWithResume}
           />
-        </>
+        </div>
       )}
     </div>
   )
