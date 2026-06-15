@@ -220,6 +220,29 @@ Pendências críticas confirmadas:
 * [ ] Criar testes automatizados mínimos para backend e frontend.
 * [x] Executar e registrar `docs/frontend-qa-checklist.md`.
 
+## Filtro de data nas vagas + rota de candidatura retraível
+
+Sessão executada em 2026-06-15.
+
+Filtro de recência das vagas (24h / 7 dias / 1 mês / todas):
+
+* [x] Scout: `_run_firecrawl_search` aceita `tbs` e passa `--tbs` (qdr:d/w/m) ao
+  Firecrawl; `run()` lê `date_filter` do contexto via `DATE_FILTER_TBS`.
+* [x] Maestro: guarda `self.date_filter` e repassa ao `ScoutAgent.run`.
+* [x] Router `chat.py`: encaminha `date_filter` da mensagem para o contexto.
+* [x] Frontend: `WsOutgoing.date_filter` + tipo `DateFilter`; `sendMessage`
+  só envia o filtro quando há recorte (todas = sem filtro).
+* [x] UI: chips de período sob "Oportunidades" na sidebar; clicar dispara a
+  busca já filtrada. "all" não aplica `--tbs`.
+* [x] Validado: `firecrawl search --tbs qdr:w` retorna 10 vagas reais.
+
+Rota de candidatura (ApplicationPipeline) retraível:
+
+* [x] Botão de toggle (chevron) no cabeçalho; estado persistido em
+  localStorage (`import-vagas:pipeline-collapsed`).
+* [x] Track e nota de sync ocultados quando recolhido; chevron rotaciona.
+* [x] `npm run build` e `py_compile` passam.
+
 ## Correção do botão "Continuar para o quiz" (descasamento de comando)
 
 Sessão executada em 2026-06-15.

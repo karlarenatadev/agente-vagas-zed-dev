@@ -3,6 +3,7 @@ import type {
   AgentName,
   ChatMessage,
   ConnectionStatus,
+  DateFilter,
   LoadingState,
   SessionState,
   WsIncoming,
@@ -238,7 +239,7 @@ export function useWebSocket() {
     }
   }, [])
 
-  function sendMessage(content: string) {
+  function sendMessage(content: string, dateFilter?: DateFilter) {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
     if (isStreaming) return
 
@@ -255,6 +256,10 @@ export function useWebSocket() {
     const payload: WsOutgoing = {
       type: 'message',
       content,
+    }
+    // Só envia o filtro quando há recorte de data (todas = sem filtro).
+    if (dateFilter && dateFilter !== 'all') {
+      payload.date_filter = dateFilter
     }
 
     wsRef.current.send(JSON.stringify(payload))

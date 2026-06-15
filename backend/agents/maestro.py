@@ -148,6 +148,8 @@ class MaestroAgent(BaseAgent):
         self.mode: str = "init"  # init | quiz | menu | scout | curator | coach
         self.coach_step: int = 0
         self.interview_context: str = ""
+        # Filtro de recência das vagas escolhido no frontend (24h/7d/1mês/todas).
+        self.date_filter: str = ""
 
     # ─── Utilitários de arquivo ───────────────────────────────────────────────
 
@@ -293,6 +295,7 @@ class MaestroAgent(BaseAgent):
         self.quiz_answers = context.get("quiz_answers", {})
         self.coach_step = context.get("coach_step", 0)
         self.interview_context = context.get("interview_context", "")
+        self.date_filter = context.get("date_filter", "") or ""
 
         message = context.get("message", "").strip()
 
@@ -615,7 +618,7 @@ class MaestroAgent(BaseAgent):
         scout = ScoutAgent()
         result_chunks = []
 
-        async for token in scout.run({"profile": profile}):
+        async for token in scout.run({"profile": profile, "date_filter": self.date_filter}):
             result_chunks.append(token)
             yield token
 

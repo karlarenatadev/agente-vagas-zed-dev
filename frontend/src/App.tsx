@@ -17,7 +17,7 @@ import { ProfilePanel } from './components/ProfilePanel'
 import { ResumeUpload } from './components/ResumeUpload'
 import { StatusBar } from './components/StatusBar'
 import { useWebSocket } from './hooks/useWebSocket'
-import type { SessionMode } from './types'
+import type { DateFilter, SessionMode } from './types'
 
 const QuizPanel = lazy(() => import('./components/QuizPanel'))
 const ApplicationTracker = lazy(() => import('./components/ApplicationTracker'))
@@ -79,8 +79,8 @@ export default function App() {
   }, [messages])
 
   const statusText = MODE_STATUS[session.mode]?.(session.quiz_step) ?? 'Pronto'
-  const handleQuickStart = (message: string) => {
-    if (!disabled) sendMessage(message)
+  const handleQuickStart = (message: string, dateFilter?: DateFilter) => {
+    if (!disabled) sendMessage(message, dateFilter)
   }
 
   const handleContinueQuizAfterResume = () => {
@@ -172,9 +172,9 @@ export default function App() {
     document.querySelector('.main-content')?.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleSidebarNavigate = (key: string) => {
+  const handleSidebarNavigate = (key: string, options?: { dateFilter?: DateFilter }) => {
     closeOverlays()
-    if (key === 'opportunities') handleQuickStart('A')
+    if (key === 'opportunities') handleQuickStart('A', options?.dateFilter)
     if (key === 'growth') handleQuickStart('B')
     if (key === 'interview') handleQuickStart('C')
     if (key === 'resume') setResumeModalOpen(true)

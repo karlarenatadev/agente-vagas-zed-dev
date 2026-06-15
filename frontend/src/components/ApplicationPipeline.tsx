@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
+  ChevronDown,
   FileCheck2,
   FileText,
   Flag,
@@ -35,6 +36,7 @@ interface PipelineSnapshot {
 }
 
 const RESUME_ANALYSIS_STORAGE_KEY = 'import-vagas:resume-analysis-complete'
+const PIPELINE_COLLAPSED_STORAGE_KEY = 'import-vagas:pipeline-collapsed'
 
 const INVALID_MARKERS = [
   'não analisado',
@@ -73,6 +75,19 @@ export function ApplicationPipeline({
     pdi: false,
     failed: false,
   })
+
+  const [collapsed, setCollapsed] = useState(() =>
+    typeof window !== 'undefined'
+      && window.localStorage.getItem(PIPELINE_COLLAPSED_STORAGE_KEY) === 'true'
+  )
+
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed(current => {
+      const next = !current
+      window.localStorage.setItem(PIPELINE_COLLAPSED_STORAGE_KEY, String(next))
+      return next
+    })
+  }, [])
 
   const refresh = useCallback(async () => {
     try {
@@ -210,7 +225,10 @@ export function ApplicationPipeline({
   const activeIndex = currentIndex === -1 ? steps.findIndex(step => step.status === 'pending') : currentIndex
 
   return (
-    <section className="application-pipeline" aria-labelledby="pipeline-title">
+    <section
+      className={`application-pipeline ${collapsed ? 'collapsed' : ''}`}
+      aria-labelledby="pipeline-title"
+    >
       <header className="pipeline-header">
         <div>
           <p className="eyebrow">
@@ -220,19 +238,36 @@ export function ApplicationPipeline({
           <h2 id="pipeline-title">Sua rota de candidatura</h2>
           <p>Avance uma etapa por vez. Cada ponto iluminado libera o próximo movimento.</p>
         </div>
-        <span className="pipeline-progress-label">
-          <FileCheck2 size={14} aria-hidden="true" />
-          {steps.slice(0, 4).filter(step => step.status === 'completed').length} de 4 etapas-base concluídas
-        </span>
+        <div className="pipeline-header-actions">
+          <span className="pipeline-progress-label">
+            <FileCheck2 size={14} aria-hidden="true" />
+            {steps.slice(0, 4).filter(step => step.status === 'completed').length} de 4 etapas-base concluídas
+          </span>
+          <button
+            type="button"
+            className="pipeline-toggle"
+            onClick={toggleCollapsed}
+            aria-expanded={!collapsed}
+            aria-controls="pipeline-track"
+            aria-label={collapsed ? 'Mostrar rota de candidatura' : 'Ocultar rota de candidatura'}
+          >
+            <ChevronDown
+              size={18}
+              className={`pipeline-chevron ${collapsed ? 'collapsed' : ''}`}
+              aria-hidden="true"
+            />
+          </button>
+        </div>
       </header>
 
-      {snapshot.failed && (
+      {!collapsed && snapshot.failed && (
         <p className="pipeline-sync-note">
           O mapa não conseguiu sincronizar os arquivos agora. As ações continuam disponíveis.
         </p>
       )}
 
-      <div className="pipeline-track">
+      {!collapsed && (
+      <div className="pipeline-track" id="pipeline-track">
         {steps.map((step, index) => {
           const Icon = step.icon
           const isCurrent = index === activeIndex
@@ -266,6 +301,7 @@ export function ApplicationPipeline({
           )
         })}
       </div>
+      )}
     </section>
   )
 }

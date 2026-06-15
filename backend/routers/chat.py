@@ -188,8 +188,13 @@ async def websocket_chat(websocket: WebSocket):
             if data.get("type") == "message":
                 user_message = data.get("content", "").strip()
 
-                # Monta contexto com estado atual da sessão
-                context = {**session, "message": user_message}
+                # Monta contexto com estado atual da sessão.
+                # date_filter (recência das vagas) vem por mensagem, não persiste.
+                context = {
+                    **session,
+                    "message": user_message,
+                    "date_filter": data.get("date_filter", ""),
+                }
 
                 async for token in maestro.run(context):
                     await _send_stream_token(websocket, token, session)

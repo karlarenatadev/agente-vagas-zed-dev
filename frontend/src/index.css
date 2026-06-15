@@ -896,6 +896,40 @@ textarea::placeholder {
 .nav-coach { --nav-color: var(--amber); }
 .nav-disabled { --nav-color: var(--text-ghost); }
 
+.product-nav-entry {
+  display: grid;
+  gap: 2px;
+}
+
+.nav-date-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 2px 8px 4px 32px;
+}
+
+.date-filter-chip {
+  padding: 2px 8px;
+  border: 1px solid color-mix(in srgb, var(--cyan) 22%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font: 600 10px var(--font-mono);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.date-filter-chip:hover {
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--cyan) 40%, transparent);
+}
+
+.date-filter-chip.active {
+  background: color-mix(in srgb, var(--cyan) 16%, transparent);
+  border-color: color-mix(in srgb, var(--cyan) 50%, transparent);
+  color: var(--text-primary);
+}
+
 .profile-panel h2,
 .profile-panel h3 {
   margin: 0;
@@ -3946,6 +3980,44 @@ textarea::placeholder {
   color: var(--color-arcade-cyan);
   font: 600 10px var(--font-mono);
   white-space: nowrap;
+}
+
+.pipeline-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pipeline-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: var(--radius-button);
+  background: rgba(34, 211, 238, 0.07);
+  color: var(--color-arcade-cyan);
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.pipeline-toggle:hover {
+  background: rgba(34, 211, 238, 0.14);
+  border-color: rgba(34, 211, 238, 0.35);
+}
+
+.pipeline-chevron {
+  transition: transform 0.2s ease;
+}
+
+.pipeline-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+.application-pipeline.collapsed {
+  padding-bottom: 0;
 }
 
 .pipeline-sync-note {

@@ -201,7 +201,11 @@ export interface WsIncoming {
   content: string | SessionState
 }
 
+// Filtro de recência das vagas. 'all' não envia filtro ao Firecrawl.
+export type DateFilter = '24h' | '7d' | '1m' | 'all'
+
 export interface WsOutgoing {
   type: 'message'
   content: string
+  date_filter?: DateFilter
 }

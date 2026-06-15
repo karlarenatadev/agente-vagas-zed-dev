@@ -94,20 +94,34 @@ AREA_SKILL_MAP: dict[str, list[str]] = {
 
 COMMON_SOFT_SKILLS = ["Comunicação", "Colaboração", "Resolução de problemas", "Organização"]
 
+# Filtro de recência escolhido no frontend → valor --tbs do Firecrawl.
+# "all" (ou vazio) não aplica filtro e traz vagas de qualquer data.
+DATE_FILTER_TBS: dict[str, str] = {
+    "24h": "qdr:d",
+    "7d": "qdr:w",
+    "1m": "qdr:m",
+}
+
 
 class ScoutAgent(BaseAgent):
     """Agente de busca de vagas — usa Firecrawl CLI ou SDK."""
 
     name = "Scout"
 
-    def _run_firecrawl_search(self, query: str) -> list[dict]:
-        """Executa firecrawl search via CLI e retorna resultados JSON."""
+    def _run_firecrawl_search(self, query: str, tbs: str = "") -> list[dict]:
+        """Executa firecrawl search via CLI e retorna resultados JSON.
+
+        tbs: filtro de recência do Google (qdr:d/w/m). Vazio = sem filtro.
+        """
         executable = _firecrawl_executable()
         if not executable:
             return []
+        args = [executable, "search", query, "--json"]
+        if tbs:
+            args += ["--tbs", tbs]
         try:
             result = subprocess.run(
-                [executable, "search", query, "--json"],
+                args,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -312,7 +326,7 @@ class ScoutAgent(BaseAgent):
     async def run(self, context: dict) -> AsyncGenerator[str, None]:
         """
         Executa busca de vagas.
-        context: {'profile': str}
+        context: {'profile': str, 'date_filter': str}
         """
         profile_text = context.get("profile", "")
         profile = self._parse_profile(profile_text)
@@ -323,19 +337,27 @@ class ScoutAgent(BaseAgent):
         skills_raw = profile.get("Habilidades atuais", "")
         soft_skills_raw = profile.get("Soft skills", "")
 
+        date_filter = (context.get("date_filter") or "").strip()
+        tbs = DATE_FILTER_TBS.get(date_filter, "")
+
         current_skills = [s.strip() for s in skills_raw.split(",") if s.strip()]
         current_soft = [s.strip() for s in soft_skills_raw.split(",") if s.strip()]
 
-        yield f"🔍 Buscando vagas de **{area}** em **{location}**...\n\n"
+        period_label = {
+            "24h": " (últimas 24h)",
+            "7d": " (últimos 7 dias)",
+            "1m": " (último mês)",
+        }.get(date_filter, "")
+        yield f"🔍 Buscando vagas de **{area}** em **{location}**{period_label}...\n\n"
 
         # Monta query de busca
         query = f"vagas {area} {level} {location}".strip()
-        search_results = self._run_firecrawl_search(query)
+        search_results = self._run_firecrawl_search(query, tbs)
 
         if not search_results:
             # Tenta query mais ampla
             query_broad = f"vagas {area} {location}"
-            search_results = self._run_firecrawl_search(query_broad)
+            search_results = self._run_firecrawl_search(query_broad, tbs)
 
         simulated_mode = False
         if not search_results:

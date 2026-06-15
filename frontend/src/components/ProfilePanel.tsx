@@ -19,15 +19,22 @@ import {
   UserRoundCheck,
   Zap,
 } from 'lucide-react'
-import type { AgentName, UserProfile } from '../types'
+import type { AgentName, DateFilter, UserProfile } from '../types'
 import { FeedbackState } from './ui/FeedbackState'
 import { SkillTag } from './ui/SkillTag'
 
 interface Props {
   activeAgent: AgentName
   onStartProfile?: () => void
-  onNavigate: (key: string) => void
+  onNavigate: (key: string, options?: { dateFilter?: DateFilter }) => void
 }
+
+const DATE_FILTERS: Array<{ value: DateFilter; label: string }> = [
+  { value: '24h', label: '24h' },
+  { value: '7d', label: '7 dias' },
+  { value: '1m', label: '1 mês' },
+  { value: 'all', label: 'Todas' },
+]
 
 const LEVEL_PROGRESS: Record<string, number> = {
   'Júnior': 33,
@@ -231,8 +238,10 @@ function ProductNav({
   onNavigate,
 }: {
   activeAgent: AgentName
-  onNavigate: (key: string) => void
+  onNavigate: (key: string, options?: { dateFilter?: DateFilter }) => void
 }) {
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all')
+
   const activeKey = activeAgent === 'Scout'
     ? 'opportunities'
     : activeAgent === 'Curator'
@@ -240,6 +249,11 @@ function ProductNav({
       : activeAgent === 'Coach'
         ? 'interview'
         : 'dashboard'
+
+  const handleSelectPeriod = (value: DateFilter) => {
+    setDateFilter(value)
+    onNavigate('opportunities', { dateFilter: value })
+  }
 
   return (
     <nav className="product-nav" aria-label="Navegação de carreira">
@@ -253,33 +267,54 @@ function ProductNav({
           const Icon = item.icon
           const isActive = !item.disabled && activeKey === item.key
 
-          return item.disabled ? (
-            <span
-              key={item.label}
-              className={`product-nav-item ${item.className} ${isActive ? 'active' : ''} ${item.disabled ? 'disabled' : ''}`}
-              aria-current={isActive ? 'page' : undefined}
-              aria-disabled="true"
-            >
-              <Icon size={15} aria-hidden="true" />
-              <span>
-                <strong>{item.label}</strong>
-                <small>{item.helper}</small>
+          if (item.disabled) {
+            return (
+              <span
+                key={item.label}
+                className={`product-nav-item ${item.className} ${isActive ? 'active' : ''} disabled`}
+                aria-current={isActive ? 'page' : undefined}
+                aria-disabled="true"
+              >
+                <Icon size={15} aria-hidden="true" />
+                <span>
+                  <strong>{item.label}</strong>
+                  <small>{item.helper}</small>
+                </span>
               </span>
-            </span>
-          ) : (
-            <button
-              type="button"
-              key={item.label}
-              className={`product-nav-item ${item.className} ${isActive ? 'active' : ''}`}
-              aria-current={isActive ? 'page' : undefined}
-              onClick={() => onNavigate(item.key)}
-            >
-              <Icon size={15} aria-hidden="true" />
-              <span>
-                <strong>{item.label}</strong>
-                <small>{item.helper}</small>
-              </span>
-            </button>
+            )
+          }
+
+          return (
+            <div key={item.label} className="product-nav-entry">
+              <button
+                type="button"
+                className={`product-nav-item ${item.className} ${isActive ? 'active' : ''}`}
+                aria-current={isActive ? 'page' : undefined}
+                onClick={() => onNavigate(item.key)}
+              >
+                <Icon size={15} aria-hidden="true" />
+                <span>
+                  <strong>{item.label}</strong>
+                  <small>{item.helper}</small>
+                </span>
+              </button>
+
+              {item.key === 'opportunities' && (
+                <div className="nav-date-filter" role="group" aria-label="Período das vagas">
+                  {DATE_FILTERS.map(filter => (
+                    <button
+                      type="button"
+                      key={filter.value}
+                      className={`date-filter-chip ${dateFilter === filter.value ? 'active' : ''}`}
+                      aria-pressed={dateFilter === filter.value}
+                      onClick={() => handleSelectPeriod(filter.value)}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           )
         })}
       </div>
