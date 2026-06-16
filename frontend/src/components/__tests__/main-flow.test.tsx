@@ -1,0 +1,298 @@
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import { ApplicationPipeline } from '../ApplicationPipeline'
+import { ApplicationTracker } from '../ApplicationTracker'
+import { JobDescriptionAnalyzer } from '../JobDescriptionAnalyzer'
+import { PdiPlan } from '../PdiPlan'
+import { ResumeMatchReport } from '../ResumeMatchReport'
+import { ResumeTailoringSuggestions } from '../ResumeTailoringSuggestions'
+import { ResumeUpload } from '../ResumeUpload'
+import {
+  applicationFixture,
+  jobAnalysisFixture,
+  matchReportFixture,
+  pdiFixture,
+  resumeAnalysisFixture,
+  tailoringFixture,
+} from '../../test/fixtures'
+
+type MockResponse = {
+  ok: boolean
+  status: number
+  json: () => Promise<unknown>
+}
+
+function response(body: unknown, options: { ok?: boolean; status?: number } = {}): MockResponse {
+  return {
+    ok: options.ok ?? true,
+    status: options.status ?? 200,
+    json: async () => body,
+  }
+}
+
+function mockFetch(...responses: MockResponse[]) {
+  const fetchMock = vi.fn()
+  for (const item of responses) {
+    fetchMock.mockResolvedValueOnce(item)
+  }
+  vi.stubGlobal('fetch', fetchMock)
+  return fetchMock
+}
+
+function plain(value: string | null | undefined): string {
+  return (value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
+function textIncludes(expected: string) {
+  return (_content: string, element: Element | null) =>
+    plain(element?.textContent).includes(expected)
+}
+
+function expectTextNow(expected: string) {
+  expect(screen.getAllByText(textIncludes(expected)).length).toBeGreaterThan(0)
+}
+
+async function expectTextEventually(expected: string) {
+  expect((await screen.findAllByText(textIncludes(expected))).length).toBeGreaterThan(0)
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>(done => {
+    resolve = done
+  })
+  return { promise, resolve }
+}
+
+describe('fluxo principal do frontend', () => {
+  it('renderiza a pipeline com etapas principais e bloqueia acoes sem prerequisito', async () => {
+    mockFetch(
+      response({ exists: false, content: '' }),
+      response({ exists: false, content: '' }),
+      response({ exists: false, content: '' }),
+      response({ exists: false, content: '' }),
+      response({ exists: false, content: '' }),
+    )
+
+    render(
+      <ApplicationPipeline
+        mode="menu"
+        onOpenResume={vi.fn()}
+        onOpenJob={vi.fn()}
+        onOpenPdi={vi.fn()}
+        onStartInterview={vi.fn()}
+      />,
+    )
+
+    for (const label of ['curriculo', 'vaga', 'match', 'sugest', 'pdi', 'entrevista']) {
+      expectTextNow(label)
+    }
+
+    await waitFor(() => {
+      expect((screen.getByRole('button', { name: /Abrir vaga/i }) as HTMLButtonElement).disabled).toBe(true)
+      expect((screen.getByRole('button', { name: /Abrir relat/i }) as HTMLButtonElement).disabled).toBe(true)
+      expect((screen.getByRole('button', { name: /Gerar PDI/i }) as HTMLButtonElement).disabled).toBe(true)
+    })
+  })
+
+  it('mostra mensagem amigavel quando a pipeline nao consegue sincronizar', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+
+    render(
+      <ApplicationPipeline
+        mode="menu"
+        onOpenResume={vi.fn()}
+        onOpenJob={vi.fn()}
+        onOpenPdi={vi.fn()}
+        onStartInterview={vi.fn()}
+      />,
+    )
+
+    await expectTextEventually('nao conseguiu sincronizar')
+  })
+
+  it('cobre upload de curriculo com loading, sucesso e erro local de arquivo', async () => {
+    const upload = deferred<MockResponse>()
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(upload.promise))
+
+    render(<ResumeUpload onContinueQuiz={vi.fn()} />)
+
+    const input = screen.getByLabelText(/Selecionar curr/i) as HTMLInputElement
+    const file = new File(
+      ['Pessoa Teste com Python, SQL, Power BI e comunicacao em projetos de dados.'],
+      'curriculo.txt',
+      { type: 'text/plain' },
+    )
+    fireEvent.change(input, { target: { files: [file] } })
+    fireEvent.click(screen.getByRole('button', { name: /Enviar curr/i }))
+
+    expect(screen.getByText(/Enviando e analisando/i)).toBeTruthy()
+
+    upload.resolve(response({
+      success: true,
+      message: 'Curriculo analisado com sucesso.',
+      analysis: resumeAnalysisFixture,
+    }))
+
+    await expectTextEventually('analise do curriculo concluida')
+    expect(screen.getByRole('button', { name: /Continuar para o quiz/i })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: /Escolher outro arquivo/i }))
+    const invalidFile = new File(['conteudo'], 'curriculo.exe', { type: 'text/plain' })
+    fireEvent.change(input, { target: { files: [invalidFile] } })
+    expect(screen.getByRole('alert').textContent).toContain('PDF, DOCX ou TXT')
+  })
+
+  it('cobre analise de vaga com erro curto, loading, sucesso e falha de match', async () => {
+    const jobRequest = deferred<MockResponse>()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn()
+        .mockReturnValueOnce(jobRequest.promise)
+        .mockResolvedValueOnce(response(
+          { detail: 'Envie e analise um curriculo primeiro.' },
+          { ok: false, status: 400 },
+        )),
+    )
+
+    render(<JobDescriptionAnalyzer />)
+
+    fireEvent.change(screen.getByLabelText(/Descri/i), { target: { value: 'vaga curta' } })
+    fireEvent.click(screen.getByRole('button', { name: /Analisar descr/i }))
+    expect(screen.getByText(/Texto muito curto/i)).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText(/Descri/i), {
+      target: {
+        value: 'Analista de dados com Python, SQL, Power BI, dashboards e comunicacao com stakeholders.',
+      },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Analisar descr/i }))
+    expectTextNow('lendo o mapa da vaga')
+
+    jobRequest.resolve(response(jobAnalysisFixture))
+    await expectTextEventually('analise da vaga concluida')
+
+    fireEvent.click(screen.getByRole('button', { name: /Comparar com meu curr/i }))
+    await expectTextEventually('envie e analise um curriculo primeiro')
+  })
+
+  it('cobre match com vazio, loading, erro e sucesso', async () => {
+    const onCompare = vi.fn()
+
+    const { rerender } = render(
+      <ResumeMatchReport
+        report={null}
+        loading={false}
+        error=""
+        onCompare={onCompare}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Comparar com meu curr/i }))
+    expect(onCompare).toHaveBeenCalledTimes(1)
+
+    rerender(<ResumeMatchReport report={null} loading error="" onCompare={onCompare} />)
+    expect(screen.getByText(/Cruzando as rotas/i)).toBeTruthy()
+
+    rerender(
+      <ResumeMatchReport
+        report={null}
+        loading={false}
+        error="Analise uma descricao de vaga primeiro."
+        onCompare={onCompare}
+      />,
+    )
+    expectTextNow('analise uma descricao de vaga primeiro')
+    expectTextNow('curriculo e vaga analisados')
+
+    rerender(
+      <ResumeMatchReport
+        report={matchReportFixture}
+        loading={false}
+        error=""
+        onCompare={onCompare}
+      />,
+    )
+    expect(await screen.findByLabelText(/Score geral 72 de 100/i)).toBeTruthy()
+    expectTextNow('relatorio de aderencia gerado')
+  })
+
+  it('cobre sugestoes seguras com loading, erro e sucesso', async () => {
+    const tailoringRequest = deferred<MockResponse>()
+    vi.stubGlobal('fetch', vi.fn().mockReturnValueOnce(tailoringRequest.promise))
+
+    render(<ResumeTailoringSuggestions />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Sugerir ajustes/i }))
+    expectTextNow('organizando evidencias')
+    tailoringRequest.resolve(response(tailoringFixture))
+
+    await expectTextEventually('sugestoes seguras prontas')
+    expect(screen.getByText(/PDI personalizado/i)).toBeTruthy()
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(response(
+        { detail: 'Compare a vaga com o curriculo primeiro.' },
+        { ok: false, status: 400 },
+      )),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Gerar novamente/i }))
+    await expectTextEventually('compare a vaga com o curriculo primeiro')
+  })
+
+  it('cobre PDI com carregamento inicial, erro de prerequisito e sucesso', async () => {
+    mockFetch(
+      response({ detail: 'Nenhum PDI foi gerado ainda.' }, { ok: false, status: 404 }),
+      response({ detail: 'Gere sugestoes seguras de curriculo primeiro.' }, { ok: false, status: 400 }),
+    )
+
+    render(<PdiPlan />)
+
+    expect(await screen.findByRole('button', { name: /Gerar PDI para essa vaga/i })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Gerar PDI para essa vaga/i }))
+    await expectTextEventually('gere sugestoes seguras')
+
+    cleanup()
+    const generateRequest = deferred<MockResponse>()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn()
+        .mockResolvedValueOnce(response({ detail: 'Nenhum PDI foi gerado ainda.' }, { ok: false, status: 404 }))
+        .mockReturnValueOnce(generateRequest.promise),
+    )
+    render(<PdiPlan />)
+    fireEvent.click(await screen.findByRole('button', { name: /Gerar PDI para essa vaga/i }))
+    expect((screen.getByRole('button', { name: /Gerando PDI/i }) as HTMLButtonElement).disabled).toBe(true)
+    generateRequest.resolve(response(pdiFixture))
+
+    await expectTextEventually('plano de desenvolvimento gerado')
+    expect(screen.getByText(/PDI salvo/i)).toBeTruthy()
+  })
+
+  it('cobre candidaturas com loading, vazio, erro e lista simples', async () => {
+    mockFetch(response([]))
+
+    const { rerender, unmount } = render(<ApplicationTracker isOpen onClose={vi.fn()} />)
+
+    expect(screen.getByText(/Carregando candidaturas/i)).toBeTruthy()
+    expect(await screen.findByText(/Nenhuma candidatura salva ainda/i)).toBeTruthy()
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(
+      { detail: 'erro' },
+      { ok: false, status: 500 },
+    )))
+    rerender(<ApplicationTracker isOpen={false} onClose={vi.fn()} />)
+    rerender(<ApplicationTracker isOpen onClose={vi.fn()} />)
+    await expectTextEventually('nao foi possivel carregar suas candidaturas agora')
+
+    unmount()
+    mockFetch(response([applicationFixture]))
+    render(<ApplicationTracker isOpen onClose={vi.fn()} />)
+    expect(await screen.findByText(/Analista de Dados Junior/i)).toBeTruthy()
+    expect(screen.getByText(/Acme/)).toBeTruthy()
+  })
+})

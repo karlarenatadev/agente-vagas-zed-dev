@@ -11,3 +11,6 @@ node_modules/
 data/*.md
 !data/README.md
 !data/*.example.md
+data/applications.json
+
+data/sessions/
