@@ -10,13 +10,13 @@ import type { JobApplication, ApplicationStatus } from '../types'
 import { FeedbackState } from './ui/FeedbackState'
 
 const STATUS_CONFIG: Record<ApplicationStatus, { label: string; color: string; bg: string }> = {
-  salva:        { label: 'Salva',        color: '#64748b', bg: 'rgba(100,116,139,0.12)' },
-  aplicada:     { label: 'Aplicada',     color: '#a78bfa', bg: 'rgba(167,139,250,0.12)' },
-  em_processo:  { label: 'Em processo',  color: '#22d3ee', bg: 'rgba(34,211,238,0.12)'  },
-  entrevista:   { label: 'Entrevista',   color: '#fbbf24', bg: 'rgba(251,191,36,0.12)'  },
-  oferta:       { label: 'Oferta',       color: '#34d399', bg: 'rgba(52,211,153,0.12)'  },
-  recusada:     { label: 'Recusada',     color: '#fb7185', bg: 'rgba(251,113,133,0.12)' },
-  desistiu:     { label: 'Desistiu',     color: '#475569', bg: 'rgba(71,85,105,0.12)'   },
+  salva:        { label: 'Salva',        color: 'var(--state-blocked)', bg: 'rgba(148,163,184,0.1)' },
+  aplicada:     { label: 'Aplicada',     color: 'var(--color-arcade-pink)', bg: 'rgba(244,114,182,0.1)' },
+  em_processo:  { label: 'Em processo',  color: 'var(--state-info)', bg: 'rgba(34,211,238,0.1)'  },
+  entrevista:   { label: 'Entrevista',   color: 'var(--state-current)', bg: 'rgba(255,217,61,0.1)'  },
+  oferta:       { label: 'Oferta',       color: 'var(--state-success)', bg: 'rgba(52,211,153,0.1)'  },
+  recusada:     { label: 'Recusada',     color: 'var(--state-danger)', bg: 'rgba(251,113,133,0.1)' },
+  desistiu:     { label: 'Desistiu',     color: 'var(--text-ghost)', bg: 'rgba(71,85,105,0.1)'   },
 }
 
 const STATUS_ORDER: ApplicationStatus[] = [
@@ -35,7 +35,7 @@ function StatusBadge({ status, onClick }: { status: ApplicationStatus; onClick?:
         padding: '3px 10px',
         borderRadius: 'var(--radius-full)',
         background: cfg.bg,
-        border: `1px solid ${cfg.color}40`,
+        border: `1px solid color-mix(in srgb, ${cfg.color} 28%, transparent)`,
         color: cfg.color,
         fontSize: '11px', fontWeight: 600,
         fontFamily: 'var(--font-sans)',
@@ -67,12 +67,12 @@ function StatusDropdown({
       style={{
         position: 'absolute', top: '100%', left: 0, zIndex: 50,
         marginTop: '4px',
-        background: 'var(--bg-overlay)',
-        border: '1px solid var(--border-strong)',
+        background: 'var(--surface-card-strong)',
+        border: '1px solid var(--line-default)',
         borderRadius: 'var(--radius-md)',
         padding: '4px',
         minWidth: '140px',
-        boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+        boxShadow: 'var(--shadow-elevated)',
       }}
     >
       {STATUS_ORDER.map(s => {
@@ -150,8 +150,8 @@ function ApplicationCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.97 }}
       style={{
-        background: 'var(--bg-elevated)',
-        border: '1px solid var(--border-subtle)',
+        background: 'var(--surface-card)',
+        border: '1px solid var(--line-soft)',
         borderRadius: 'var(--radius-lg)',
         padding: '16px',
         position: 'relative',
@@ -266,7 +266,7 @@ function ApplicationCard({
               rows={2}
               style={{
                 width: '100%', resize: 'none',
-                background: 'var(--bg-overlay)',
+                background: 'var(--surface-inset)',
                 border: '1px solid var(--border-focus)',
                 borderRadius: 'var(--radius-sm)',
                 padding: '6px 8px',
@@ -422,8 +422,8 @@ export function ApplicationTracker({ isOpen, onClose }: Props) {
             onClick={onClose}
             style={{
               position: 'fixed', inset: 0, zIndex: 40,
-              background: 'rgba(0,0,0,0.6)',
-              backdropFilter: 'blur(4px)',
+              background: 'rgba(2,6,23,0.72)',
+              backdropFilter: 'blur(10px)',
               border: 0,
               padding: 0,
               cursor: 'pointer',
@@ -442,10 +442,10 @@ export function ApplicationTracker({ isOpen, onClose }: Props) {
             style={{
               position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 50,
               width: '420px', maxWidth: '95vw',
-              background: 'var(--bg-surface)',
-              borderLeft: '1px solid var(--border-default)',
+              background: 'var(--surface-panel)',
+              borderLeft: '1px solid var(--line-default)',
               display: 'flex', flexDirection: 'column',
-              boxShadow: '-8px 0 32px rgba(0,0,0,0.4)',
+              boxShadow: 'var(--shadow-floating)',
             }}
           >
             {/* Header */}
@@ -486,9 +486,9 @@ export function ApplicationTracker({ isOpen, onClose }: Props) {
                 aria-pressed={filter === 'todas'}
                 style={{
                   padding: '4px 12px', borderRadius: 'var(--radius-full)',
-                  background: filter === 'todas' ? 'rgba(124,58,237,0.15)' : 'transparent',
-                  border: `1px solid ${filter === 'todas' ? 'rgba(124,58,237,0.4)' : 'var(--border-default)'}`,
-                  color: filter === 'todas' ? 'var(--violet-light)' : 'var(--text-muted)',
+                  background: filter === 'todas' ? 'var(--violet-soft)' : 'transparent',
+                  border: `1px solid ${filter === 'todas' ? 'color-mix(in srgb, var(--violet) 34%, transparent)' : 'var(--line-default)'}`,
+                  color: filter === 'todas' ? 'var(--violet)' : 'var(--text-muted)',
                   fontSize: '11px', fontWeight: 600, cursor: 'pointer',
                   fontFamily: 'var(--font-sans)',
                 }}
@@ -506,7 +506,7 @@ export function ApplicationTracker({ isOpen, onClose }: Props) {
                     style={{
                       padding: '4px 12px', borderRadius: 'var(--radius-full)',
                       background: filter === s ? cfg.bg : 'transparent',
-                      border: `1px solid ${filter === s ? cfg.color + '60' : 'var(--border-default)'}`,
+                      border: `1px solid ${filter === s ? `color-mix(in srgb, ${cfg.color} 34%, transparent)` : 'var(--line-default)'}`,
                       color: filter === s ? cfg.color : 'var(--text-muted)',
                       fontSize: '11px', fontWeight: 600, cursor: 'pointer',
                       fontFamily: 'var(--font-sans)',

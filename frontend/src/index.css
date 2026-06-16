@@ -59,6 +59,24 @@
   --radius-xl: var(--radius-card);
   --radius-full: 999px;
   --shadow-card: 0 18px 50px rgba(0, 0, 0, 0.28);
+
+  --surface-base: rgba(7, 11, 20, 0.74);
+  --surface-panel: rgba(12, 18, 32, 0.9);
+  --surface-card: rgba(15, 23, 42, 0.72);
+  --surface-card-strong: rgba(17, 27, 48, 0.86);
+  --surface-inset: rgba(7, 11, 20, 0.52);
+  --line-soft: rgba(255, 255, 255, 0.07);
+  --line-default: rgba(148, 163, 184, 0.16);
+  --line-emphasis: rgba(34, 211, 238, 0.26);
+  --state-success: var(--color-arcade-green);
+  --state-warning: var(--color-arcade-orange);
+  --state-danger: var(--color-arcade-red);
+  --state-info: var(--color-arcade-cyan);
+  --state-current: var(--color-arcade-yellow);
+  --state-blocked: #94a3b8;
+  --glow-soft: 0 0 18px rgba(34, 211, 238, 0.1);
+  --shadow-elevated: 0 14px 38px rgba(0, 0, 0, 0.24);
+  --shadow-floating: 0 22px 54px rgba(0, 0, 0, 0.34);
 }
 
 *, *::before, *::after {
@@ -5739,6 +5757,329 @@ button {
   color: var(--cyan);
 }
 
+/* Visual system refinement: mature arcade */
+
+.app-shell {
+  background:
+    radial-gradient(circle at 12% 12%, rgba(34, 211, 238, 0.08), transparent 30%),
+    radial-gradient(circle at 88% 18%, rgba(244, 114, 182, 0.075), transparent 32%),
+    radial-gradient(circle at 70% 86%, rgba(52, 211, 153, 0.055), transparent 36%),
+    linear-gradient(135deg, rgba(5, 8, 22, 0.96), rgba(8, 12, 27, 0.99)),
+    var(--bg-void);
+}
+
+.app-shell::after {
+  opacity: 0.24;
+}
+
+.noise::before {
+  opacity: 0.09;
+}
+
+.status-bar,
+.workspace-header,
+.application-pipeline,
+.chat-terminal,
+.resume-modal-panel,
+.job-analyzer-modal,
+.pdi-modal {
+  border-color: var(--line-soft);
+  box-shadow: var(--shadow-elevated);
+}
+
+.workspace-header,
+.chat-terminal,
+.resume-modal-panel {
+  background: var(--surface-panel);
+}
+
+.workspace-header {
+  border-bottom-color: var(--line-soft);
+  backdrop-filter: blur(14px);
+}
+
+.applications-btn,
+.primary-panel-button,
+.secondary-action-button,
+.sidebar-compact-toggle {
+  border-color: var(--line-default);
+  background: var(--surface-card);
+  box-shadow: none;
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease,
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.applications-btn:hover,
+.primary-panel-button:hover,
+.secondary-action-button:hover:not(:disabled),
+.sidebar-compact-toggle:hover {
+  border-color: var(--line-emphasis);
+  background: var(--surface-card-strong);
+  box-shadow: var(--glow-soft);
+}
+
+.primary-action-button {
+  border: 1px solid rgba(255, 217, 61, 0.2);
+  background:
+    linear-gradient(135deg, rgba(255, 217, 61, 0.94), rgba(251, 146, 60, 0.9));
+  color: #111827;
+  box-shadow: 0 10px 24px rgba(255, 217, 61, 0.12);
+}
+
+.primary-action-button:hover:not(:disabled) {
+  box-shadow: 0 12px 30px rgba(255, 217, 61, 0.18);
+}
+
+.primary-action-button:disabled,
+.secondary-action-button:disabled,
+.applications-btn:disabled,
+.pipeline-step button:disabled {
+  filter: saturate(0.68);
+  opacity: 0.58;
+}
+
+.agent-badge {
+  border-color: color-mix(in srgb, currentColor 18%, var(--line-default));
+  background: color-mix(in srgb, currentColor 7%, var(--surface-card));
+  box-shadow: none;
+}
+
+.agent-badge.is-active {
+  border-color: color-mix(in srgb, currentColor 38%, var(--line-default));
+  box-shadow: 0 0 18px color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.profile-panel {
+  background:
+    radial-gradient(circle at 0 0, rgba(34, 211, 238, 0.045), transparent 26%),
+    linear-gradient(180deg, rgba(7, 11, 20, 0.98), rgba(9, 15, 29, 0.98));
+  border-right-color: var(--line-soft);
+}
+
+.sidebar-primary,
+.sidebar-secondary {
+  border-color: var(--line-soft);
+}
+
+.product-nav-item,
+.squad-agent {
+  border-color: transparent;
+  background: transparent;
+}
+
+button.product-nav-item:hover,
+.squad-agent:hover {
+  background: color-mix(in srgb, var(--cyan) 5%, transparent);
+}
+
+.product-nav-item.active,
+.squad-agent.active {
+  border-color: color-mix(in srgb, var(--nav-color, var(--squad-color, var(--cyan))) 18%, transparent);
+  background: color-mix(in srgb, var(--nav-color, var(--squad-color, var(--cyan))) 8%, transparent);
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--nav-color, var(--squad-color, var(--cyan))) 82%, transparent);
+}
+
+.application-pipeline {
+  background:
+    linear-gradient(180deg, rgba(12, 18, 32, 0.86), rgba(7, 11, 20, 0.68));
+}
+
+.application-pipeline::after {
+  opacity: 0.5;
+  box-shadow: 0 0 44px rgba(34, 211, 238, 0.035);
+}
+
+.pipeline-next-step {
+  border-color: rgba(255, 217, 61, 0.16);
+  background: rgba(255, 217, 61, 0.045);
+  display: block;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.pipeline-progress-label,
+.pipeline-toggle {
+  border-color: rgba(34, 211, 238, 0.16);
+  background: rgba(34, 211, 238, 0.045);
+}
+
+.pipeline-toggle:hover {
+  border-color: rgba(34, 211, 238, 0.3);
+  background: rgba(34, 211, 238, 0.08);
+}
+
+.pipeline-step {
+  border-color: var(--line-soft);
+  background: rgba(15, 23, 42, 0.64);
+  box-shadow: none;
+}
+
+.pipeline-step.completed { --step-color: var(--state-success); }
+.pipeline-step.available { --step-color: var(--state-current); }
+.pipeline-step.pending { --step-color: var(--state-info); }
+.pipeline-step.blocked { --step-color: var(--state-blocked); }
+.pipeline-step.error { --step-color: var(--state-danger); }
+
+.pipeline-step.current {
+  border-color: color-mix(in srgb, var(--step-color) 42%, var(--line-default));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--step-color) 7%, transparent), transparent),
+    rgba(15, 23, 42, 0.72);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--step-color) 9%, transparent);
+}
+
+.pipeline-node {
+  box-shadow: none;
+}
+
+.status-badge {
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.status-badge.completed { color: var(--state-success); }
+.status-badge.available { color: var(--state-current); }
+.status-badge.pending { color: var(--state-info); }
+.status-badge.blocked { color: var(--state-blocked); }
+.status-badge.error { color: var(--state-danger); }
+
+.section-card,
+.resume-upload-card,
+.job-analysis-summary > div,
+.match-score-card,
+.tailoring-summary > div,
+.pdi-summary > div,
+.pdi-main-goal,
+.pdi-section {
+  border-color: var(--line-soft);
+  background: var(--surface-card);
+  box-shadow: none;
+}
+
+.section-card.success,
+.resume-upload-card.success {
+  border-color: color-mix(in srgb, var(--state-success) 22%, var(--line-soft));
+  background: color-mix(in srgb, var(--state-success) 5%, var(--surface-card));
+}
+
+.section-card.warning,
+.pdi-section.priority {
+  border-color: color-mix(in srgb, var(--state-warning) 24%, var(--line-soft));
+  background: color-mix(in srgb, var(--state-warning) 5%, var(--surface-card));
+}
+
+.section-card.danger,
+.resume-upload-card.error {
+  border-color: color-mix(in srgb, var(--state-danger) 24%, var(--line-soft));
+  background: color-mix(in srgb, var(--state-danger) 5%, var(--surface-card));
+}
+
+.section-card.info {
+  border-color: color-mix(in srgb, var(--state-info) 22%, var(--line-soft));
+  background: color-mix(in srgb, var(--state-info) 5%, var(--surface-card));
+}
+
+.job-analyzer-intro,
+.resume-match-callout,
+.resume-tailoring-callout,
+.pdi-callout {
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+  box-shadow: none;
+}
+
+.resume-tailoring-callout {
+  border-color: color-mix(in srgb, var(--color-arcade-pink) 18%, var(--line-soft));
+}
+
+.pdi-callout {
+  border-color: color-mix(in srgb, var(--state-success) 18%, var(--line-soft));
+}
+
+.feedback-state,
+.generated-result-notice {
+  border-color: color-mix(in srgb, currentColor 18%, var(--line-soft));
+  background: color-mix(in srgb, currentColor 6%, var(--surface-card));
+}
+
+.feedback-state.error { color: var(--state-danger); }
+.feedback-state.success { color: var(--state-success); }
+.feedback-state.empty { color: var(--state-warning); }
+
+.skill-tag {
+  border-color: color-mix(in srgb, currentColor 22%, transparent);
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.skill-tag.strong,
+.skill-tag.safe {
+  color: var(--state-success);
+}
+
+.skill-tag.partial,
+.skill-tag.warning {
+  color: #fdba74;
+}
+
+.skill-tag.missing,
+.skill-tag.danger {
+  color: var(--state-danger);
+}
+
+.skill-tag.neutral {
+  color: var(--state-info);
+}
+
+.resume-modal-backdrop {
+  background: rgba(2, 6, 23, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.resume-modal-panel,
+.job-analyzer-modal,
+.pdi-modal {
+  border-color: var(--line-default);
+  background:
+    linear-gradient(180deg, rgba(17, 27, 48, 0.94), rgba(12, 18, 32, 0.96));
+  box-shadow: var(--shadow-floating);
+}
+
+.resume-modal-header {
+  border-bottom-color: var(--line-soft);
+  background: rgba(12, 18, 32, 0.92);
+}
+
+.generated-result {
+  gap: 16px;
+}
+
+.generated-result.result-highlight--active {
+  background: rgba(52, 211, 153, 0.025);
+  box-shadow:
+    0 0 0 3px rgba(52, 211, 153, 0.05),
+    0 0 20px rgba(34, 211, 238, 0.055);
+}
+
+.job-analysis-summary,
+.tailoring-summary,
+.pdi-summary,
+.match-breakdown {
+  gap: 10px;
+}
+
+.section-card-body ul,
+.match-list ul,
+.tailoring-section ul,
+.pdi-section ul {
+  line-height: 1.58;
+}
+
 @media (min-width: 1025px) {
   .sidebar.compact,
   .sidebar.compact .profile-panel {
@@ -5842,6 +6183,29 @@ button {
 }
 
 @media (max-width: 520px) {
+  .workspace-actions {
+    display: flex;
+    width: auto;
+    gap: 8px;
+  }
+
+  .workspace-actions .mode-pill,
+  .workspace-actions .agent-badge {
+    display: none;
+  }
+
+  .workspace-actions .applications-btn {
+    width: 44px;
+    min-width: 44px;
+    max-width: 44px;
+    padding: 0;
+    border-radius: 12px;
+  }
+
+  .workspace-actions .btn-text {
+    display: none;
+  }
+
   .generated-result-notice {
     align-items: flex-start;
     flex-direction: column;
