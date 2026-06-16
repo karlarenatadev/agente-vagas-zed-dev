@@ -270,10 +270,21 @@ class MaestroAgent(BaseAgent):
         return fields.get("concluido", "").strip().lower() == "true"
 
     def _reset_data_files(self) -> None:
-        """Remove arquivos de dados derivados ao refazer o quiz."""
-        for path in [self.paths.PROFILE_FILE, self.paths.JOB_RESULTS_FILE, self.paths.COURSE_RECS_FILE, self.paths.INTERVIEW_FILE]:
-            if path.exists():
-                path.unlink()
+        """Remove os artefatos persistidos da sessão ao refazer o quiz."""
+        reset_paths = (
+            self.paths.PROFILE_FILE,
+            self.paths.JOB_RESULTS_FILE,
+            self.paths.COURSE_RECS_FILE,
+            self.paths.INTERVIEW_FILE,
+            self.paths.RESUME_ANALYSIS_FILE,
+            self.paths.JOB_DESCRIPTION_ANALYSIS_FILE,
+            self.paths.RESUME_MATCH_REPORT_FILE,
+            self.paths.RESUME_TAILORING_SUGGESTIONS_FILE,
+            self.paths.PDI_PLAN_FILE,
+            self.paths.APPLICATIONS_FILE,
+        )
+        for path in reset_paths:
+            path.unlink(missing_ok=True)
 
     # ─── Fluxo principal ──────────────────────────────────────────────────────
 
