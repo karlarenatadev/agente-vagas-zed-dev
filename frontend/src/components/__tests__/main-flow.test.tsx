@@ -95,7 +95,38 @@ describe('fluxo principal do frontend', () => {
       expect((screen.getByRole('button', { name: /Abrir vaga/i }) as HTMLButtonElement).disabled).toBe(true)
       expect((screen.getByRole('button', { name: /Abrir relat/i }) as HTMLButtonElement).disabled).toBe(true)
       expect((screen.getByRole('button', { name: /Gerar PDI/i }) as HTMLButtonElement).disabled).toBe(true)
+      expect((screen.getByRole('button', { name: /Treinar entrevista/i }) as HTMLButtonElement).disabled).toBe(true)
     })
+    expectTextNow('proximo passo recomendado')
+    expectTextNow('gere o pdi antes de iniciar o treino')
+  })
+
+  it('explica o progresso quando a pipeline esta recolhida', async () => {
+    window.localStorage.setItem('import-vagas:pipeline-collapsed', 'true')
+    mockFetch(
+      response({ exists: true, content: 'Curriculo analisado com Python.' }),
+      response({ exists: true, content: 'Vaga analisada com requisitos.' }),
+      response({ exists: true, content: 'Match calculado.' }),
+      response({ exists: false, content: '' }),
+      response({ exists: false, content: '' }),
+    )
+
+    render(
+      <ApplicationPipeline
+        mode="menu"
+        onOpenResume={vi.fn()}
+        onOpenJob={vi.fn()}
+        onOpenPdi={vi.fn()}
+        onStartInterview={vi.fn()}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByRole('list', { name: /3 de 6 etapas/i })).toBeTruthy()
+    })
+    expect(screen.getAllByLabelText(/Sugest/i).some(element =>
+      element.getAttribute('aria-label')?.includes('disponivel agora')
+    )).toBe(true)
   })
 
   it('mostra mensagem amigavel quando a pipeline nao consegue sincronizar', async () => {
@@ -193,6 +224,7 @@ describe('fluxo principal do frontend', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Comparar com meu curr/i }))
     expect(onCompare).toHaveBeenCalledTimes(1)
+    expectTextNow('match aguardando curriculo e vaga')
 
     rerender(<ResumeMatchReport report={null} loading error="" onCompare={onCompare} />)
     expect(screen.getByText(/Cruzando as rotas/i)).toBeTruthy()
@@ -225,6 +257,7 @@ describe('fluxo principal do frontend', () => {
     vi.stubGlobal('fetch', vi.fn().mockReturnValueOnce(tailoringRequest.promise))
 
     render(<ResumeTailoringSuggestions />)
+    expectTextNow('sugestoes aguardando relatorio de match')
 
     fireEvent.click(screen.getByRole('button', { name: /Sugerir ajustes/i }))
     expectTextNow('organizando evidencias')
@@ -253,6 +286,7 @@ describe('fluxo principal do frontend', () => {
     render(<PdiPlan />)
 
     expect(await screen.findByRole('button', { name: /Gerar PDI para essa vaga/i })).toBeTruthy()
+    expectTextNow('pdi aguardando pre-requisitos')
     fireEvent.click(screen.getByRole('button', { name: /Gerar PDI para essa vaga/i }))
     await expectTextEventually('gere sugestoes seguras')
 
@@ -271,6 +305,15 @@ describe('fluxo principal do frontend', () => {
 
     await expectTextEventually('plano de desenvolvimento gerado')
     expect(screen.getByText(/PDI salvo/i)).toBeTruthy()
+  })
+
+  it('diferencia PDI salvo carregado de PDI gerado agora', async () => {
+    mockFetch(response(pdiFixture))
+
+    render(<PdiPlan />)
+
+    await expectTextEventually('pdi salvo carregado')
+    expectTextNow('gerar novamente')
   })
 
   it('cobre candidaturas com loading, vazio, erro e lista simples', async () => {

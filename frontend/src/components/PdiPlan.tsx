@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import {
-  AlertCircle,
   CalendarRange,
   Check,
   Clipboard,
@@ -8,7 +7,9 @@ import {
   Target,
 } from 'lucide-react'
 import { useScrollToResult } from '../hooks/useScrollToResult'
+import { getFriendlyErrorMessage } from '../lib/errorMessages'
 import type { PdiPlan as PdiPlanData } from '../types'
+import { FeedbackState } from './ui/FeedbackState'
 import { GeneratedResultNotice } from './ui/GeneratedResultNotice'
 
 async function copyText(value: string): Promise<void> {
@@ -96,11 +97,10 @@ export function PdiPlan() {
       } catch (requestError) {
         console.error('Falha ao carregar PDI:', requestError)
         if (active) {
-          setError(
-            requestError instanceof Error
-              ? requestError.message
-              : 'Não foi possível carregar o PDI salvo.'
-          )
+          setError(getFriendlyErrorMessage(
+            requestError,
+            'Não foi possível carregar o PDI salvo.'
+          ))
         }
       } finally {
         if (active) setLoadingSaved(false)
@@ -137,11 +137,10 @@ export function PdiPlan() {
       window.dispatchEvent(new Event('pipeline-updated'))
     } catch (requestError) {
       console.error('Falha ao gerar PDI:', requestError)
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : 'Não foi possível gerar o PDI.'
-      )
+      setError(getFriendlyErrorMessage(
+        requestError,
+        'Não foi possível gerar o PDI.'
+      ))
       revealError()
     } finally {
       setLoading(false)
@@ -181,13 +180,22 @@ export function PdiPlan() {
       {error && (
         <div
           ref={errorRef}
-          className="resume-upload-message error"
-          role="alert"
           tabIndex={-1}
         >
-          <AlertCircle size={15} aria-hidden="true" />
-          <span>{error}</span>
+          <FeedbackState
+            tone="error"
+            title={error}
+            description="Para gerar o PDI, conclua currículo, vaga, match e sugestões seguras. Se já fez isso, tente novamente em alguns instantes."
+          />
         </div>
+      )}
+
+      {!loadingSaved && !loading && !error && !data && (
+        <FeedbackState
+          tone="empty"
+          title="PDI aguardando pré-requisitos"
+          description="Conclua as sugestões seguras da etapa anterior para liberar um plano de 7, 30 e 60 dias."
+        />
       )}
 
       {data && (
@@ -200,6 +208,12 @@ export function PdiPlan() {
             <GeneratedResultNotice
               title="Plano de desenvolvimento gerado"
               nextStep="Próximo passo: use o plano e avance para o treino de entrevista."
+            />
+          )}
+          {!generatedNow && (
+            <GeneratedResultNotice
+              title="PDI salvo carregado"
+              nextStep="Você pode revisar este plano ou gerar novamente depois de atualizar vaga, match ou sugestões."
             />
           )}
           <div className="pdi-summary">

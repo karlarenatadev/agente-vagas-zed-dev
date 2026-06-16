@@ -4127,6 +4127,26 @@ textarea::placeholder {
   gap: 8px;
 }
 
+.pipeline-next-step {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 217, 61, 0.18);
+  border-radius: var(--radius-md);
+  background: rgba(255, 217, 61, 0.055);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.pipeline-next-step strong {
+  color: var(--color-arcade-yellow);
+}
+
 .pipeline-toggle {
   display: inline-flex;
   align-items: center;
@@ -4579,6 +4599,8 @@ textarea::placeholder {
 }
 
 .feedback-state.empty {
+  border-color: rgba(251, 146, 60, 0.24);
+  background: rgba(251, 146, 60, 0.07);
   color: var(--color-arcade-orange);
 }
 

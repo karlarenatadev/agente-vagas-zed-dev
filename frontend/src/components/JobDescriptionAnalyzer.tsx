@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { BriefcaseBusiness, Loader2, Search } from 'lucide-react'
 import { useScrollToResult } from '../hooks/useScrollToResult'
+import { getFriendlyErrorMessage } from '../lib/errorMessages'
 import type { JobDescriptionAnalysis, ResumeMatchReport as ResumeMatchReportData } from '../types'
 import { ResumeMatchReport } from './ResumeMatchReport'
 import { FeedbackState } from './ui/FeedbackState'
@@ -119,11 +120,10 @@ export function JobDescriptionAnalyzer() {
       window.dispatchEvent(new Event('pipeline-updated'))
     } catch (requestError) {
       console.error('Falha na análise da descrição da vaga:', requestError)
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : 'Não foi possível analisar a descrição da vaga.'
-      )
+      setError(getFriendlyErrorMessage(
+        requestError,
+        'Não foi possível analisar a descrição da vaga.'
+      ))
       revealError()
     } finally {
       setLoading(false)
@@ -151,11 +151,10 @@ export function JobDescriptionAnalyzer() {
       window.dispatchEvent(new Event('pipeline-updated'))
     } catch (requestError) {
       console.error('Falha na comparação da vaga com o currículo:', requestError)
-      setMatchError(
-        requestError instanceof Error
-          ? requestError.message
-          : 'Não foi possível comparar a vaga com o currículo.'
-      )
+      setMatchError(getFriendlyErrorMessage(
+        requestError,
+        'Não foi possível comparar a vaga com o currículo.'
+      ))
     } finally {
       setMatchLoading(false)
     }

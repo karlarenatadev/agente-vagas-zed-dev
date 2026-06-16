@@ -6,6 +6,7 @@ import {
   Map,
 } from 'lucide-react'
 import { useScrollToResult } from '../hooks/useScrollToResult'
+import { getFriendlyErrorMessage } from '../lib/errorMessages'
 import type { ResumeTailoringSuggestions as TailoringData } from '../types'
 import { CopyButton } from './ui/CopyButton'
 import { FeedbackState } from './ui/FeedbackState'
@@ -72,11 +73,10 @@ export function ResumeTailoringSuggestions() {
       window.dispatchEvent(new Event('pipeline-updated'))
     } catch (requestError) {
       console.error('Falha ao gerar sugestões de currículo:', requestError)
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : 'Não foi possível gerar as sugestões de currículo.'
-      )
+      setError(getFriendlyErrorMessage(
+        requestError,
+        'Não foi possível gerar as sugestões de currículo.'
+      ))
       revealError()
     } finally {
       setLoading(false)
@@ -122,6 +122,14 @@ export function ResumeTailoringSuggestions() {
           tone="loading"
           title="Organizando evidências..."
           description="Separando o que pode entrar, o que precisa de cuidado e o que ainda falta comprovar."
+        />
+      )}
+
+      {!data && !loading && !error && (
+        <FeedbackState
+          tone="empty"
+          title="Sugestões aguardando relatório de match"
+          description="Quando o match estiver pronto, gere ajustes seguros sem inventar experiência."
         />
       )}
 

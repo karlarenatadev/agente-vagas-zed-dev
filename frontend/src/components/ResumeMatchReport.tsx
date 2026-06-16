@@ -130,6 +130,14 @@ export function ResumeMatchReport({ report, loading, error, onCompare }: Props) 
         />
       )}
 
+      {!report && !loading && !error && (
+        <FeedbackState
+          tone="empty"
+          title="Match aguardando currículo e vaga"
+          description="Analise uma vaga e um currículo para liberar a comparação de aderência."
+        />
+      )}
+
       {report && (
         <div
           ref={targetRef}

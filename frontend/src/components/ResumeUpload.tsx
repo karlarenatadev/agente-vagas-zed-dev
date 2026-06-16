@@ -2,6 +2,7 @@ import { type ChangeEvent, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { AlertCircle, CheckCircle2, FileText, Loader2, UploadCloud } from 'lucide-react'
 import { useScrollToResult } from '../hooks/useScrollToResult'
+import { getFriendlyErrorMessage } from '../lib/errorMessages'
 import type { ResumeAnalysis, ResumeUploadResponse } from '../types'
 import { GeneratedResultNotice } from './ui/GeneratedResultNotice'
 
@@ -139,7 +140,10 @@ export function ResumeUpload({ onContinueQuiz }: Props) {
     } catch (error) {
       console.error('Falha no upload do currículo:', error)
       setStatus('error')
-      setMessage('Não foi possível analisar o currículo. Envie um PDF, DOCX ou TXT com texto legível.')
+      setMessage(getFriendlyErrorMessage(
+        error,
+        'Não foi possível analisar o currículo. Envie um PDF, DOCX ou TXT com texto legível.'
+      ))
       revealError()
     }
   }

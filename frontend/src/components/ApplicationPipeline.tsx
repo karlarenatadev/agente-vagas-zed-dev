@@ -49,6 +49,13 @@ const INVALID_MARKERS = [
   'aguardando análise válida',
 ]
 
+function getStatusLabel(status: PipelineStatus): string {
+  if (status === 'completed') return 'concluido'
+  if (status === 'available') return 'disponivel agora'
+  if (status === 'blocked') return 'bloqueado'
+  return 'pendente'
+}
+
 function hasValidContent(data: DataFileResponse | null): boolean {
   if (!data?.exists || !data.content.trim()) return false
   const normalized = data.content.toLocaleLowerCase('pt-BR')
@@ -145,6 +152,8 @@ export function ApplicationPipeline({
     const matchCompleted = snapshot.match || snapshot.tailoring
     const tailoringCompleted = snapshot.tailoring
     const pdiCompleted = snapshot.pdi
+    const interviewCompleted = mode === 'coach'
+    const interviewAvailable = pdiCompleted || interviewCompleted
 
     return [
       {
@@ -213,17 +222,27 @@ export function ApplicationPipeline({
         key: 'interview',
         label: 'Entrevista',
         description: 'Treine respostas para a oportunidade.',
-        next: mode === 'coach' ? 'Treino em andamento.' : 'Disponível no Coach.',
-        status: (mode === 'coach' ? 'completed' : 'available') as PipelineStatus,
+        next: interviewCompleted
+          ? 'Treino em andamento.'
+          : interviewAvailable
+            ? 'PDI pronto. Agora treine respostas para a vaga.'
+            : 'Gere o PDI antes de iniciar o treino.',
+        status: (interviewCompleted ? 'completed' : interviewAvailable ? 'available' : 'blocked') as PipelineStatus,
         icon: UserRoundCheck,
         action: onStartInterview,
-        actionLabel: mode === 'coach' ? 'Continuar treino' : 'Treinar entrevista',
+        actionLabel: interviewCompleted ? 'Continuar treino' : 'Treinar entrevista',
       },
     ]
   }, [mode, onOpenJob, onOpenPdi, onOpenResume, onStartInterview, snapshot])
 
   const currentIndex = steps.findIndex(step => step.status === 'available')
-  const activeIndex = currentIndex === -1 ? steps.findIndex(step => step.status === 'pending') : currentIndex
+  const activeIndex = currentIndex === -1
+    ? steps.findIndex(step => step.status === 'blocked')
+    : currentIndex
+  const completedCount = steps.filter(step => step.status === 'completed').length
+  const recommendedStep = steps.find(step => step.status === 'available')
+    ?? steps.find(step => step.status === 'blocked')
+    ?? steps[steps.length - 1]
 
   return (
     <section
@@ -243,14 +262,19 @@ export function ApplicationPipeline({
         {collapsed && (
           <div
             className="pipeline-minibar"
-            role="img"
-            aria-label={`Progresso da rota: ${steps.slice(0, 4).filter(step => step.status === 'completed').length} de 4 etapas-base concluídas`}
+            role="list"
+            aria-label={`Progresso da rota: ${completedCount} de ${steps.length} etapas concluidas. Proximo passo: ${recommendedStep.label}. ${recommendedStep.next}`}
           >
             {steps.map((step, index) => (
-              <div className="minibar-segment" key={step.key}>
+              <div
+                className="minibar-segment"
+                key={step.key}
+                role="listitem"
+                aria-label={`${step.label}: ${getStatusLabel(step.status)}. ${step.next}`}
+              >
                 <span
                   className={`minibar-node ${step.status} ${index === activeIndex ? 'current' : ''}`}
-                  title={`${step.label} — ${step.status === 'completed' ? 'concluído' : step.status === 'available' ? 'disponível' : step.status === 'blocked' ? 'bloqueado' : 'pendente'}`}
+                  title={`${step.label} - ${getStatusLabel(step.status)}. ${step.next}`}
                 />
                 {index < steps.length - 1 && (
                   <span className={`minibar-link ${step.status === 'completed' ? 'filled' : ''}`} aria-hidden="true" />
@@ -263,7 +287,7 @@ export function ApplicationPipeline({
         <div className="pipeline-header-actions">
           <span className="pipeline-progress-label">
             <FileCheck2 size={14} aria-hidden="true" />
-            {steps.slice(0, 4).filter(step => step.status === 'completed').length} de 4 etapas-base concluídas
+            {completedCount} de {steps.length} etapas concluídas
           </span>
           <button
             type="button"
@@ -281,6 +305,12 @@ export function ApplicationPipeline({
           </button>
         </div>
       </header>
+
+      {!collapsed && (
+        <p className="pipeline-next-step" role="status">
+          <strong>Próximo passo recomendado:</strong> {recommendedStep.label} - {recommendedStep.next}
+        </p>
+      )}
 
       {!collapsed && snapshot.failed && (
         <p className="pipeline-sync-note">
