@@ -511,6 +511,16 @@ Sessão executada em 2026-06-15, limitada ao frontend e à documentação.
 * [x] `npm run build` passa.
 * [ ] Revalidar especificamente o auto-scroll para mensagens de erro em todos os fluxos.
 
+## Automação de CI e guarda de dados
+
+Sessão refletida pelos commits `d01b67c` e `ce92319`.
+
+* [x] Workflow `Frontend CI` criado em `.github/workflows/ci.yml` para instalar dependências, rodar lint e gerar build do frontend.
+* [x] Workflow `Backend CI` criado em `.github/workflows/backend-ci.yml` para instalar dependências, compilar arquivos Python e importar a aplicação FastAPI.
+* [x] Workflow `Data Guard` criado em `.github/workflows/data-guard.yml` para bloquear arquivos sensíveis de runtime rastreados em `data/`.
+* [x] Workflow `Docs Check` criado em `.github/workflows/docs-check.yml` para verificar a presença dos documentos principais.
+* [ ] Incluir `data/applications.json` no `.gitignore`, além do bloqueio de rastreamento já coberto pelo `Data Guard`.
+
 ## Visão geral
 
 O Import Vagas está evoluindo de uma plataforma conversacional de carreira para um copiloto completo de candidatura.
@@ -1040,7 +1050,8 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 * [ ] Criar seção de roadmap.
 * [ ] Criar seção de decisões de arquitetura.
 * [ ] Adicionar prints futuramente.
-* [ ] Atualizar `README.md` para React 19, TypeScript 6, novas rotas e novos artefatos.
+* [x] Atualizar `README.md` com currículo, filtro de data, análise de vaga, match, sugestões, PDI, candidaturas, Career Arcade Pipeline e privacidade de `data/`.
+* [ ] Revisar `README.md` para alinhar versões exibidas de React/TypeScript e completar a documentação de rotas REST.
 * [ ] Atualizar `plano.md`, que ainda descreve escopo e quantidade de perguntas antigos.
 * [ ] Atualizar `docs/project-update-report.md` com os commits, validações e estado da entrevista atuais.
 
@@ -1139,6 +1150,7 @@ Uma etapa só deve ser considerada pronta quando:
 ## Arquitetura completa validada
 
 ### Backend (FastAPI + Python)
+
 * [x] 22 endpoints HTTP, 1 WebSocket e 4 rotas automáticas de documentação registrados
 * [x] 9 agentes especializados implementados
 * [x] WebSocket para chat em tempo real
@@ -1148,6 +1160,7 @@ Uma etapa só deve ser considerada pronta quando:
 * [x] Fallbacks locais para Firecrawl
 
 ### Frontend (React 19 + TypeScript + Vite)
+
 * [x] 15+ componentes implementados
 * [x] Pipeline visual Career Arcade
 * [x] Sistema responsivo validado (8 resoluções)
@@ -1157,6 +1170,7 @@ Uma etapa só deve ser considerada pronta quando:
 * [x] Tratamento de estados (loading, erro, sucesso)
 
 ### Fluxos principais implementados
+
 * [x] Diagnóstico de perfil com quiz
 * [x] Upload e análise de currículo
 * [x] Análise de descrição de vaga
@@ -1170,6 +1184,7 @@ Uma etapa só deve ser considerada pronta quando:
 ## Bloqueadores críticos para produção
 
 ### 1. ~~Arquivo `resume-analysis.md` não é gerado~~ ✅ RESOLVIDO
+
 **Status:** RESOLVIDO em 2026-06-14
 
 **Descoberta:**
@@ -1177,6 +1192,7 @@ Uma etapa só deve ser considerada pronta quando:
 - O problema era a **ausência da rota de leitura** em `data_files.py`
 
 **Correções aplicadas:**
+
 - ✅ Adicionado endpoint `GET /api/data/resume-analysis` em `data_files.py`
 - ✅ Pipeline atualizada para ler o arquivo via API
 - ✅ API passou a ser a fonte principal; `localStorage` obsoleto é removido quando o artefato não existe
@@ -1186,11 +1202,13 @@ Uma etapa só deve ser considerada pronta quando:
 **Status:** RESOLVIDO em 2026-06-14
 
 **Descoberta:**
+
 - Firecrawl CLI está instalado e funcionando perfeitamente (versão 1.18.1)
 - API Key configurada corretamente no `.env`
 - O problema era o **formato de resposta** que mudou na versão atual
 
 **Formato antigo esperado:**
+
 ```json
 {"data": [...]}
 ```
@@ -1206,6 +1224,7 @@ Uma etapa só deve ser considerada pronta quando:
 ```
 
 **Correções aplicadas:**
+
 - ✅ Atualizado `Scout._run_firecrawl_search()` para processar `data.web`
 - ✅ Atualizado `Curator._normalize_search_payload()` para processar `data.web`
 - ✅ Mantida retrocompatibilidade com formatos alternativos
@@ -1213,15 +1232,18 @@ Uma etapa só deve ser considerada pronta quando:
 - ✅ Validado: `firecrawl search "test" --json` retorna 10 resultados reais
 
 ### 3. ~~Componente PDI não está integrado à interface~~ ✅ RESOLVIDO
+
 **Status:** RESOLVIDO em 2026-06-14
 
 **Correções aplicadas:**
+
 - `PdiPlan.tsx` é carregado sob demanda em um modal acessível.
 - Pipeline libera a ação do PDI após a conclusão das sugestões seguras.
 - Plano salvo é recuperado por `GET /api/pdi/latest`.
 - Geração bem-sucedida atualiza imediatamente o estado da pipeline.
 
 **Validações executadas:**
+
 - [x] `npm run lint`
 - [x] `npm run build`
 - [x] `py_compile` e importação do FastAPI com 27 rotas.
@@ -1230,36 +1252,42 @@ Uma etapa só deve ser considerada pronta quando:
 - [x] Validar estado vazio, erro de geração, persistência e ausência de overflow horizontal.
 
 ### 4. ~~Rota de leitura para resume-analysis ausente~~ ✅ RESOLVIDO
+
 **Status:** RESOLVIDO em 2026-06-14 (mesmo commit do item 1)
 
 ## Melhorias recomendadas (não bloqueantes)
 
 ### Privacidade e dados locais
+
 * [x] Adicionar `data/*.md` ao `.gitignore` (evitar commit de dados pessoais)
 * [x] Remover arquivos de runtime do rastreamento do Git
 * [x] Manter `data/README.md` e permitir exemplos sanitizados `*.example.md`
 * [x] Documentar em `data/README.md` que `data/` contém estado local potencialmente sensível
 
 ### Testes automatizados
+
 * [ ] Criar testes unitários para agentes principais
 * [ ] Criar testes de integração para rotas críticas
 * [ ] Criar testes E2E para fluxo completo de candidatura
 * [ ] Adicionar validação de schemas dos arquivos Markdown
 
 ### Documentação
-* [ ] Atualizar `README.md` com rotas e artefatos atuais
+
+* [x] Atualizar `README.md` com funcionalidades, artefatos e privacidade atuais
 * [ ] Atualizar `plano.md` com escopo e perguntas corretos
 * [ ] Atualizar `docs/project-update-report.md` com commits recentes
 * [ ] Criar diagramas de fluxo de dados
 * [ ] Documentar estrutura dos arquivos Markdown em `data/`
 
 ### Performance
+
 * [ ] Aplicar lazy loading em todos os módulos principais
 * [ ] Revisar tamanho do bundle (atual: 357,78 kB principal + 171,20 kB chat)
 * [ ] Evitar duplicação de tipos TypeScript
 * [ ] Otimizar imports e tree-shaking
 
 ### Configuração externa
+
 * [x] Configurar `FIRECRAWL_API_KEY` no ambiente
 * [x] Testar busca real de vagas diretamente pelo Firecrawl CLI
 * [ ] Testar busca real de cursos com Firecrawl
@@ -1269,6 +1297,7 @@ Uma etapa só deve ser considerada pronta quando:
 ## Próximas features planejadas
 
 ### Coach conectado à vaga
+
 * [ ] Usar descrição da vaga como contexto
 * [ ] Usar relatório de aderência como contexto
 * [ ] Criar perguntas técnicas baseadas nos requisitos
@@ -1276,12 +1305,14 @@ Uma etapa só deve ser considerada pronta quando:
 * [ ] Gerar feedback direcionado às lacunas identificadas
 
 ### Reconciliação de dados
+
 * [ ] Detectar conflito entre perfil declarado e currículo analisado
 * [ ] Detectar conflito entre currículo e vaga
 * [ ] Permitir escolher foco da candidatura (perfil vs currículo vs vaga)
 * [ ] Atualizar perfil somente com confirmação do usuário
 
 ### Isolamento multiusuário
+
 * [ ] Implementar sessions ou user IDs
 * [ ] Separar dados por usuário em `data/{user_id}/`
 * [ ] Evitar sobrescrita de dados entre usuários simultâneos
