@@ -1,5 +1,41 @@
 # Roadmap — Evolução do Import Vagas
 
+## Problemas críticos de arquitetura: isolamento + lock
+
+Sessão executada em 2026-06-16.
+
+### Lock e escrita atômica de applications.json
+
+* [x] `asyncio.Lock` serializa o ciclo ler-modificar-gravar (create/update/delete).
+* [x] Escrita atômica via arquivo temporário + `os.replace` (nunca trunca o JSON
+  se o processo cair no meio).
+* [x] `tests/test_applications.py`: 8 testes (CRUD, stats, 404, atomicidade e
+  isolamento entre sessões) — rotas que antes não tinham cobertura.
+
+### Isolamento multiusuário por session_id anônimo
+
+* [x] `backend/session.py`: `SessionPaths` (espelha os nomes de `config`),
+  `sanitize_session_id` (neutraliza path traversal) e dependency
+  `get_session_paths` (lê o header `X-Session-Id`). Sessão default usa `data/`;
+  sessões reais ficam em `data/sessions/{id}/`.
+* [x] Todas as rotas REST migradas para `Depends(get_session_paths)`:
+  data_files, profile, resume, resume_match, resume_tailoring, job_description,
+  pdi e applications.
+* [x] `BaseAgent` recebe `SessionPaths`; Maestro, Coach, Scout e Curator usam
+  `self.paths.*` em vez de `config.*_FILE`/`Path("data")`. Maestro propaga os
+  paths aos sub-agentes.
+* [x] WebSocket lê `session_id` da query string e cria o Maestro com os paths
+  da sessão.
+* [x] Frontend: `lib/session.ts` gera um ID anônimo (localStorage), injeta o
+  header `X-Session-Id` em todo `/api/` via wrapper de `fetch`, e passa
+  `session_id` na URL do WebSocket.
+* [x] `tests/test_session.py` (8) e `tests/test_agents_paths.py` (4) cobrindo
+  sanitização, isolamento de paths e propagação aos agentes.
+* [x] `59 passed`; `npm run lint`/`npm run build` do frontend passam; app FastAPI
+  importa com 31 rotas.
+* [ ] Migração de dados legados de `data/*.md` para uma sessão (hoje viram a
+  sessão default; usuários novos começam em `data/sessions/{id}/`).
+
 ## Primeiros testes automatizados do backend
 
 Sessão executada em 2026-06-16.

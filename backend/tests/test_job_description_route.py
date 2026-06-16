@@ -17,11 +17,10 @@ from main import app
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
-    # Redireciona o arquivo que a rota grava para a pasta temporária do teste.
-    # monkeypatch desfaz a alteração sozinho quando o teste acaba.
-    monkeypatch.setattr(
-        config, "JOB_DESCRIPTION_ANALYSIS_FILE", tmp_path / "job.md"
-    )
+    # Redireciona a pasta de dados para a pasta temporária do teste. A sessão
+    # default (sem header X-Session-Id) escreve direto em config.DATA_DIR, então
+    # isolar a DATA_DIR isola tudo. monkeypatch desfaz sozinho ao fim do teste.
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
     return TestClient(app)
 
 

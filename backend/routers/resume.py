@@ -5,10 +5,11 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter, Depends, File, UploadFile
 from fastapi.responses import JSONResponse
 
 import config
+from session import SessionPaths, get_session_paths
 
 router = APIRouter()
 
@@ -641,9 +642,9 @@ def _is_empty(value: str | None) -> bool:
     }
 
 
-def _merge_profile_suggestions(analysis: dict[str, Any]) -> bool:
+def _merge_profile_suggestions(analysis: dict[str, Any], paths: SessionPaths) -> bool:
     try:
-        existing = config.PROFILE_FILE.read_text(encoding="utf-8")
+        existing = paths.PROFILE_FILE.read_text(encoding="utf-8")
     except FileNotFoundError:
         existing = ""
 
@@ -686,8 +687,8 @@ def _merge_profile_suggestions(analysis: dict[str, Any]) -> bool:
     )
 
     if updated or not existing:
-        config.PROFILE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        config.PROFILE_FILE.write_text(
+        paths.PROFILE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        paths.PROFILE_FILE.write_text(
             _profile_to_markdown(profile),
             encoding="utf-8",
         )
@@ -696,9 +697,9 @@ def _merge_profile_suggestions(analysis: dict[str, Any]) -> bool:
 
 
 @router.get("/latest")
-async def get_latest_resume_analysis():
+async def get_latest_resume_analysis(paths: SessionPaths = Depends(get_session_paths)):
     try:
-        content = config.RESUME_ANALYSIS_FILE.read_text(encoding="utf-8")
+        content = paths.RESUME_ANALYSIS_FILE.read_text(encoding="utf-8")
     except FileNotFoundError:
         return JSONResponse(
             status_code=404,
@@ -716,7 +717,10 @@ async def get_latest_resume_analysis():
 
 
 @router.post("/upload")
-async def upload_resume(file: UploadFile = File(...)):
+async def upload_resume(
+    file: UploadFile = File(...),
+    paths: SessionPaths = Depends(get_session_paths),
+):
     filename = file.filename or ""
     extension = Path(filename).suffix.lower()
 
@@ -745,13 +749,13 @@ async def upload_resume(file: UploadFile = File(...)):
 
     analysis = _analyze_resume(extracted_text)
 
-    config.RESUME_ANALYSIS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    config.RESUME_ANALYSIS_FILE.write_text(
+    paths.RESUME_ANALYSIS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    paths.RESUME_ANALYSIS_FILE.write_text(
         _analysis_to_markdown(analysis),
         encoding="utf-8",
     )
 
-    profile_updated = _merge_profile_suggestions(analysis)
+    profile_updated = _merge_profile_suggestions(analysis, paths)
 
     return {
         "success": True,

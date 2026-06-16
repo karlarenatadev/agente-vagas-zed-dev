@@ -12,6 +12,7 @@ from typing import AsyncGenerator
 from openai import AsyncOpenAI
 
 import config
+from session import SessionPaths
 
 
 class BaseAgent(ABC):
@@ -19,9 +20,12 @@ class BaseAgent(ABC):
 
     name: str = "BaseAgent"
 
-    def __init__(self):
+    def __init__(self, paths: SessionPaths | None = None):
         self.client = AsyncOpenAI(api_key=config.OPENAI_API_KEY)
         self.model = config.LLM_MODEL
+        # Caminhos dos artefatos desta sessão. Sem paths explícito, cai na
+        # sessão default (pasta data/), preservando o comportamento legado.
+        self.paths = paths or SessionPaths()
 
     def _read_file(self, path) -> str:
         """Lê um arquivo e retorna seu conteúdo. Retorna string vazia se não existir."""

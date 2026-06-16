@@ -24,6 +24,7 @@ from typing import Any
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from agents.maestro import MaestroAgent
+from session import SessionPaths
 
 router = APIRouter()
 
@@ -160,11 +161,16 @@ async def websocket_chat(websocket: WebSocket):
     """
     await websocket.accept()
 
+    # ID da sessão vem da query string do WebSocket (ws://.../chat?session_id=...).
+    # Cada conexão isola seus dados em data/sessions/{id}/ via SessionPaths.
+    session_id = websocket.query_params.get("session_id")
+    paths = SessionPaths(session_id)
+
     # Estado inicial da sessão
     session = _initial_session()
     await websocket.send_json({"type": "state", "content": _session_payload(session)})
 
-    maestro = MaestroAgent()
+    maestro = MaestroAgent(paths)
 
     # Envia mensagem de boas-vindas ao conectar
     try:

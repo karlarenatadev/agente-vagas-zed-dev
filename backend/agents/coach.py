@@ -12,7 +12,6 @@ from __future__ import annotations
 import re
 from typing import AsyncGenerator
 
-import config
 from agents.base import BaseAgent
 
 
@@ -372,9 +371,9 @@ LLM indisponivel durante avaliacao final ({type(error).__name__}). Usei avaliaca
 
     async def run(self, context: dict) -> AsyncGenerator[str, None]:
         step = int(context.get("step", 1))
-        profile = context.get("profile", "") or self._read_context_file(config.PROFILE_FILE)
-        job_results = context.get("job_results", "") or self._read_context_file(config.JOB_RESULTS_FILE)
-        course_recommendations = context.get("course_recommendations", "") or self._read_context_file(config.COURSE_RECS_FILE)
+        profile = context.get("profile", "") or self._read_context_file(self.paths.PROFILE_FILE)
+        job_results = context.get("job_results", "") or self._read_context_file(self.paths.JOB_RESULTS_FILE)
+        course_recommendations = context.get("course_recommendations", "") or self._read_context_file(self.paths.COURSE_RECS_FILE)
         interview_context = context.get("interview_context", "")
         history = context.get("history", [])
         history_text = self._format_history(history)

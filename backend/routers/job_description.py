@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
-import config
+from session import SessionPaths, get_session_paths
 from agents.job_description_analyzer import (
     JobDescriptionAnalyzer,
     analysis_from_markdown,
@@ -38,9 +38,9 @@ class JobDescriptionAnalysisResponse(BaseModel):
 
 
 @router.get("/latest", response_model=JobDescriptionAnalysisResponse)
-async def get_latest_job_description():
+async def get_latest_job_description(paths: SessionPaths = Depends(get_session_paths)):
     try:
-        content = config.JOB_DESCRIPTION_ANALYSIS_FILE.read_text(encoding="utf-8")
+        content = paths.JOB_DESCRIPTION_ANALYSIS_FILE.read_text(encoding="utf-8")
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Nenhuma vaga foi analisada ainda.")
 
@@ -55,7 +55,10 @@ async def get_latest_job_description():
 
 
 @router.post("/analyze", response_model=JobDescriptionAnalysisResponse)
-async def analyze_job_description(body: JobDescriptionRequest):
+async def analyze_job_description(
+    body: JobDescriptionRequest,
+    paths: SessionPaths = Depends(get_session_paths),
+):
     description = body.description.strip()
     if len(description) < 40:
         raise HTTPException(
@@ -64,8 +67,8 @@ async def analyze_job_description(body: JobDescriptionRequest):
         )
 
     analysis = analyzer.analyze(description)
-    config.JOB_DESCRIPTION_ANALYSIS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    config.JOB_DESCRIPTION_ANALYSIS_FILE.write_text(
+    paths.JOB_DESCRIPTION_ANALYSIS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    paths.JOB_DESCRIPTION_ANALYSIS_FILE.write_text(
         analysis_to_markdown(analysis),
         encoding="utf-8",
     )

@@ -3,9 +3,9 @@ Router de perfil — endpoints REST para leitura do perfil do usuário.
 Usado pelo frontend para exibir o painel de stats do personagem.
 """
 
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Depends, Response
 
-import config
+from session import SessionPaths, get_session_paths
 
 router = APIRouter()
 
@@ -21,12 +21,12 @@ def _parse_md_to_dict(content: str) -> dict[str, str]:
 
 
 @router.get("/")
-async def get_profile(response: Response):
+async def get_profile(response: Response, paths: SessionPaths = Depends(get_session_paths)):
     """Retorna o perfil do usuário como JSON."""
     response.headers["Cache-Control"] = "no-store"
     content = ""
     try:
-        content = config.PROFILE_FILE.read_text(encoding="utf-8")
+        content = paths.PROFILE_FILE.read_text(encoding="utf-8")
     except FileNotFoundError:
         return {"exists": False, "data": {}}
 
@@ -35,10 +35,10 @@ async def get_profile(response: Response):
 
 
 @router.get("/quiz-status")
-async def get_quiz_status():
+async def get_quiz_status(paths: SessionPaths = Depends(get_session_paths)):
     """Retorna se o quiz foi completado."""
     try:
-        content = config.QUIZ_FILE.read_text(encoding="utf-8")
+        content = paths.QUIZ_FILE.read_text(encoding="utf-8")
         data = _parse_md_to_dict(content)
         return {
             "exists": True,

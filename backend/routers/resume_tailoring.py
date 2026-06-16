@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-import config
+from session import SessionPaths, get_session_paths
 from routers.common import read_required
 from agents.resume_tailor import (
     ResumeTailor,
@@ -47,9 +47,11 @@ class ResumeTailoringResponse(BaseModel):
 
 
 @router.get("/latest", response_model=ResumeTailoringResponse)
-async def get_latest_resume_tailoring() -> dict[str, Any]:
+async def get_latest_resume_tailoring(
+    paths: SessionPaths = Depends(get_session_paths),
+) -> dict[str, Any]:
     try:
-        content = config.RESUME_TAILORING_SUGGESTIONS_FILE.read_text(
+        content = paths.RESUME_TAILORING_SUGGESTIONS_FILE.read_text(
             encoding="utf-8"
         )
     except FileNotFoundError:
@@ -71,6 +73,7 @@ async def get_latest_resume_tailoring() -> dict[str, Any]:
 @router.post("/generate", response_model=ResumeTailoringResponse)
 async def generate_resume_tailoring(
     body: ResumeTailoringRequest | None = None,
+    paths: SessionPaths = Depends(get_session_paths),
 ) -> dict[str, Any]:
     request = body or ResumeTailoringRequest()
     if not all(
@@ -86,7 +89,7 @@ async def generate_resume_tailoring(
         )
 
     resume_content = read_required(
-        config.RESUME_ANALYSIS_FILE,
+        paths.RESUME_ANALYSIS_FILE,
         "Envie e analise um currículo primeiro.",
         "A análise do currículo está vazia ou inválida. Envie o currículo novamente.",
     )
@@ -97,7 +100,7 @@ async def generate_resume_tailoring(
         )
 
     job_content = read_required(
-        config.JOB_DESCRIPTION_ANALYSIS_FILE,
+        paths.JOB_DESCRIPTION_ANALYSIS_FILE,
         "Analise uma descrição de vaga primeiro.",
         "A análise da vaga está vazia ou inválida. Analise a vaga novamente.",
     )
@@ -108,7 +111,7 @@ async def generate_resume_tailoring(
         )
 
     match_content = read_required(
-        config.RESUME_MATCH_REPORT_FILE,
+        paths.RESUME_MATCH_REPORT_FILE,
         "Compare a vaga com o currículo primeiro.",
         "O relatório de aderência está vazio ou inválido. Execute a comparação novamente.",
     )
@@ -119,11 +122,11 @@ async def generate_resume_tailoring(
         )
 
     result = tailor.generate(resume_content, job_content, match_content)
-    config.RESUME_TAILORING_SUGGESTIONS_FILE.parent.mkdir(
+    paths.RESUME_TAILORING_SUGGESTIONS_FILE.parent.mkdir(
         parents=True,
         exist_ok=True,
     )
-    config.RESUME_TAILORING_SUGGESTIONS_FILE.write_text(
+    paths.RESUME_TAILORING_SUGGESTIONS_FILE.write_text(
         tailoring_to_markdown(result),
         encoding="utf-8",
     )

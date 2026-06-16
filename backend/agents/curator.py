@@ -197,7 +197,9 @@ class CuratorAgent(BaseAgent):
     name = "Curator"
 
     def _read_data_file(self, filename: str) -> str:
-        path = Path("data") / filename
+        # Lê da pasta da sessão atual (não mais de um "data/" global), para
+        # respeitar o isolamento por sessão.
+        path = self.paths.dir / filename
         if not path.exists():
             return ""
         return path.read_text(encoding="utf-8")

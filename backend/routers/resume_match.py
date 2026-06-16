@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-import config
+from session import SessionPaths, get_session_paths
 from routers.common import read_required
 from agents.resume_matcher import (
     ResumeMatcher,
@@ -59,9 +59,11 @@ class ResumeMatchResponse(BaseModel):
 
 
 @router.get("/latest", response_model=ResumeMatchResponse)
-async def get_latest_resume_match() -> dict[str, Any]:
+async def get_latest_resume_match(
+    paths: SessionPaths = Depends(get_session_paths),
+) -> dict[str, Any]:
     try:
-        content = config.RESUME_MATCH_REPORT_FILE.read_text(encoding="utf-8")
+        content = paths.RESUME_MATCH_REPORT_FILE.read_text(encoding="utf-8")
     except FileNotFoundError:
         raise HTTPException(
             status_code=404,
@@ -79,7 +81,10 @@ async def get_latest_resume_match() -> dict[str, Any]:
 
 
 @router.post("/analyze", response_model=ResumeMatchResponse)
-async def analyze_resume_match(body: ResumeMatchRequest | None = None) -> dict[str, Any]:
+async def analyze_resume_match(
+    body: ResumeMatchRequest | None = None,
+    paths: SessionPaths = Depends(get_session_paths),
+) -> dict[str, Any]:
     request = body or ResumeMatchRequest()
     if not request.use_latest_job_analysis or not request.use_latest_resume_analysis:
         raise HTTPException(
@@ -88,7 +93,7 @@ async def analyze_resume_match(body: ResumeMatchRequest | None = None) -> dict[s
         )
 
     job_content = read_required(
-        config.JOB_DESCRIPTION_ANALYSIS_FILE,
+        paths.JOB_DESCRIPTION_ANALYSIS_FILE,
         "Analise uma descrição de vaga primeiro.",
         "A análise da vaga está vazia ou inválida. Analise a vaga novamente.",
     )
@@ -99,7 +104,7 @@ async def analyze_resume_match(body: ResumeMatchRequest | None = None) -> dict[s
         )
 
     resume_content = read_required(
-        config.RESUME_ANALYSIS_FILE,
+        paths.RESUME_ANALYSIS_FILE,
         "Envie e analise um currículo primeiro.",
         "A análise do currículo está vazia ou inválida. Envie o currículo novamente.",
     )
@@ -110,8 +115,8 @@ async def analyze_resume_match(body: ResumeMatchRequest | None = None) -> dict[s
         )
 
     report = matcher.match(job_content, resume_content)
-    config.RESUME_MATCH_REPORT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    config.RESUME_MATCH_REPORT_FILE.write_text(
+    paths.RESUME_MATCH_REPORT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    paths.RESUME_MATCH_REPORT_FILE.write_text(
         match_report_to_markdown(report),
         encoding="utf-8",
     )

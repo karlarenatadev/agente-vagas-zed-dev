@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-import config
+from session import SessionPaths, get_session_paths
 from routers.common import read_required
 from agents.pdi_generator import (
     PdiGenerator,
@@ -48,9 +48,11 @@ class PdiResponse(BaseModel):
 
 
 @router.get("/latest", response_model=PdiResponse)
-async def get_latest_pdi() -> dict[str, Any]:
+async def get_latest_pdi(
+    paths: SessionPaths = Depends(get_session_paths),
+) -> dict[str, Any]:
     try:
-        content = config.PDI_PLAN_FILE.read_text(encoding="utf-8")
+        content = paths.PDI_PLAN_FILE.read_text(encoding="utf-8")
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Nenhum PDI foi gerado ainda.")
 
@@ -65,7 +67,10 @@ async def get_latest_pdi() -> dict[str, Any]:
 
 
 @router.post("/generate", response_model=PdiResponse)
-async def generate_pdi(body: PdiRequest | None = None) -> dict[str, Any]:
+async def generate_pdi(
+    body: PdiRequest | None = None,
+    paths: SessionPaths = Depends(get_session_paths),
+) -> dict[str, Any]:
     request = body or PdiRequest()
     if not all(
         (
@@ -81,7 +86,7 @@ async def generate_pdi(body: PdiRequest | None = None) -> dict[str, Any]:
         )
 
     resume_content = read_required(
-        config.RESUME_ANALYSIS_FILE,
+        paths.RESUME_ANALYSIS_FILE,
         "Envie e analise um currículo primeiro.",
         "A análise do currículo está vazia ou inválida. Envie o currículo novamente.",
     )
@@ -92,7 +97,7 @@ async def generate_pdi(body: PdiRequest | None = None) -> dict[str, Any]:
         )
 
     job_content = read_required(
-        config.JOB_DESCRIPTION_ANALYSIS_FILE,
+        paths.JOB_DESCRIPTION_ANALYSIS_FILE,
         "Analise uma descrição de vaga primeiro.",
         "A análise da vaga está vazia ou inválida. Analise a vaga novamente.",
     )
@@ -103,7 +108,7 @@ async def generate_pdi(body: PdiRequest | None = None) -> dict[str, Any]:
         )
 
     match_content = read_required(
-        config.RESUME_MATCH_REPORT_FILE,
+        paths.RESUME_MATCH_REPORT_FILE,
         "Compare a vaga com o currículo primeiro.",
         "O relatório de aderência está vazio ou inválido. Execute a comparação novamente.",
     )
@@ -114,7 +119,7 @@ async def generate_pdi(body: PdiRequest | None = None) -> dict[str, Any]:
         )
 
     tailoring_content = read_required(
-        config.RESUME_TAILORING_SUGGESTIONS_FILE,
+        paths.RESUME_TAILORING_SUGGESTIONS_FILE,
         "Gere sugestões seguras de currículo primeiro.",
         "As sugestões de currículo estão vazias ou inválidas. Gere as sugestões novamente.",
     )
@@ -130,8 +135,8 @@ async def generate_pdi(body: PdiRequest | None = None) -> dict[str, Any]:
         match_content,
         tailoring_content,
     )
-    config.PDI_PLAN_FILE.parent.mkdir(parents=True, exist_ok=True)
-    config.PDI_PLAN_FILE.write_text(
+    paths.PDI_PLAN_FILE.parent.mkdir(parents=True, exist_ok=True)
+    paths.PDI_PLAN_FILE.write_text(
         pdi_to_markdown(result),
         encoding="utf-8",
     )

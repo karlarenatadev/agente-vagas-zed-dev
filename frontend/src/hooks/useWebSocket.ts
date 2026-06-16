@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { getSessionId } from '../lib/session'
 import type {
   AgentName,
   ChatMessage,
@@ -31,7 +32,8 @@ function generateId(): string {
 
 function getWebSocketUrl(): string {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${protocol}//${window.location.host}/ws/chat`
+  const sessionId = encodeURIComponent(getSessionId())
+  return `${protocol}//${window.location.host}/ws/chat?session_id=${sessionId}`
 }
 
 function agentFromSession(session: SessionState): AgentName {

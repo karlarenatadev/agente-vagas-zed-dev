@@ -16,7 +16,6 @@ import re
 from datetime import datetime
 from typing import AsyncGenerator
 
-import config
 from agents.base import BaseAgent
 from agents.scout import ScoutAgent
 from agents.curator import CuratorAgent
@@ -140,8 +139,8 @@ class MaestroAgent(BaseAgent):
         "parar entrevista",
     }
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, paths=None):
+        super().__init__(paths)
         # Estado da sessão em memória
         self.quiz_answers: dict[str, str] = {}
         self.quiz_step: int = 0
@@ -155,7 +154,7 @@ class MaestroAgent(BaseAgent):
 
     def _load_quiz(self) -> dict[str, str]:
         """Lê o quiz do arquivo e retorna como dicionário."""
-        content = self._read_file(config.QUIZ_FILE)
+        content = self._read_file(self.paths.QUIZ_FILE)
         result: dict[str, str] = {}
         for line in content.splitlines():
             if ":" in line:
@@ -175,7 +174,7 @@ class MaestroAgent(BaseAgent):
             f"Habilidades atuais: {answers.get('Habilidades atuais', '')}",
             f"Concluído: {answers.get('Concluído', 'false')}",
         ]
-        self._write_file(config.QUIZ_FILE, "\n".join(lines))
+        self._write_file(self.paths.QUIZ_FILE, "\n".join(lines))
 
     def _generate_profile(self, answers: dict[str, str]) -> None:
         """Gera o user-profile.md a partir das respostas do quiz."""
@@ -196,7 +195,7 @@ class MaestroAgent(BaseAgent):
             f"Funções alvo: {roles_str}",
             f"Concluído: true",
         ]
-        self._write_file(config.PROFILE_FILE, "\n".join(lines))
+        self._write_file(self.paths.PROFILE_FILE, "\n".join(lines))
 
     def _profile_summary(self, answers: dict[str, str]) -> str:
         area = answers.get("Área de interesse", "Não informado")
@@ -207,7 +206,7 @@ class MaestroAgent(BaseAgent):
         skills = answers.get("Habilidades atuais", "Não informado")
         roles = ""
 
-        profile = self._read_file(config.PROFILE_FILE)
+        profile = self._read_file(self.paths.PROFILE_FILE)
         for line in profile.splitlines():
             if line.startswith("Funções alvo:"):
                 roles = line.split(":", 1)[1].strip()
@@ -235,7 +234,7 @@ class MaestroAgent(BaseAgent):
         return len(QUIZ_QUESTIONS)
 
     def _is_profile_complete(self) -> bool:
-        profile = self._read_file(config.PROFILE_FILE)
+        profile = self._read_file(self.paths.PROFILE_FILE)
         if not profile.strip():
             return False
 
@@ -272,7 +271,7 @@ class MaestroAgent(BaseAgent):
 
     def _reset_data_files(self) -> None:
         """Remove arquivos de dados derivados ao refazer o quiz."""
-        for path in [config.PROFILE_FILE, config.JOB_RESULTS_FILE, config.COURSE_RECS_FILE, config.INTERVIEW_FILE]:
+        for path in [self.paths.PROFILE_FILE, self.paths.JOB_RESULTS_FILE, self.paths.COURSE_RECS_FILE, self.paths.INTERVIEW_FILE]:
             if path.exists():
                 path.unlink()
 
@@ -362,7 +361,7 @@ class MaestroAgent(BaseAgent):
         else:
             # Sem quiz — inicia (aproveitando o currículo quando houver)
             yield "Para começar, preciso conhecer seu perfil profissional.\n"
-            if not config.RESUME_ANALYSIS_FILE.exists():
+            if not self.paths.RESUME_ANALYSIS_FILE.exists():
                 yield "Se preferir, você também pode enviar um currículo para eu analisar antes do quiz.\n"
             async for token in self._start_diagnostico():
                 yield token
@@ -465,7 +464,7 @@ class MaestroAgent(BaseAgent):
         Aproveita as palavras-chave do currículo (área, nível, habilidades e
         soft skills) para pré-preencher o quiz e perguntar só o que falta.
         """
-        content = self._read_file(config.RESUME_ANALYSIS_FILE)
+        content = self._read_file(self.paths.RESUME_ANALYSIS_FILE)
         if not content.strip():
             return {}
 
@@ -604,7 +603,7 @@ class MaestroAgent(BaseAgent):
 
     async def _dispatch_scout(self) -> AsyncGenerator[str, None]:
         """Despacha o agente Scout para busca de vagas."""
-        profile = self._read_file(config.PROFILE_FILE)
+        profile = self._read_file(self.paths.PROFILE_FILE)
         if not profile or not self._is_profile_complete():
             yield "⚠ Perfil não encontrado. Complete o quiz primeiro.\n"
             async for token in self._show_menu():
@@ -615,7 +614,7 @@ class MaestroAgent(BaseAgent):
         yield "\n⚔ **SCOUT** — Iniciando varredura de vagas...\n\n"
         yield "__STATE__:agent_running:scout\n"
 
-        scout = ScoutAgent()
+        scout = ScoutAgent(self.paths)
         result_chunks = []
 
         async for token in scout.run({"profile": profile, "date_filter": self.date_filter}):
@@ -624,7 +623,7 @@ class MaestroAgent(BaseAgent):
 
         # Salva resultado
         full_result = "".join(result_chunks)
-        self._write_file(config.JOB_RESULTS_FILE, full_result)
+        self._write_file(self.paths.JOB_RESULTS_FILE, full_result)
 
         yield "\n\n"
         async for token in self._show_menu():
@@ -642,7 +641,7 @@ class MaestroAgent(BaseAgent):
             yield "\n__STATE__:menu"
             return
 
-        job_results = self._read_file(config.JOB_RESULTS_FILE)
+        job_results = self._read_file(self.paths.JOB_RESULTS_FILE)
         if not job_results or "habilidades_faltantes" not in job_results:
             yield "⚠ Nenhuma lacuna de habilidade encontrada.\n"
             yield "Por favor, busque vagas primeiro (opção **A**) para identificar quais habilidades você precisa desenvolver.\n\n"
@@ -654,8 +653,8 @@ class MaestroAgent(BaseAgent):
         yield "\n📚 **CURATOR** — Buscando trilha de aprendizado...\n\n"
         yield "__STATE__:agent_running:curator\n"
 
-        profile = self._read_file(config.PROFILE_FILE)
-        curator = CuratorAgent()
+        profile = self._read_file(self.paths.PROFILE_FILE)
+        curator = CuratorAgent(self.paths)
         result_chunks = []
 
         async for token in curator.run({"profile": profile, "job_results": job_results}):
@@ -664,7 +663,7 @@ class MaestroAgent(BaseAgent):
 
         full_result = "".join(result_chunks)
         saved_result = f"Data da Busca: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n{full_result}"
-        self._write_file(config.COURSE_RECS_FILE, saved_result)
+        self._write_file(self.paths.COURSE_RECS_FILE, saved_result)
 
         yield "\n\n"
         async for token in self._show_menu():
@@ -675,7 +674,7 @@ class MaestroAgent(BaseAgent):
 
     async def _dispatch_coach_start(self) -> AsyncGenerator[str, None]:
         """Inicia a sequência de entrevista simulada (Despacho 1)."""
-        profile = self._read_file(config.PROFILE_FILE)
+        profile = self._read_file(self.paths.PROFILE_FILE)
         if not profile or not self._is_profile_complete():
             yield "⚠ Perfil incompleto. Complete o quiz antes de iniciar a entrevista simulada.\n\n"
             async for token in self._show_menu():
@@ -683,7 +682,7 @@ class MaestroAgent(BaseAgent):
             yield "\n__STATE__:menu"
             return
 
-        job_results = self._read_file(config.JOB_RESULTS_FILE)
+        job_results = self._read_file(self.paths.JOB_RESULTS_FILE)
         if not job_results or "habilidades_faltantes" not in job_results:
             yield "⚠ Ainda não há resultados do Scout para direcionar a entrevista.\n"
             yield "Rode a opção **A** primeiro para mapear oportunidades, lacunas e requisitos recorrentes.\n\n"
@@ -692,7 +691,7 @@ class MaestroAgent(BaseAgent):
             yield "\n__STATE__:menu"
             return
 
-        course_recommendations = self._read_file(config.COURSE_RECS_FILE)
+        course_recommendations = self._read_file(self.paths.COURSE_RECS_FILE)
         if not course_recommendations.strip():
             yield "ℹ A trilha do Curator ainda não foi gerada. Vou iniciar a entrevista com base no perfil e nas oportunidades; para uma preparação mais completa, rode a opção **B** depois.\n\n"
 
@@ -714,12 +713,12 @@ class MaestroAgent(BaseAgent):
 
         # Inicializa arquivo de sessão
         session_content = f"Contexto da Vaga: {self.interview_context}\nNúmero da Pergunta: 1\nHistórico de Perguntas e Respostas:\n"
-        self._write_file(config.INTERVIEW_FILE, session_content)
+        self._write_file(self.paths.INTERVIEW_FILE, session_content)
 
         yield f"\n🎯 **COACH** — Entrevista simulada para: **{self.interview_context}**\n\n"
         yield "__STATE__:agent_running:coach\n"
 
-        coach = CoachAgent()
+        coach = CoachAgent(self.paths)
         result_chunks = []
         try:
             async for token in coach.run({
@@ -751,10 +750,10 @@ class MaestroAgent(BaseAgent):
 
     async def _handle_coach(self, message: str) -> AsyncGenerator[str, None]:
         """Processa resposta do usuário durante a entrevista e avança para próximo passo."""
-        profile = self._read_file(config.PROFILE_FILE)
-        job_results = self._read_file(config.JOB_RESULTS_FILE)
-        course_recommendations = self._read_file(config.COURSE_RECS_FILE)
-        session = self._read_file(config.INTERVIEW_FILE)
+        profile = self._read_file(self.paths.PROFILE_FILE)
+        job_results = self._read_file(self.paths.JOB_RESULTS_FILE)
+        course_recommendations = self._read_file(self.paths.COURSE_RECS_FILE)
+        session = self._read_file(self.paths.INTERVIEW_FILE)
 
         if self._is_coach_exit_command(message):
             self._mark_interview_paused(session)
@@ -780,7 +779,7 @@ class MaestroAgent(BaseAgent):
             yield "\n🎯 **COACH** — Calculando pontuação final...\n\n"
             yield "__STATE__:agent_running:coach\n"
 
-            coach = CoachAgent()
+            coach = CoachAgent(self.paths)
             result_chunks = []
             try:
                 async for token in coach.run({
@@ -822,7 +821,7 @@ class MaestroAgent(BaseAgent):
             yield f"\n🎯 **COACH** — Avaliando resposta e gerando pergunta {next_step}...\n\n"
             yield "__STATE__:agent_running:coach\n"
 
-            coach = CoachAgent()
+            coach = CoachAgent(self.paths)
             result_chunks = []
             try:
                 async for token in coach.run({
@@ -911,7 +910,7 @@ class MaestroAgent(BaseAgent):
                 *pause_lines,
             ])
 
-        self._write_file(config.INTERVIEW_FILE, content)
+        self._write_file(self.paths.INTERVIEW_FILE, content)
 
     def _coach_pause_response(self) -> str:
         return (
@@ -948,7 +947,7 @@ class MaestroAgent(BaseAgent):
             lines.extend(["", f"Pontuação Final: {final_score}"])
         if improvements:
             lines.extend(["Áreas de Melhoria:", improvements])
-        self._write_file(config.INTERVIEW_FILE, "\n".join(lines))
+        self._write_file(self.paths.INTERVIEW_FILE, "\n".join(lines))
 
     def _extract_coach_section(self, text: str, section: str) -> str:
         pattern = rf"###\s+{re.escape(section)}\s*\n(.*?)(?=\n###\s+|\Z)"
@@ -974,7 +973,7 @@ class MaestroAgent(BaseAgent):
         """Reseta todos os dados e reinicia o quiz."""
         self._reset_data_files()
         # Sobrescreve quiz com estado vazio
-        self._write_file(config.QUIZ_FILE, "Concluído: false\n")
+        self._write_file(self.paths.QUIZ_FILE, "Concluído: false\n")
 
         self.quiz_answers = {}
         self.quiz_step = 0
