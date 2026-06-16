@@ -1,5 +1,46 @@
 # Roadmap — Evolução do Import Vagas
 
+## Primeiros testes automatizados do backend
+
+Sessão executada em 2026-06-16.
+
+* [x] Instalado `pytest==9.1.0` no venv; criado `backend/requirements-dev.txt`.
+* [x] Criado `backend/pytest.ini` (`pythonpath = .`, `testpaths = tests`).
+* [x] `tests/test_job_description_analyzer.py`: análise heurística (`analyze`),
+  contrato das chaves do dict, round-trip `analysis_to/from_markdown` e
+  `validate_job_analysis`.
+* [x] `tests/test_common.py`: `read_required` lê arquivo, e levanta HTTP 400 para
+  arquivo ausente e arquivo vazio (`tmp_path`).
+* [x] `tests/test_job_description_route.py`: integração via `TestClient` — POST
+  `/analyze` 200 e 400 (descrição curta), persistência + GET `/latest`, e 404
+  sem análise prévia (`monkeypatch` isola o arquivo de `data/`).
+* [x] `tests/conftest.py`: fixtures compartilhadas `job_markdown` e
+  `resume_markdown` (formato real dos artefatos de `data/`).
+* [x] `tests/test_resume_matcher.py`: `match()` (score 0–100, skill presente vs
+  ausente, contrato do dict), round-trip do relatório e validadores.
+* [x] `tests/test_pdi_validators.py` e `tests/test_tailor_validators.py`:
+  validadores de pré-requisito aceitam o relatório de match REAL (testes
+  encadeados entre agentes) e rejeitam lixo; `*_from_markdown` devolve `None`.
+* [x] `tests/test_scout.py`: lógica pura do Scout — `_match_skills`
+  (case-insensitive), `_priority_from_score`, `_score_opportunity` (limite 100),
+  `_area_skills` (default) e `_build_job_entry` (contrato do dict).
+* [x] `tests/test_curator.py`: lógica pura do Curator — `_platform_for_url`,
+  `_price_for_platform`, `_classify_level` e `_extract_duration`.
+* [x] `conftest.py`: fixture `autouse` injeta chave fake pro cliente OpenAI ser
+  instanciável (Scout/Curator herdam de BaseAgent, que cria o cliente no init).
+* [x] `39 passed` em `python -m pytest`. `run()` de Scout/Curator fica de fora
+  (depende de Firecrawl/rede); só a heurística determinística é testada.
+* [ ] Testes do caminho real de LLM (hoje cai em fallback — ver bug do base_url).
+
+Achados menores detectados pelos testes — corrigidos:
+
+* [x] `Curator._price_for_platform` agora remove acentos antes de checar o texto,
+  então "grátis"/"gratuíto" casam com "gratis"/"gratuito".
+* [x] `Curator._extract_duration` preserva a unidade completa ("10 horas",
+  "30 minutos"): a alternância do regex prioriza palavras longas antes de "h" e
+  reúne número + unidade com um único espaço.
+* [x] `39 passed` após as correções; `py_compile` de `curator.py` OK.
+
 ## Auditoria atual
 
 Última revisão: 2026-06-15.

@@ -421,7 +421,9 @@ class CuratorAgent(BaseAgent):
         return host or "Outra"
 
     def _price_for_platform(self, platform: str, title: str, description: str) -> str:
-        text = f"{title} {description}".casefold()
+        # Remove acentos para que "grátis"/"gratuíto" casem com "gratis"/"gratuito".
+        text = unicodedata.normalize("NFKD", f"{title} {description}".casefold())
+        text = text.encode("ascii", "ignore").decode("ascii")
         if platform in {
             "YouTube",
             "Documentacao Oficial",
@@ -462,8 +464,15 @@ class CuratorAgent(BaseAgent):
 
     def _extract_duration(self, title: str, description: str) -> str:
         text = f"{title} {description}"
-        match = re.search(r"(\d{1,3}\s*(?:h|horas?|hours?|min|mins|minutos?))", text, re.IGNORECASE)
-        return match.group(1).replace(" h", "h") if match else "Nao informado"
+        # Unidades longas vêm antes de "h" na alternância para preservar a
+        # palavra completa ("10 horas" em vez de "10h"). Número e unidade são
+        # capturados separados e reunidos com um único espaço.
+        match = re.search(
+            r"(\d{1,3})\s*(horas?|hours?|minutos?|mins?|min|h)\b",
+            text,
+            re.IGNORECASE,
+        )
+        return f"{match.group(1)} {match.group(2)}" if match else "Nao informado"
 
     def _score_result(self, item: dict[str, str], skill: str, recurrence: int, query_type: str) -> int:
         platform = self._platform_for_url(item["url"])
