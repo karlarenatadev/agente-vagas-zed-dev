@@ -1085,16 +1085,16 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 ---
 
-# 10. Documentação
+## 10. Documentação
 
-## O que temos
+### O que temos
 
 * [x] README inicial do projeto.
 * [x] Explicação da arquitetura multiagente.
 * [x] Explicação de instalação e execução.
 * [x] Explicação do fluxo atual de uso.
 
-## O que iremos acrescentar
+### O que iremos acrescentar
 
 * [ ] Atualizar a proposta do produto.
 * [ ] Documentar a esteira de candidatura.
@@ -1114,7 +1114,7 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 ---
 
-# 11. Ordem prática de evolução
+## 11. Ordem prática de evolução
 
 ## Etapa atual
 
@@ -1153,7 +1153,7 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 ---
 
-# 12. Definição de pronto
+## 12. Definição de pronto
 
 Uma etapa só deve ser considerada pronta quando:
 
@@ -1170,7 +1170,7 @@ Uma etapa só deve ser considerada pronta quando:
 
 ---
 
-# 13. Career Arcade Pipeline
+## 13. Career Arcade Pipeline
 
 ## Identidade e jornada
 
@@ -1199,10 +1199,9 @@ Uma etapa só deve ser considerada pronta quando:
 * [x] Corrigir a sidebar para manter navegação fixa e perfil rolável sem cortes.
 * [x] Validar ausência de scroll horizontal nos cinco viewports prioritários.
 
-
 ---
 
-# Status de Implementação Detalhado
+## Status de Implementação Detalhado
 
 ## Arquitetura completa validada
 
@@ -1251,10 +1250,10 @@ Uma etapa só deve ser considerada pronta quando:
 
 **Correções aplicadas:**
 
-- ✅ Adicionado endpoint `GET /api/data/resume-analysis` em `data_files.py`
-- ✅ Pipeline atualizada para ler o arquivo via API
-- ✅ API passou a ser a fonte principal; `localStorage` obsoleto é removido quando o artefato não existe
-- ✅ Validado: lint e build passando sem erros
+* ✅ Adicionado endpoint `GET /api/data/resume-analysis` em `data_files.py`
+* ✅ Pipeline atualizada para ler o arquivo via API
+* ✅ API passou a ser a fonte principal; `localStorage` obsoleto é removido quando o artefato não existe
+* ✅ Validado: lint e build passando sem erros
 
 ### 2. ~~Firecrawl estava dependente de CLI~~ RESOLVIDO
 
@@ -1262,18 +1261,18 @@ Uma etapa só deve ser considerada pronta quando:
 
 **Descoberta:**
 
-- O CLI funcionava em alguns ambientes, mas criava fragilidade operacional por depender de `subprocess`, PATH/PATHEXT e instalacao global.
-- No Windows, essa dependencia podia gerar travamentos ou fallback silencioso.
-- O SDK oficial `firecrawl-py` ja estava disponivel no backend.
+* O CLI funcionava em alguns ambientes, mas criava fragilidade operacional por depender de `subprocess`, PATH/PATHEXT e instalacao global.
+* No Windows, essa dependencia podia gerar travamentos ou fallback silencioso.
+* O SDK oficial `firecrawl-py` ja estava disponivel no backend.
 
 **Correcoes aplicadas:**
 
-- [x] Criado `backend/firecrawl_client.py` com `FirecrawlApp`.
-- [x] `Scout` e `Curator` migrados para o SDK, sem chamadas de sistema.
-- [x] `search` e `scrape` rodam com `asyncio.to_thread`, preservando o Event Loop.
-- [x] Falhas de API/rede sao logadas com `session_id` e reempacotadas como falhas controladas.
-- [x] Fallbacks locais continuam funcionando.
-- [x] Validado com `pytest`: 73 testes passando.
+* [x] Criado `backend/firecrawl_client.py` com `FirecrawlApp`.
+* [x] `Scout` e `Curator` migrados para o SDK, sem chamadas de sistema.
+* [x] `search` e `scrape` rodam com `asyncio.to_thread`, preservando o Event Loop.
+* [x] Falhas de API/rede sao logadas com `session_id` e reempacotadas como falhas controladas.
+* [x] Fallbacks locais continuam funcionando.
+* [x] Validado com `pytest`: 73 testes passando.
 
 ### 3. ~~Componente PDI nao esta integrado a interface~~ RESOLVIDO
 
@@ -1281,19 +1280,19 @@ Uma etapa só deve ser considerada pronta quando:
 
 **Correções aplicadas:**
 
-- `PdiPlan.tsx` é carregado sob demanda em um modal acessível.
-- Pipeline libera a ação do PDI após a conclusão das sugestões seguras.
-- Plano salvo é recuperado por `GET /api/pdi/latest`.
-- Geração bem-sucedida atualiza imediatamente o estado da pipeline.
+* `PdiPlan.tsx` é carregado sob demanda em um modal acessível.
+* Pipeline libera a ação do PDI após a conclusão das sugestões seguras.
+* Plano salvo é recuperado por `GET /api/pdi/latest`.
+* Geração bem-sucedida atualiza imediatamente o estado da pipeline.
 
 **Validações executadas:**
 
-- [x] `npm run lint`
-- [x] `npm run build`
-- [x] `py_compile` e importação do FastAPI com 27 rotas.
-- [x] Round-trip automatizado entre dados estruturados e `pdi-plan.md`.
-- [x] Validar o modal e a geração completa no Chrome em `1366x768` e `390x844`.
-- [x] Validar estado vazio, erro de geração, persistência e ausência de overflow horizontal.
+* [x] `npm run lint`
+* [x] `npm run build`
+* [x] `py_compile` e importação do FastAPI com 27 rotas.
+* [x] Round-trip automatizado entre dados estruturados e `pdi-plan.md`.
+* [x] Validar o modal e a geração completa no Chrome em `1366x768` e `390x844`.
+* [x] Validar estado vazio, erro de geração, persistência e ausência de overflow horizontal.
 
 ### 4. ~~Rota de leitura para resume-analysis ausente~~ ✅ RESOLVIDO
 
