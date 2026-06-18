@@ -10,9 +10,7 @@ Fluxo:
 
 from __future__ import annotations
 
-import json
 import re
-import subprocess
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,6 +18,7 @@ from typing import Any, AsyncGenerator
 from urllib.parse import urlparse
 
 from agents.base import BaseAgent
+from firecrawl_client import FirecrawlProviderError, firecrawl_search
 
 
 LEVEL_ORDER = {"iniciante": 0, "intermediario": 1, "avancado": 2}
@@ -204,64 +203,18 @@ class CuratorAgent(BaseAgent):
             return ""
         return path.read_text(encoding="utf-8")
 
-    def _run_firecrawl_search(self, query: str) -> SearchOutcome:
-        """Executa firecrawl search via CLI e normaliza a resposta."""
+    async def _run_firecrawl_search(self, query: str) -> SearchOutcome:
+        """Executa Firecrawl pelo SDK sem bloquear o event loop."""
         try:
-            result = subprocess.run(
-                ["firecrawl", "search", query, "--json"],
-                capture_output=True,
-                text=True,
-                timeout=30,
+            results = await firecrawl_search(
+                query,
+                session_id=self.paths.session_id,
+                limit=6,
             )
-        except subprocess.TimeoutExpired:
-            return SearchOutcome([], f"timeout ao buscar: {query}")
-        except FileNotFoundError:
-            return SearchOutcome([], "Firecrawl CLI nao encontrado")
+        except FirecrawlProviderError as exc:
+            return SearchOutcome([], f"{query}: {exc.public_message}")
 
-        if result.returncode != 0:
-            error = result.stderr.strip() or result.stdout.strip() or "erro sem detalhes"
-            return SearchOutcome([], f"{query}: {error}")
-
-        try:
-            payload = json.loads(result.stdout)
-        except json.JSONDecodeError as exc:
-            return SearchOutcome([], f"{query}: JSON invalido retornado pelo Firecrawl ({exc})")
-
-        return SearchOutcome(self._normalize_search_payload(payload))
-
-    def _normalize_search_payload(self, payload: Any) -> list[dict[str, str]]:
-        """Aceita formatos comuns do Firecrawl CLI e devolve itens uniformes."""
-        candidates = []
-        
-        if isinstance(payload, dict):
-            # Novo formato: {"success": true, "data": {"web": [...]}}
-            if "data" in payload and isinstance(payload["data"], dict):
-                candidates = payload["data"].get("web", [])
-            # Formato alternativo: {"data": [...]} ou {"results": [...]}
-            elif "data" in payload or "results" in payload or "items" in payload:
-                candidates = payload.get("data") or payload.get("results") or payload.get("items") or []
-        elif isinstance(payload, list):
-            candidates = payload
-
-        normalized: list[dict[str, str]] = []
-        for item in candidates:
-            if not isinstance(item, dict):
-                continue
-
-            url = str(item.get("url") or item.get("link") or "").strip()
-            title = str(item.get("title") or item.get("titulo") or item.get("name") or "").strip()
-            description = str(
-                item.get("description")
-                or item.get("descricao")
-                or item.get("snippet")
-                or item.get("markdown")
-                or ""
-            ).strip()
-
-            if url and title:
-                normalized.append({"url": url, "title": title, "description": description})
-
-        return normalized
+        return SearchOutcome(results)
 
     def _parse_profile(self, profile_text: str) -> dict[str, str]:
         data: dict[str, str] = {}
@@ -864,14 +817,11 @@ class CuratorAgent(BaseAgent):
             skill_candidates: list[LearningResource] = []
             if firecrawl_available:
                 for query_type, query in self._queries_for_skill(skill, area):
-                    outcome = self._run_firecrawl_search(query)
+                    outcome = await self._run_firecrawl_search(query)
                     if outcome.error:
-                        if outcome.error == "Firecrawl CLI nao encontrado":
-                            firecrawl_available = False
-                            add_notice("Firecrawl CLI nao encontrado; trilha complementada com base interna confiavel.")
-                            break
-                        add_notice(f"Busca externa nao ficou disponivel para {skill}; usei base interna quando necessario.")
-                        continue
+                        firecrawl_available = False
+                        add_notice("Busca externa temporariamente indisponivel; trilha complementada com base interna confiavel.")
+                        break
 
                     for item in outcome.results[:5]:
                         if item["url"] in used_urls:

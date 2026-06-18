@@ -11,39 +11,11 @@ Fluxo:
 
 from __future__ import annotations
 
-import json
-import os
-import shutil
-import subprocess
 from collections import Counter
 from typing import AsyncGenerator
 
-import config
 from agents.base import BaseAgent, LLMProviderError
-
-
-def _firecrawl_env() -> dict[str, str]:
-    """Ambiente para o subprocess do firecrawl, garantindo a API key.
-
-    O subprocess herda o ambiente do backend, mas se o servidor foi iniciado
-    sem FIRECRAWL_API_KEY exportada, injetamos a chave lida do backend/.env
-    via config para que o CLI autentique e não retorne vazio (modo simulado).
-    """
-    env = os.environ.copy()
-    if config.FIRECRAWL_API_KEY:
-        env["FIRECRAWL_API_KEY"] = config.FIRECRAWL_API_KEY
-    return env
-
-
-def _firecrawl_executable() -> str | None:
-    """Resolve o caminho real do CLI firecrawl.
-
-    No Windows, subprocess.run(["firecrawl", ...]) sem shell=True usa
-    CreateProcess, que não resolve extensões via PATHEXT — então "firecrawl"
-    (que é firecrawl.cmd) levanta FileNotFoundError e o Scout caía no modo
-    simulado. shutil.which respeita PATHEXT e acha o .cmd/.exe correto.
-    """
-    return shutil.which("firecrawl")
+from firecrawl_client import FirecrawlProviderError, firecrawl_scrape, firecrawl_search
 
 
 SCOUT_SYSTEM_PROMPT = """Você é o Scout, agente especializado em busca de vagas de emprego do sistema Recoloca IA.
@@ -104,73 +76,26 @@ DATE_FILTER_TBS: dict[str, str] = {
 
 
 class ScoutAgent(BaseAgent):
-    """Agente de busca de vagas — usa Firecrawl CLI ou SDK."""
+    """Agente de busca de vagas via Firecrawl SDK."""
 
     name = "Scout"
 
-    def _run_firecrawl_search(self, query: str, tbs: str = "") -> list[dict]:
-        """Executa firecrawl search via CLI e retorna resultados JSON.
-
-        tbs: filtro de recência do Google (qdr:d/w/m). Vazio = sem filtro.
-        """
-        executable = _firecrawl_executable()
-        if not executable:
+    async def _run_firecrawl_search(self, query: str, tbs: str = "") -> list[dict[str, str]]:
+        try:
+            return await firecrawl_search(
+                query,
+                session_id=self.paths.session_id,
+                tbs=tbs,
+                limit=5,
+            )
+        except FirecrawlProviderError:
             return []
-        args = [executable, "search", query, "--json"]
-        if tbs:
-            args += ["--tbs", tbs]
-        try:
-            result = subprocess.run(
-                args,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=30,
-                env=_firecrawl_env(),
-            )
-            if result.returncode == 0 and result.stdout:
-                parsed = json.loads(result.stdout)
-                
-                # Firecrawl retorna {"success":true,"data":{"web":[...]}}
-                if isinstance(parsed, dict):
-                    # Novo formato: {"success": true, "data": {"web": [...]}}
-                    if "data" in parsed and isinstance(parsed["data"], dict):
-                        web_results = parsed["data"].get("web", [])
-                        if isinstance(web_results, list):
-                            return web_results
-                    # Formato alternativo: {"data": [...]}
-                    data = parsed.get("data") or parsed.get("results") or parsed.get("items")
-                    if isinstance(data, list):
-                        return data
-                
-                # Formato legado: lista direta
-                if isinstance(parsed, list):
-                    return parsed
-        except (subprocess.TimeoutExpired, json.JSONDecodeError, FileNotFoundError):
-            pass
-        return []
 
-    def _run_firecrawl_scrape(self, url: str) -> str:
-        """Executa firecrawl scrape via CLI e retorna markdown."""
-        executable = _firecrawl_executable()
-        if not executable:
-            return ""
+    async def _run_firecrawl_scrape(self, url: str) -> str:
         try:
-            result = subprocess.run(
-                [executable, "scrape", url, "--format", "markdown"],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=30,
-                env=_firecrawl_env(),
-            )
-            if result.returncode == 0:
-                return result.stdout
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            pass
-        return ""
+            return await firecrawl_scrape(url, session_id=self.paths.session_id)
+        except FirecrawlProviderError:
+            return ""
 
     def _parse_profile(self, profile_text: str) -> dict[str, str]:
         """Extrai campos do perfil em dicionário."""
@@ -352,12 +277,12 @@ class ScoutAgent(BaseAgent):
 
         # Monta query de busca
         query = f"vagas {area} {level} {location}".strip()
-        search_results = self._run_firecrawl_search(query, tbs)
+        search_results = await self._run_firecrawl_search(query, tbs)
 
         if not search_results:
             # Tenta query mais ampla
             query_broad = f"vagas {area} {location}"
-            search_results = self._run_firecrawl_search(query_broad, tbs)
+            search_results = await self._run_firecrawl_search(query_broad, tbs)
 
         simulated_mode = False
         if not search_results:
@@ -377,7 +302,7 @@ class ScoutAgent(BaseAgent):
             yield f"  [{i+1}/5] Analisando: {title[:50]}...\n"
 
             # Tenta scrape para detalhes completos
-            full_desc = self._run_firecrawl_scrape(url) if url else ""
+            full_desc = await self._run_firecrawl_scrape(url) if url else ""
             if not full_desc:
                 full_desc = description
 

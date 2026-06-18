@@ -1,5 +1,61 @@
 # Roadmap — Evolução do Import Vagas
 
+## Hardening do Backend e Resiliencia (Recem-Concluido)
+
+Esta etapa transformou o backend de um prototipo funcional para uma API com padrao de producao, resiliente a quedas de rede, falhas de LLM e I/O concorrente.
+
+### Fase 1: Observabilidade e Logs Estruturados
+
+* [x] Configuracao centralizada em `logging_config.py` com saida JSON e fallback em arquivo (`backend.log`).
+* [x] Rastreio completo do WebSocket (conexao, streaming e troca de estado) atrelado ao `session_id`.
+* [x] Rastreio de LLMOps na base dos agentes (latencia, tokens, erros e tamanho de prompt).
+
+### Fase 2: Tratamento de Excecoes e Contratos de Erro
+
+* [x] Remocao de capturas genericas nos fluxos criticos dos agentes.
+* [x] Criacao da excecao de dominio `LLMProviderError` para falhas da OpenAI e envelope seguro para falhas do Firecrawl.
+* [x] Handlers globais no FastAPI para padronizar erros 422 (validacao) e 500 (internos) em JSON seguro, sem vazar stack trace.
+* [x] WebSocket fecha conexoes de forma limpa e libera recursos da memoria.
+
+### Fase 3: Persistencia Segura e Escrita Atomica (Fim da Corrupcao de Dados)
+
+* [x] Uso de `asyncio.Lock` global/por sessao para isolar leitura/escrita em operacoes simultaneas.
+* [x] Funcao `write_text_atomic_async` usando arquivo `.tmp` e `os.replace` para proteger contra crash no meio da gravacao.
+* [x] Remocao de bloqueio do Event Loop com `asyncio.to_thread` para I/O de disco.
+* [x] Teste de estresse (`test_concurrency.py`) comprovando 50 escritas simultaneas sem perdas.
+
+### Fase 4: Persistencia de Estado do WebSocket
+
+* [x] Criacao do `chat_state.json` isolado na pasta da sessao (`data/sessions/{id}/`).
+* [x] Gravacao atomica do estado (agente atual, passo do quiz, etapa do Coach e historico recente) a cada mudanca critica.
+* [x] Restauracao automatica de contexto no handshake do WebSocket: o usuario recarrega a pagina e a conversa continua de onde parou.
+
+### Fase 5: Seguranca e Integracoes Oficiais
+
+* [x] Substituicao do Firecrawl CLI pelo SDK oficial `firecrawl-py`, removendo chamadas de `subprocess` que travavam em ambientes Windows.
+* [x] Chamadas do SDK protegidas por `asyncio.to_thread`, mantendo o Event Loop do FastAPI responsivo.
+* [x] Endurecimento do upload de curriculos com Magic Numbers, validacao de `Content-Type`, limite rigido de tamanho e retorno 413 para payload grande.
+* [x] Validacao automatizada: `pytest` completo com 73 testes passando.
+
+## Carroceria e Pista (Proximos Marcos Arquiteturais)
+
+Agora que o motor esta blindado, o foco passa a ser entrega continua, infraestrutura e UX de erros.
+
+### 1. Frontend Resiliente (Conectando as pontas do Backend)
+
+* [ ] Tratamento visual de erros: consumir os contratos padronizados 422 e 500 do FastAPI para exibir toasts ou banners amigaveis quando o LLM demorar ou a API externa falhar.
+* [ ] Recuperacao visual de sessao: fazer o React usar o estado restaurado do WebSocket no primeiro load para repintar quiz/Coach sem expor a reconexao ao usuario.
+
+### 2. Infraestrutura e Containerizacao (Docker)
+
+* [ ] Dockerizacao do Backend: criar `Dockerfile` com imagem Python leve, dependencias instaladas e porta 8000 configurada.
+* [ ] Dockerizacao do Frontend: criar `Dockerfile` para build React/Vite servido por Nginx.
+* [ ] Docker Compose: orquestrar Frontend, Backend e Mock Server com `docker-compose up`.
+
+### 3. Esteira de Automacao Continua (CI/CD Definitivo)
+
+* [ ] Rodar testes na nuvem: configurar GitHub Actions para executar a suite robusta (+70 testes) a cada push.
+* [ ] Pipeline bloqueante: impedir merge quando `test_concurrency.py` ou testes de contrato falharem.
 ## Problemas críticos de arquitetura: isolamento + lock
 
 Sessão executada em 2026-06-16.
@@ -88,7 +144,7 @@ Validação executada nesta revisão:
   Os bloqueios de props em `App.tsx`/`StatusBar` e tipagem de `Skill` em `ChatMessage.tsx` foram corrigidos.
 * [x] Backend compilado e aplicação FastAPI importada com sucesso.
 * [x] Rotas REST e WebSocket registradas na aplicação.
-* [x] Firecrawl CLI instalado no ambiente.
+* [x] Firecrawl SDK (`firecrawl-py`) declarado no backend e usado sem CLI/subprocess.
 * [x] `FIRECRAWL_API_KEY` configurada em `backend/.env` e carregada por caminho absoluto.
 * [ ] Suíte automatizada de testes disponível.
 * [x] QA visual completo executado em navegadores reais.
@@ -934,29 +990,27 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 ## O que temos
 
 * [x] Estrutura prevista para uso do Firecrawl.
-* [x] Fallback local quando Firecrawl não retorna resultados.
+* [x] Integracao externa migrada do CLI para o SDK oficial `firecrawl-py`.
+* [x] Chamadas de busca e scrape executadas fora do Event Loop com `asyncio.to_thread`.
+* [x] Fallback local quando Firecrawl nao retorna resultados ou fica temporariamente indisponivel.
 * [x] Busca simulada funcionando.
-* [x] Recomendações internas funcionando.
+* [x] Recomendacoes internas funcionando.
+* [x] Logs estruturados de sucesso/falha com `session_id`.
 
 ## O que iremos acrescentar
 
-* [x] Instalar Firecrawl CLI.
-* [x] Configurar `FIRECRAWL_API_KEY`.
-* [x] Testar busca real de vagas diretamente pelo Firecrawl CLI.
-* [ ] Testar busca real de cursos.
-* [x] Validar que a busca real retorna URLs de vagas no CLI.
-* [ ] Revalidar a busca completa pelo Scout com backend reiniciado e abertura do
-  link de vaga no navegador.
-* [ ] Validar salários.
-* [ ] Validar requisitos extraídos.
+* [ ] Testar busca real de cursos com o SDK em ambiente com chave valida.
+* [ ] Revalidar a busca completa pelo Scout com backend reiniciado e abertura do link de vaga no navegador.
+* [ ] Validar salarios.
+* [ ] Validar requisitos extraidos.
 * [ ] Registrar origem dos dados.
-* [ ] Tratar resultados parciais.
-* [x] Tratar ausência de resultados reais sem quebrar o fluxo por meio de fallback local.
-* [ ] Expor ao usuário as falhas parciais do Firecrawl em vez de descartá-las silenciosamente.
+* [ ] Tratar resultados parciais tambem na UX do frontend.
+* [x] Tratar ausencia de resultados reais sem quebrar o fluxo por meio de fallback local.
+* [ ] Expor ao usuario as falhas parciais do Firecrawl em vez de descarta-las silenciosamente.
 
 ---
 
-# 8. Testes e validação
+# 8. Testes e validacao
 
 ## O que temos
 
@@ -1198,40 +1252,25 @@ Uma etapa só deve ser considerada pronta quando:
 - ✅ API passou a ser a fonte principal; `localStorage` obsoleto é removido quando o artefato não existe
 - ✅ Validado: lint e build passando sem erros
 
-### 2. ~~Firecrawl estava quebrando~~ ✅ RESOLVIDO
-**Status:** RESOLVIDO em 2026-06-14
+### 2. ~~Firecrawl estava dependente de CLI~~ RESOLVIDO
+**Status:** RESOLVIDO em 2026-06-17
 
 **Descoberta:**
 
-- Firecrawl CLI está instalado e funcionando perfeitamente (versão 1.18.1)
-- API Key configurada corretamente no `.env`
-- O problema era o **formato de resposta** que mudou na versão atual
+- O CLI funcionava em alguns ambientes, mas criava fragilidade operacional por depender de `subprocess`, PATH/PATHEXT e instalacao global.
+- No Windows, essa dependencia podia gerar travamentos ou fallback silencioso.
+- O SDK oficial `firecrawl-py` ja estava disponivel no backend.
 
-**Formato antigo esperado:**
+**Correcoes aplicadas:**
 
-```json
-{"data": [...]}
-```
+- [x] Criado `backend/firecrawl_client.py` com `FirecrawlApp`.
+- [x] `Scout` e `Curator` migrados para o SDK, sem chamadas de sistema.
+- [x] `search` e `scrape` rodam com `asyncio.to_thread`, preservando o Event Loop.
+- [x] Falhas de API/rede sao logadas com `session_id` e reempacotadas como falhas controladas.
+- [x] Fallbacks locais continuam funcionando.
+- [x] Validado com `pytest`: 73 testes passando.
 
-**Formato atual retornado (v1.18.1):**
-```json
-{
-  "success": true,
-  "data": {"web": [...]},
-  "id": "...",
-  "creditsUsed": 2
-}
-```
-
-**Correções aplicadas:**
-
-- ✅ Atualizado `Scout._run_firecrawl_search()` para processar `data.web`
-- ✅ Atualizado `Curator._normalize_search_payload()` para processar `data.web`
-- ✅ Mantida retrocompatibilidade com formatos alternativos
-- ✅ Fallbacks locais continuam funcionando
-- ✅ Validado: `firecrawl search "test" --json` retorna 10 resultados reais
-
-### 3. ~~Componente PDI não está integrado à interface~~ ✅ RESOLVIDO
+### 3. ~~Componente PDI nao esta integrado a interface~~ RESOLVIDO
 
 **Status:** RESOLVIDO em 2026-06-14
 
@@ -1266,8 +1305,8 @@ Uma etapa só deve ser considerada pronta quando:
 
 ### Testes automatizados
 
-* [ ] Criar testes unitários para agentes principais
-* [ ] Criar testes de integração para rotas críticas
+* [x] Criar testes unitarios para agentes principais
+* [x] Criar testes de integracao para rotas criticas
 * [ ] Criar testes E2E para fluxo completo de candidatura
 * [ ] Adicionar validação de schemas dos arquivos Markdown
 
@@ -1289,7 +1328,7 @@ Uma etapa só deve ser considerada pronta quando:
 ### Configuração externa
 
 * [x] Configurar `FIRECRAWL_API_KEY` no ambiente
-* [x] Testar busca real de vagas diretamente pelo Firecrawl CLI
+* [x] Migrar busca de vagas do Firecrawl CLI para o SDK oficial
 * [ ] Testar busca real de cursos com Firecrawl
 * [ ] Revalidar o fluxo Scout/backend e a abertura da vaga no navegador
 * [ ] Expor falhas parciais do Firecrawl ao usuário (atualmente silenciosas)

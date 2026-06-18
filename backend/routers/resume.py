@@ -19,6 +19,17 @@ from session import (
 router = APIRouter()
 
 ALLOWED_EXTENSIONS = {".txt", ".pdf", ".docx"}
+PDF_MAGIC = b"%PDF-"
+DOCX_MAGIC = b"PK\x03\x04"
+TEXT_SAMPLE_BYTES = 4096
+ALLOWED_CONTENT_TYPES_BY_EXTENSION: dict[str, set[str]] = {
+    ".pdf": {"application/pdf", "application/octet-stream"},
+    ".docx": {
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/octet-stream",
+    },
+    ".txt": {"text/plain", "application/octet-stream"},
+}
 
 TECHNICAL_SKILLS: dict[str, list[str]] = {
     "Python": [r"\bpython\b"],
@@ -188,6 +199,32 @@ def _error(message: str, status_code: int = 400) -> JSONResponse:
             "message": message,
         },
     )
+
+
+def _validate_upload_signature(
+    content: bytes,
+    extension: str,
+    content_type: str | None,
+) -> str | None:
+    normalized_content_type = (content_type or "").split(";", 1)[0].strip().lower()
+    allowed_content_types = ALLOWED_CONTENT_TYPES_BY_EXTENSION.get(extension, set())
+
+    if normalized_content_type and normalized_content_type not in allowed_content_types:
+        return "Tipo de arquivo incompativel com o formato enviado."
+
+    if extension == ".pdf" and not content.startswith(PDF_MAGIC):
+        return "O arquivo PDF enviado nao possui uma assinatura valida."
+
+    if extension == ".docx" and not content.startswith(DOCX_MAGIC):
+        return "O arquivo DOCX enviado nao possui uma assinatura valida."
+
+    if extension == ".txt":
+        try:
+            content[:TEXT_SAMPLE_BYTES].decode("utf-8-sig")
+        except UnicodeDecodeError:
+            return "O arquivo TXT enviado nao esta em UTF-8 valido."
+
+    return None
 
 
 def _find_terms(text: str, terms: dict[str, list[str]]) -> list[str]:
@@ -734,10 +771,18 @@ async def upload_resume(
     content = await file.read(config.MAX_RESUME_UPLOAD_SIZE + 1)
 
     if len(content) > config.MAX_RESUME_UPLOAD_SIZE:
-        return _error("Arquivo grande demais. O limite é de 5 MB.")
+        return _error("Arquivo grande demais. O limite e de 5 MB.", status_code=413)
 
     if not content:
         return _error("O arquivo está vazio. Envie um currículo com texto legível.")
+
+    signature_error = _validate_upload_signature(
+        content,
+        extension,
+        file.content_type,
+    )
+    if signature_error:
+        return _error(signature_error)
 
     try:
         extracted_text = _extract_text(content, extension)

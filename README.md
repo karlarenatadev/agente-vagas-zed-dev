@@ -24,7 +24,7 @@ O sistema é orquestrado pelo **Maestro**, que coordena três agentes especializ
 
 | Agente | Papel | Como funciona |
 |--------|-------|---------------|
-| **Scout** | Busca de vagas | Pesquisa no Indeed, LinkedIn, Catho e Glassdoor via Firecrawl, extrai requisitos e calcula o match com suas habilidades |
+| **Scout** | Busca de vagas | Pesquisa vagas via Firecrawl SDK oficial, extrai requisitos e calcula o match com suas habilidades |
 | **Curator** | Trilha de aprendizado | Para cada habilidade que falta, prioriza materiais gratuitos, videos, documentacao oficial e cursos pagos acessiveis; premium entra apenas quando for relevante |
 | **Coach** | Entrevista simulada | Conduz 5 perguntas técnicas e comportamentais com feedback em tempo real e pontuação final |
 
@@ -36,7 +36,7 @@ Além da busca de vagas, cursos e entrevista, a plataforma cobre o ciclo complet
 
 - **Diagnóstico de perfil** — quiz de 7 perguntas (área, nível, localização, preferências, soft skills, objetivo, habilidades).
 - **Currículo → quiz automático** — envie um currículo em **PDF, DOCX ou TXT** e o sistema extrai área, nível, habilidades e soft skills, **pré-preenchendo o quiz** e perguntando só o que falta.
-- **Filtro de recência das vagas** — escolha **24h, 7 dias, 1 mês ou todas**; o Scout aplica o filtro `--tbs` do Firecrawl na busca.
+- **Filtro de recência das vagas** — escolha **24h, 7 dias, 1 mês ou todas**; o Scout aplica o parametro `tbs` do Firecrawl na busca.
 - **Análise de descrição de vaga** — cole o anúncio e receba requisitos, hard/soft skills, ferramentas e alertas estruturados.
 - **Match currículo × vaga** — relatório de aderência com score, evidências fortes/parciais e lacunas.
 - **Sugestões de currículo** — ajustes seguros (sem inventar experiência) para a vaga analisada.
@@ -97,7 +97,7 @@ Habilidade Faltante: Spark
 │              │ Scout  │ │Curator│ │ Coach │             │
 │              └──────┬─┘ └──┬────┘ └───────┘             │
 │                     └──────┘                             │
-│                        │  Firecrawl CLI                  │
+│                        │  Firecrawl SDK                  │
 └────────────────────────┼─────────────────────────────────┘
                          │
               ┌──────────▼──────────┐
@@ -138,6 +138,9 @@ import-vagas/
 │   │   └── data_files.py       # REST: vagas, cursos, entrevista, análises
 │   ├── main.py            # FastAPI app
 │   ├── config.py          # Configurações e paths (.env por caminho absoluto)
+│   ├── logging_config.py  # Logging estruturado em JSON
+│   ├── session.py         # Paths por sessão, locks e escrita atômica
+│   ├── firecrawl_client.py # Cliente seguro do Firecrawl SDK
 │   ├── mock_server.py     # Servidor mock para testes sem API key
 │   └── requirements.txt
 │
@@ -175,7 +178,7 @@ import-vagas/
 │   ├── dispatch.md        # Protocolo de despacho entre agentes
 │   ├── job-search.md      # Fluxo de busca de vagas
 │   ├── course-analysis.md # Fluxo de busca de cursos
-│   └── firecrawl.md       # Comandos e regras do Firecrawl
+│   └── firecrawl.md       # Regras de uso do Firecrawl
 │
 └── data/                  # Estado local (gerado em runtime, *.md ignorado pelo Git)
     ├── README.md           # Único arquivo versionado da pasta
@@ -191,7 +194,7 @@ import-vagas/
     └── interview-session.md
 ```
 
-> **Privacidade:** os arquivos `data/*.md` são estado local por pessoa/sessão e
+> **Privacidade:** os arquivos `data/*.md`, `data/applications.json` e `data/sessions/` são estado local por pessoa/sessão e
 > podem conter dados sensíveis (currículo, perfil). Eles são ignorados pelo Git —
 > apenas `data/README.md` é versionado.
 
@@ -201,7 +204,6 @@ import-vagas/
 
 - **Python** 3.11+
 - **Node.js** 18+
-- **Firecrawl CLI** — `npm install -g firecrawl`
 - **OpenAI API Key** — [platform.openai.com](https://platform.openai.com)
 - **Firecrawl API Key** — [firecrawl.dev](https://firecrawl.dev)
 
@@ -310,6 +312,20 @@ A interface foi projetada com estética **dark tech** — escura, densa e funcio
 
 ---
 
+## Robustez operacional
+
+O backend passou por uma etapa de hardening para operar como API de producao:
+
+- **Logging estruturado** em JSON via `logging_config.py`, com `session_id` em eventos de WebSocket, agentes e chamadas externas.
+- **Contratos de erro seguros** no FastAPI para validacao 422 e falhas internas 500, sem expor stack trace ao frontend.
+- **Persistencia atomica** com locks por sessao e `write_text_atomic_async`, evitando corrupcao em escritas concorrentes.
+- **Estado do WebSocket recuperavel** em `data/sessions/{session_id}/chat_state.json`.
+- **Firecrawl SDK oficial** (`firecrawl-py`) no lugar de CLI/subprocess, executado fora do Event Loop com `asyncio.to_thread`.
+- **Upload de curriculos endurecido** com limite de tamanho, validacao de `Content-Type` e Magic Numbers para PDF/DOCX.
+- **Suite automatizada** com 73 testes passando, incluindo stress test de 50 escritas simultaneas.
+
+---
+
 ## Variáveis de ambiente
 
 | Variável | Descrição | Padrão |
@@ -325,13 +341,15 @@ A interface foi projetada com estética **dark tech** — escura, densa e funcio
 
 ## Tecnologias
 
-**Backend**
+**Backend**:
+
 - [FastAPI](https://fastapi.tiangolo.com) — framework web assíncrono
 - [WebSockets](https://websockets.readthedocs.io) — streaming em tempo real
 - [OpenAI Python SDK](https://github.com/openai/openai-python) — integração com LLMs
-- [Firecrawl](https://firecrawl.dev) — scraping e busca web
+- [Firecrawl SDK](https://firecrawl.dev) (`firecrawl-py`) — scraping e busca web
 
-**Frontend**
+**Frontend**:
+
 - [React 18](https://react.dev) + [TypeScript](https://typescriptlang.org)
 - [Vite](https://vitejs.dev) — build tool
 - [Tailwind CSS](https://tailwindcss.com) — utilitários de estilo

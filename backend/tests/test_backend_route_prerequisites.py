@@ -77,6 +77,31 @@ def test_resume_upload_recusa_extensao_invalida(tmp_path, monkeypatch):
     assert response.json()["success"] is False
 
 
+def test_resume_upload_recusa_pdf_sem_assinatura_valida(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+
+    response = client.post(
+        "/api/resume/upload",
+        files={"file": ("curriculo.pdf", b"conteudo que nao e pdf", "application/pdf")},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["success"] is False
+
+
+def test_resume_upload_recusa_arquivo_acima_do_limite(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+    monkeypatch.setattr(config, "MAX_RESUME_UPLOAD_SIZE", 12)
+
+    response = client.post(
+        "/api/resume/upload",
+        files={"file": ("curriculo.pdf", b"%PDF-" + (b"x" * 32), "application/pdf")},
+    )
+
+    assert response.status_code == 413
+    assert response.json()["success"] is False
+
+
 def test_match_sem_curriculo_retorna_400(tmp_path, monkeypatch, job_markdown):
     client = _client(tmp_path, monkeypatch)
     _write(tmp_path / "job-description-analysis.md", job_markdown)

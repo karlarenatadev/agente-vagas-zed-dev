@@ -1,5 +1,24 @@
 # Plano: Orquestrador Multi-Agente (MoE) - Maestro 
 
+## Atualizacao de Roadmap Tecnico (2026-06-17)
+
+O backend passou por uma etapa de hardening e agora opera com contratos mais proximos de producao:
+
+* [x] Logging estruturado centralizado em `backend/logging_config.py`.
+* [x] Tratamento global de excecoes no FastAPI para respostas JSON seguras.
+* [x] Falhas de LLM e provedores externos encapsuladas em erros de dominio controlados.
+* [x] Persistencia local protegida por locks, escrita atomica e I/O delegado para thread quando necessario.
+* [x] Sessoes isoladas por `session_id`, com estado do WebSocket salvo em `data/sessions/{id}/chat_state.json`.
+* [x] Firecrawl migrado de CLI/subprocess para SDK oficial `firecrawl-py`.
+* [x] Upload de curriculos endurecido com limite de tamanho e Magic Numbers.
+* [x] Suite atual: 73 testes passando, incluindo stress test de 50 escritas concorrentes.
+
+Proximos marcos arquiteturais:
+
+* [ ] Frontend consumir os contratos padronizados de erro 422/500 com toasts ou banners amigaveis.
+* [ ] Frontend refletir visualmente a recuperacao de estado do WebSocket apos reconexao.
+* [ ] Dockerizar backend e frontend.
+* [ ] Criar GitHub Actions com pipeline bloqueante para testes de contrato e concorrencia.
 ## Visão Geral 
 
 Este plano detalha a implementação do Maestro, o orquestrador central de um Sistema Multi-Agente baseado em Mixture of Experts (MoE), projetado para auxiliar usuários em sua jornada de desenvolvimento de carreira. O sistema combina busca de empregos, identificação de lacunas de habilidades, recomendações de cursos e simulação de entrevistas. O Maestro é responsável por saudar o usuário, conduzir o quiz de perfil, gerenciar o estado do usuário e apresentar o menu de opções, delegando tarefas a agentes especializados. 
