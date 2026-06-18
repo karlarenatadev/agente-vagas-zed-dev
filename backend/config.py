@@ -44,6 +44,14 @@ PDI_PLAN_FILE = DATA_DIR / "pdi-plan.md"
 # Upload de currículo
 MAX_RESUME_UPLOAD_SIZE = 5 * 1024 * 1024
 
+# Logging estruturado
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+LOG_TO_FILE = os.getenv("LOG_TO_FILE", "false").lower() in {"1", "true", "yes", "on"}
+LOG_DIR = Path(os.getenv("LOG_DIR", str(PROJECT_ROOT / "logs")))
+LOG_FILE = Path(os.getenv("LOG_FILE", str(LOG_DIR / "backend.log")))
+LOG_MAX_BYTES = int(os.getenv("LOG_MAX_BYTES", str(5 * 1024 * 1024)))
+LOG_BACKUP_COUNT = int(os.getenv("LOG_BACKUP_COUNT", "3"))
+
 # Personas
 MAESTRO_PERSONA = PERSONAS_DIR / "maestro.md"
 SCOUT_PERSONA = PERSONAS_DIR / "scout.md"

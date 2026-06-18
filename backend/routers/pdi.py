@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from session import SessionPaths, get_session_paths
+from session import SessionPaths, get_session_lock, get_session_paths, write_text_atomic_async
 from routers.common import read_required
 from agents.pdi_generator import (
     PdiGenerator,
@@ -135,11 +135,8 @@ async def generate_pdi(
         match_content,
         tailoring_content,
     )
-    paths.PDI_PLAN_FILE.parent.mkdir(parents=True, exist_ok=True)
-    paths.PDI_PLAN_FILE.write_text(
-        pdi_to_markdown(result),
-        encoding="utf-8",
-    )
+    async with get_session_lock(paths.session_id):
+        await write_text_atomic_async(paths.PDI_PLAN_FILE, pdi_to_markdown(result))
 
     # Próxima etapa: usar este PDI no Coach para uma entrevista específica.
     # Exportação e geração de currículo final permanecem fora desta etapa.

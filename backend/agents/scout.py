@@ -19,7 +19,7 @@ from collections import Counter
 from typing import AsyncGenerator
 
 import config
-from agents.base import BaseAgent
+from agents.base import BaseAgent, LLMProviderError
 
 
 def _firecrawl_env() -> dict[str, str]:
@@ -402,7 +402,7 @@ dica_curriculo: [1 frase sobre o que destacar no currículo para esta vaga]"""
 
             try:
                 extracted = await self.call_llm(SCOUT_SYSTEM_PROMPT, extraction_prompt)
-            except Exception:
+            except LLMProviderError:
                 extracted = ""
 
             # Parse do resultado extraído

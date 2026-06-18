@@ -16,10 +16,14 @@ import re
 from datetime import datetime
 from typing import AsyncGenerator
 
-from agents.base import BaseAgent
+from agents.base import BaseAgent, LLMProviderError
 from agents.scout import ScoutAgent
 from agents.curator import CuratorAgent
 from agents.coach import CoachAgent
+from logging_config import get_logger
+
+
+logger = get_logger(__name__)
 
 
 # Mapeamento fixo de funções alvo (área + nível → funções)
@@ -742,7 +746,15 @@ class MaestroAgent(BaseAgent):
             }):
                 result_chunks.append(token)
                 yield token
-        except Exception as exc:
+        except (LLMProviderError, OSError, RuntimeError, ValueError, KeyError) as exc:
+            logger.exception(
+                "Falha controlada ao iniciar Coach",
+                extra={
+                    "event": "maestro_coach_start_error",
+                    "session_id": self.paths.session_id,
+                    "error_type": type(exc).__name__,
+                },
+            )
             error_response = self._coach_error_response(exc)
             yield error_response
             async for token in self._show_menu():
@@ -803,7 +815,15 @@ class MaestroAgent(BaseAgent):
                 }):
                     result_chunks.append(token)
                     yield token
-            except Exception as exc:
+            except (LLMProviderError, OSError, RuntimeError, ValueError, KeyError) as exc:
+                logger.exception(
+                    "Falha controlada ao finalizar Coach",
+                    extra={
+                        "event": "maestro_coach_final_error",
+                        "session_id": self.paths.session_id,
+                        "error_type": type(exc).__name__,
+                    },
+                )
                 yield self._coach_error_response(exc)
                 async for token in self._show_menu():
                     yield token
@@ -845,7 +865,15 @@ class MaestroAgent(BaseAgent):
                 }):
                     result_chunks.append(token)
                     yield token
-            except Exception as exc:
+            except (LLMProviderError, OSError, RuntimeError, ValueError, KeyError) as exc:
+                logger.exception(
+                    "Falha controlada ao avancar Coach",
+                    extra={
+                        "event": "maestro_coach_next_error",
+                        "session_id": self.paths.session_id,
+                        "error_type": type(exc).__name__,
+                    },
+                )
                 yield self._coach_error_response(exc)
                 async for token in self._show_menu():
                     yield token

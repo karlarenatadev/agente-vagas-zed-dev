@@ -4,10 +4,15 @@ FastAPI + WebSocket para comunicação em tempo real com o frontend.
 """
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from typing import Any
+
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 import config
+from logging_config import configure_logging, get_logger
 from routers import (
     applications,
     chat,
@@ -21,12 +26,24 @@ from routers import (
 )
 
 
+configure_logging()
+logger = get_logger(__name__)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Inicializa recursos na startup e limpa no shutdown."""
     # Garante que o diretório data/ existe (mesmo caminho usado para todo I/O)
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
+    logger.info(
+        "Backend startup concluido",
+        extra={
+            "event": "backend_startup",
+            "data_dir": str(config.DATA_DIR),
+        },
+    )
     yield
+    logger.info("Backend shutdown iniciado", extra={"event": "backend_shutdown"})
 
 
 app = FastAPI(
@@ -72,6 +89,57 @@ app.include_router(
     tags=["resume-tailoring"],
 )
 app.include_router(pdi.router, prefix="/api/pdi", tags=["pdi"])
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(
+    request: Request,
+    exc: RequestValidationError,
+) -> JSONResponse:
+    errors: list[dict[str, Any]] = []
+    for error in exc.errors():
+        location = [str(part) for part in error.get("loc", []) if part != "body"]
+        errors.append(
+            {
+                "field": ".".join(location) or "request",
+                "message": str(error.get("msg", "Valor invalido")),
+                "type": str(error.get("type", "validation_error")),
+            }
+        )
+
+    logger.warning(
+        "Falha de validacao na requisicao",
+        extra={
+            "event": "request_validation_error",
+            "path": request.url.path,
+            "method": request.method,
+            "errors": errors,
+        },
+    )
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "detail": "Dados invalidos na requisicao.",
+            "errors": errors,
+        },
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.exception(
+        "Erro interno nao tratado",
+        extra={
+            "event": "unhandled_exception",
+            "path": request.url.path,
+            "method": request.method,
+            "error_type": type(exc).__name__,
+        },
+    )
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Erro interno no processamento. Tente novamente."},
+    )
 
 
 @app.get("/health")

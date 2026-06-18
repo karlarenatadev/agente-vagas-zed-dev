@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from session import SessionPaths, get_session_paths
+from session import SessionPaths, get_session_lock, get_session_paths, write_text_atomic_async
 from routers.common import read_required
 from agents.resume_tailor import (
     ResumeTailor,
@@ -122,14 +122,11 @@ async def generate_resume_tailoring(
         )
 
     result = tailor.generate(resume_content, job_content, match_content)
-    paths.RESUME_TAILORING_SUGGESTIONS_FILE.parent.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-    paths.RESUME_TAILORING_SUGGESTIONS_FILE.write_text(
-        tailoring_to_markdown(result),
-        encoding="utf-8",
-    )
+    async with get_session_lock(paths.session_id):
+        await write_text_atomic_async(
+            paths.RESUME_TAILORING_SUGGESTIONS_FILE,
+            tailoring_to_markdown(result),
+        )
 
     # Próxima etapa: combinar este artefato com o match para gerar pdi-plan.md.
     # Exportação e edição final de PDF/DOCX permanecem fora deste fluxo.

@@ -5,7 +5,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException
 
-from session import SessionPaths, get_session_paths
+from session import SessionPaths, get_session_lock, get_session_paths, write_text_atomic_async
 from agents.job_description_analyzer import (
     JobDescriptionAnalyzer,
     analysis_from_markdown,
@@ -67,11 +67,11 @@ async def analyze_job_description(
         )
 
     analysis = analyzer.analyze(description)
-    paths.JOB_DESCRIPTION_ANALYSIS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    paths.JOB_DESCRIPTION_ANALYSIS_FILE.write_text(
-        analysis_to_markdown(analysis),
-        encoding="utf-8",
-    )
+    async with get_session_lock(paths.session_id):
+        await write_text_atomic_async(
+            paths.JOB_DESCRIPTION_ANALYSIS_FILE,
+            analysis_to_markdown(analysis),
+        )
 
     # Próxima etapa: combinar este resultado com RESUME_ANALYSIS_FILE para
     # produzir resume-match-report.md e, depois, um pdi-plan.md.

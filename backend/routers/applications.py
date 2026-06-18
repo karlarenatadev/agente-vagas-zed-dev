@@ -1,32 +1,29 @@
-"""
-Router de candidaturas — CRUD para rastrear vagas aplicadas.
-Persiste em data/applications.json.
-"""
+"""Router de candidaturas: CRUD persistido em applications.json."""
 
-import asyncio
+from __future__ import annotations
+
 import json
-import os
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from session import SessionPaths, get_session_paths
+from logging_config import get_logger
+from session import (
+    SessionPaths,
+    get_session_lock,
+    get_session_paths,
+    read_text_async,
+    write_text_atomic_async,
+)
+
 
 router = APIRouter()
+logger = get_logger(__name__)
 
-# Serializa o ciclo ler-modificar-gravar. FastAPI roda num único event loop,
-# então este asyncio.Lock impede que duas requisições concorrentes (ex.: dois
-# PATCH simultâneos) leiam a mesma lista, alterem cópias diferentes e uma
-# sobrescreva a outra. Cobre também futuras mudanças que introduzam await
-# entre o load e o save.
-_write_lock = asyncio.Lock()
-
-
-# ── Schemas ───────────────────────────────────────────────────────────────────
 
 class ApplicationCreate(BaseModel):
     titulo: str
@@ -47,36 +44,73 @@ class ApplicationUpdate(BaseModel):
     data_aplicacao: Optional[str] = None
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-def _load(path: Path) -> list[dict]:
-    if not path.exists():
-        return []
+async def _load(path: Path, session_id: str) -> list[dict[str, Any]]:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
+        content = await read_text_async(path)
+        if not content.strip():
+            return []
+
+        payload = json.loads(content)
+        if isinstance(payload, list):
+            return [item for item in payload if isinstance(item, dict)]
+
+        logger.error(
+            "Formato invalido em applications.json",
+            extra={
+                "event": "applications_invalid_payload",
+                "session_id": session_id,
+                "path": str(path),
+                "payload_type": type(payload).__name__,
+            },
+        )
         return []
+    except json.JSONDecodeError as exc:
+        logger.exception(
+            "JSON invalido ao carregar candidaturas",
+            extra={
+                "event": "applications_json_decode_error",
+                "session_id": session_id,
+                "path": str(path),
+                "error_type": type(exc).__name__,
+            },
+        )
+        return []
+    except OSError:
+        logger.exception(
+            "Falha ao carregar candidaturas",
+            extra={
+                "event": "applications_load_error",
+                "session_id": session_id,
+                "path": str(path),
+            },
+        )
+        raise
 
 
-def _save(data: list[dict], path: Path) -> None:
-    # Escrita atômica: grava num arquivo temporário no mesmo diretório e troca
-    # pelo definitivo com os.replace (operação atômica no SO). Assim, se o
-    # processo cair no meio da escrita, o applications.json nunca fica truncado
-    # ou corrompido — ou tem o conteúdo antigo, ou o novo, nunca um pedaço.
-    path.parent.mkdir(parents=True, exist_ok=True)
+async def _save(data: list[dict[str, Any]], path: Path, session_id: str) -> None:
     payload = json.dumps(data, ensure_ascii=False, indent=2)
-    tmp_path = path.with_suffix(".json.tmp")
-    tmp_path.write_text(payload, encoding="utf-8")
-    os.replace(tmp_path, path)
+    try:
+        await write_text_atomic_async(path, payload)
+    except OSError:
+        logger.exception(
+            "Falha ao salvar candidaturas",
+            extra={
+                "event": "applications_save_error",
+                "session_id": session_id,
+                "path": str(path),
+                "item_count": len(data),
+            },
+        )
+        raise
 
-
-# ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.get("/")
-async def list_applications(paths: SessionPaths = Depends(get_session_paths)):
-    """Lista todas as candidaturas, ordenadas por data (mais recente primeiro)."""
-    apps = _load(paths.APPLICATIONS_FILE)
-    apps.sort(key=lambda x: x.get("data_salva", ""), reverse=True)
+async def list_applications(
+    paths: SessionPaths = Depends(get_session_paths),
+) -> list[dict[str, Any]]:
+    """Lista todas as candidaturas, ordenadas por data recente."""
+    apps = await _load(paths.APPLICATIONS_FILE, paths.session_id)
+    apps.sort(key=lambda item: str(item.get("data_salva", "")), reverse=True)
     return apps
 
 
@@ -84,17 +118,17 @@ async def list_applications(paths: SessionPaths = Depends(get_session_paths)):
 async def create_application(
     body: ApplicationCreate,
     paths: SessionPaths = Depends(get_session_paths),
-):
+) -> dict[str, Any]:
     """Salva uma nova candidatura."""
-    async with _write_lock:
-        apps = _load(paths.APPLICATIONS_FILE)
+    async with get_session_lock(paths.session_id):
+        apps = await _load(paths.APPLICATIONS_FILE, paths.session_id)
         new_app = {
             "id": str(uuid.uuid4()),
             "data_salva": datetime.now().isoformat(),
             **body.model_dump(),
         }
         apps.append(new_app)
-        _save(apps, paths.APPLICATIONS_FILE)
+        await _save(apps, paths.APPLICATIONS_FILE, paths.session_id)
     return new_app
 
 
@@ -103,12 +137,12 @@ async def update_application(
     app_id: str,
     body: ApplicationUpdate,
     paths: SessionPaths = Depends(get_session_paths),
-):
-    """Atualiza status, notas ou data de aplicação."""
-    async with _write_lock:
-        apps = _load(paths.APPLICATIONS_FILE)
+) -> dict[str, Any]:
+    """Atualiza status, notas ou data de aplicacao."""
+    async with get_session_lock(paths.session_id):
+        apps = await _load(paths.APPLICATIONS_FILE, paths.session_id)
         for app in apps:
-            if app["id"] == app_id:
+            if app.get("id") == app_id:
                 if body.status is not None:
                     app["status"] = body.status
                     if body.status == "aplicada" and not app.get("data_aplicacao"):
@@ -117,32 +151,34 @@ async def update_application(
                     app["notas"] = body.notas
                 if body.data_aplicacao is not None:
                     app["data_aplicacao"] = body.data_aplicacao
-                _save(apps, paths.APPLICATIONS_FILE)
+                await _save(apps, paths.APPLICATIONS_FILE, paths.session_id)
                 return app
-    raise HTTPException(status_code=404, detail="Candidatura não encontrada")
+    raise HTTPException(status_code=404, detail="Candidatura nao encontrada")
 
 
 @router.delete("/{app_id}")
 async def delete_application(
     app_id: str,
     paths: SessionPaths = Depends(get_session_paths),
-):
+) -> dict[str, bool]:
     """Remove uma candidatura."""
-    async with _write_lock:
-        apps = _load(paths.APPLICATIONS_FILE)
-        filtered = [a for a in apps if a["id"] != app_id]
+    async with get_session_lock(paths.session_id):
+        apps = await _load(paths.APPLICATIONS_FILE, paths.session_id)
+        filtered = [app for app in apps if app.get("id") != app_id]
         if len(filtered) == len(apps):
-            raise HTTPException(status_code=404, detail="Candidatura não encontrada")
-        _save(filtered, paths.APPLICATIONS_FILE)
+            raise HTTPException(status_code=404, detail="Candidatura nao encontrada")
+        await _save(filtered, paths.APPLICATIONS_FILE, paths.session_id)
     return {"ok": True}
 
 
 @router.get("/stats")
-async def get_stats(paths: SessionPaths = Depends(get_session_paths)):
+async def get_stats(
+    paths: SessionPaths = Depends(get_session_paths),
+) -> dict[str, Any]:
     """Retorna contagens por status para o dashboard."""
-    apps = _load(paths.APPLICATIONS_FILE)
+    apps = await _load(paths.APPLICATIONS_FILE, paths.session_id)
     stats: dict[str, int] = {}
     for app in apps:
-        s = app.get("status", "salva")
-        stats[s] = stats.get(s, 0) + 1
+        status = str(app.get("status", "salva"))
+        stats[status] = stats.get(status, 0) + 1
     return {"total": len(apps), "by_status": stats}

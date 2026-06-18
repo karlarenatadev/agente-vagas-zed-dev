@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 from typing import AsyncGenerator
 
-from agents.base import BaseAgent
+from agents.base import BaseAgent, LLMProviderError
 
 
 COACH_SYSTEM_PROMPT = """Voce e o Coach, agente especializado em entrevistas simuladas do sistema Recoloca IA.
@@ -448,7 +448,7 @@ Nenhum erro.
         try:
             async for token in self.stream_llm(COACH_SYSTEM_PROMPT, prompt):
                 yield token
-        except Exception as exc:
+        except LLMProviderError as exc:
             yield self._fallback_first_question(interview_brief, has_course_recommendations, exc)
         yield "\n"
 
@@ -516,7 +516,7 @@ Nenhum erro.
         try:
             async for token in self.stream_llm(COACH_SYSTEM_PROMPT, prompt):
                 yield token
-        except Exception as exc:
+        except LLMProviderError as exc:
             yield self._fallback_evaluate_and_ask(step, interview_brief, history_text, exc)
         yield "\n"
 
@@ -590,6 +590,6 @@ Nenhum erro.
         try:
             async for token in self.stream_llm(COACH_SYSTEM_PROMPT, prompt):
                 yield token
-        except Exception as exc:
+        except LLMProviderError as exc:
             yield self._fallback_final_evaluation(interview_brief, history_text, exc)
         yield "\n"

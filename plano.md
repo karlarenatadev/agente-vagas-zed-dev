@@ -23,7 +23,7 @@ TD A[Usuário] --> B(Maestro - Orquestrador); B --> C{Agentes Especializados}; C
 
 ``` 
 
-recoloca-ia/ ├── AGENTS.md
+import-vagas/ ├── AGENTS.md
 
  # Instruções de inicialização para o agente Maestro
  ├── personas/ │ └── maestro.md 

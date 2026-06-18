@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from session import SessionPaths, get_session_paths
+from session import SessionPaths, get_session_lock, get_session_paths, write_text_atomic_async
 from routers.common import read_required
 from agents.resume_matcher import (
     ResumeMatcher,
@@ -115,11 +115,11 @@ async def analyze_resume_match(
         )
 
     report = matcher.match(job_content, resume_content)
-    paths.RESUME_MATCH_REPORT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    paths.RESUME_MATCH_REPORT_FILE.write_text(
-        match_report_to_markdown(report),
-        encoding="utf-8",
-    )
+    async with get_session_lock(paths.session_id):
+        await write_text_atomic_async(
+            paths.RESUME_MATCH_REPORT_FILE,
+            match_report_to_markdown(report),
+        )
 
     # Próxima etapa: usar este relatório para gerar sugestões de adaptação
     # em resume-tailoring-suggestions.md e, depois, o PDI em pdi-plan.md.

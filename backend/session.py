@@ -14,12 +14,20 @@ Sem um ID válido, cai numa sessão default que usa a própria pasta `data/`
 
 from __future__ import annotations
 
+import asyncio
+import os
 import re
+import time
+import uuid
 from pathlib import Path
 
 from fastapi import Header
 
 import config
+from logging_config import get_logger
+
+
+logger = get_logger(__name__)
 
 # Só permitimos estes caracteres no ID; o resto é removido. Isso neutraliza
 # path traversal (".." perde os pontos, "/" e "\" são removidos) antes de o ID
@@ -29,6 +37,9 @@ _MAX_LEN = 64
 
 # ID reservado para a sessão default (sem isolamento, usa data/ direto).
 DEFAULT_SESSION = "_default"
+_session_locks: dict[str, asyncio.Lock] = {}
+_ATOMIC_REPLACE_ATTEMPTS = 5
+_ATOMIC_REPLACE_RETRY_SECONDS = 0.02
 
 
 def sanitize_session_id(raw: str | None) -> str:
@@ -42,6 +53,106 @@ def sanitize_session_id(raw: str | None) -> str:
         return DEFAULT_SESSION
     cleaned = _SAFE_RE.sub("", raw)[:_MAX_LEN]
     return cleaned or DEFAULT_SESSION
+
+
+def get_session_lock(session_id: str | None) -> asyncio.Lock:
+    """Retorna uma trava assincrona compartilhada por sessao."""
+    safe_session_id = sanitize_session_id(session_id)
+    lock = _session_locks.get(safe_session_id)
+    if lock is None:
+        lock = asyncio.Lock()
+        _session_locks[safe_session_id] = lock
+    return lock
+
+
+def _temp_path_for(path: Path) -> Path:
+    suffix = f"{path.suffix}.tmp-{uuid.uuid4().hex}"
+    return path.with_suffix(suffix)
+
+
+def _atomic_write_text_sync(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = _temp_path_for(path)
+    try:
+        with tmp_path.open("w", encoding="utf-8") as file:
+            file.write(content)
+            file.flush()
+            os.fsync(file.fileno())
+        for attempt in range(_ATOMIC_REPLACE_ATTEMPTS):
+            try:
+                os.replace(tmp_path, path)
+                break
+            except PermissionError:
+                if attempt == _ATOMIC_REPLACE_ATTEMPTS - 1:
+                    raise
+                time.sleep(_ATOMIC_REPLACE_RETRY_SECONDS)
+    except OSError:
+        logger.exception(
+            "Falha na escrita atomica de arquivo",
+            extra={
+                "event": "atomic_file_write_error",
+                "path": str(path),
+                "tmp_path": str(tmp_path),
+                "content_length": len(content),
+            },
+        )
+        raise
+    finally:
+        try:
+            if tmp_path.exists():
+                tmp_path.unlink()
+        except OSError:
+            logger.warning(
+                "Falha ao remover arquivo temporario de escrita atomica",
+                extra={
+                    "event": "atomic_file_tmp_cleanup_error",
+                    "path": str(path),
+                    "tmp_path": str(tmp_path),
+                },
+            )
+
+
+def write_text_atomic(path: Path, content: str) -> None:
+    """Escreve texto com troca atomica. Mantem compatibilidade com codigo sync."""
+    _atomic_write_text_sync(path, content)
+    logger.debug(
+        "Arquivo gravado de forma atomica",
+        extra={
+            "event": "atomic_file_written",
+            "path": str(path),
+            "content_length": len(content),
+        },
+    )
+
+
+async def write_text_atomic_async(path: Path, content: str) -> None:
+    """Escreve texto sem bloquear o event loop e troca o arquivo atomicamente."""
+    await asyncio.to_thread(_atomic_write_text_sync, path, content)
+    logger.debug(
+        "Arquivo gravado de forma atomica",
+        extra={
+            "event": "atomic_file_written",
+            "path": str(path),
+            "content_length": len(content),
+        },
+    )
+
+
+async def read_text_async(path: Path, default: str = "") -> str:
+    """Le texto fora do event loop; retorna default para arquivo ausente."""
+    try:
+        return await asyncio.to_thread(path.read_text, encoding="utf-8")
+    except FileNotFoundError:
+        return default
+    except OSError:
+        logger.exception(
+            "Falha na leitura de arquivo",
+            extra={
+                "event": "file_read_error",
+                "path": str(path),
+            },
+        )
+        raise
 
 
 class SessionPaths:
@@ -101,6 +212,10 @@ class SessionPaths:
     @property
     def APPLICATIONS_FILE(self) -> Path:
         return self.dir / "applications.json"
+
+    @property
+    def CHAT_STATE_FILE(self) -> Path:
+        return self.dir / "chat_state.json"
 
     def __repr__(self) -> str:  # pragma: no cover - debug
         return f"SessionPaths(session_id={self.session_id!r}, dir={self.dir})"

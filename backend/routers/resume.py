@@ -9,7 +9,12 @@ from fastapi import APIRouter, Depends, File, UploadFile
 from fastapi.responses import JSONResponse
 
 import config
-from session import SessionPaths, get_session_paths
+from session import (
+    SessionPaths,
+    get_session_lock,
+    get_session_paths,
+    write_text_atomic_async,
+)
 
 router = APIRouter()
 
@@ -642,7 +647,7 @@ def _is_empty(value: str | None) -> bool:
     }
 
 
-def _merge_profile_suggestions(analysis: dict[str, Any], paths: SessionPaths) -> bool:
+async def _merge_profile_suggestions(analysis: dict[str, Any], paths: SessionPaths) -> bool:
     try:
         existing = paths.PROFILE_FILE.read_text(encoding="utf-8")
     except FileNotFoundError:
@@ -687,10 +692,9 @@ def _merge_profile_suggestions(analysis: dict[str, Any], paths: SessionPaths) ->
     )
 
     if updated or not existing:
-        paths.PROFILE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        paths.PROFILE_FILE.write_text(
+        await write_text_atomic_async(
+            paths.PROFILE_FILE,
             _profile_to_markdown(profile),
-            encoding="utf-8",
         )
 
     return updated
@@ -749,13 +753,12 @@ async def upload_resume(
 
     analysis = _analyze_resume(extracted_text)
 
-    paths.RESUME_ANALYSIS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    paths.RESUME_ANALYSIS_FILE.write_text(
-        _analysis_to_markdown(analysis),
-        encoding="utf-8",
-    )
-
-    profile_updated = _merge_profile_suggestions(analysis, paths)
+    async with get_session_lock(paths.session_id):
+        await write_text_atomic_async(
+            paths.RESUME_ANALYSIS_FILE,
+            _analysis_to_markdown(analysis),
+        )
+        profile_updated = await _merge_profile_suggestions(analysis, paths)
 
     return {
         "success": True,
