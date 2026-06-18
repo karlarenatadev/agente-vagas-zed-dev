@@ -54,6 +54,7 @@ export default function App() {
     connectionStatus,
     isConnected,
     isStreaming,
+    loadingState,
     messages,
     session,
     sendMessage,
@@ -347,6 +348,7 @@ export default function App() {
               <Suspense fallback={<div className="loading-fallback">Preparando sua jornada...</div>}>
                 <ChatTerminal
                   disabled={disabled}
+                  scoutLoading={loadingState.scout}
                   isStreaming={isStreaming}
                   messages={messages}
                   mode={session.mode}

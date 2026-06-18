@@ -21,6 +21,10 @@ interface Job {
 
 export interface ScoutData {
   resumo: string
+  status_busca?: string
+  fallback_simulado?: string
+  fallback_reason?: string
+  fallback_message?: string
   requisitos: { requisito: string; ocorrencias: string }[]
   vagas: Job[]
 }
@@ -82,9 +86,22 @@ function priorityClass(priority?: string): string {
 }
 
 export function ScoutReport({ data }: { data: ScoutData }) {
+  const hasSimulatedFallback = data.fallback_simulado === 'true'
+    || data.vagas.some(job => isSimulatedSource(job.source))
+  const fallbackMessage = isMeaningful(data.fallback_message)
+    ? data.fallback_message
+    : 'Nao conseguimos buscar vagas reais agora. Exibindo oportunidades simuladas.'
+
   return (
     <div className="scout-report">
       {data.resumo && <p className="scout-summary">{data.resumo}</p>}
+
+      {hasSimulatedFallback && (
+        <p className="scout-fallback-warning scout-fallback-summary" role="status">
+          <AlertTriangle size={14} aria-hidden="true" />
+          <span>{fallbackMessage}</span>
+        </p>
+      )}
 
       {data.requisitos.length > 0 && (
         <div className="scout-requirements">

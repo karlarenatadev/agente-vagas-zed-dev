@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ApplicationPipeline } from '../ApplicationPipeline'
 import { ApplicationTracker } from '../ApplicationTracker'
 import { ChatMessage } from '../ChatMessage'
+import { ChatTerminal } from '../ChatTerminal'
 import { JobDescriptionAnalyzer } from '../JobDescriptionAnalyzer'
 import { PdiPlan } from '../PdiPlan'
 import { ResumeMatchReport } from '../ResumeMatchReport'
@@ -435,5 +436,21 @@ vagas_compativeis:
     expectTextNow('simulada')
     expectTextNow('firecrawl falhou')
     expect(screen.queryByRole('link', { name: /Ver vaga/i })).toBeNull()
+  })
+
+  it('mostra feedback claro enquanto o Scout busca vagas reais', () => {
+    render(
+      <ChatTerminal
+        disabled={false}
+        scoutLoading
+        messages={[]}
+        isStreaming={false}
+        mode="menu"
+        onQuickAction={vi.fn()}
+      />,
+    )
+
+    expectTextNow('buscando vagas reais')
+    expectTextNow('isso pode levar alguns segundos')
   })
 })

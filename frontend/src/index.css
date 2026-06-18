@@ -1873,6 +1873,37 @@ textarea::placeholder {
   margin-top: 2px;
 }
 
+.scout-loading-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  margin: 8px 0 0 54px;
+  padding: 10px 13px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(0, 229, 255, 0.24);
+  background: rgba(0, 229, 255, 0.08);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+}
+
+.scout-loading-note svg {
+  color: var(--cyan);
+}
+
+.scout-loading-note span {
+  display: grid;
+  gap: 2px;
+}
+
+.scout-loading-note strong {
+  color: var(--text-primary);
+}
+
+.scout-loading-note small {
+  color: var(--text-muted);
+}
+
 .scout-meta {
   display: flex;
   flex-wrap: wrap;

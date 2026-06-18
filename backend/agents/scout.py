@@ -11,7 +11,11 @@ Fluxo:
 
 from __future__ import annotations
 
+import asyncio
 from collections import Counter
+import os
+import re
+import time
 from typing import AsyncGenerator
 
 from agents.base import BaseAgent, LLMProviderError
@@ -75,9 +79,33 @@ DATE_FILTER_TBS: dict[str, str] = {
 }
 
 FALLBACK_MESSAGES: dict[str, str] = {
-    "firecrawl_error": "Firecrawl falhou; estas oportunidades sao simuladas para orientar a estrategia.",
-    "firecrawl_empty": "Firecrawl nao retornou vagas reais; estas oportunidades sao simuladas para orientar a estrategia.",
+    "firecrawl_error": "Nao conseguimos buscar vagas reais agora. Exibindo oportunidades simuladas.",
+    "firecrawl_empty": "Nenhuma vaga real encontrada para esse filtro. Tente termos mais amplos. Exibindo oportunidades simuladas.",
+    "firecrawl_timeout": "Nao conseguimos buscar vagas reais dentro do tempo limite. Exibindo oportunidades simuladas.",
 }
+
+_SEARCH_CACHE: dict[str, tuple[float, list[dict[str, str]]]] = {}
+
+
+def _env_float(name: str, default: float, minimum: float, maximum: float) -> float:
+    try:
+        value = float(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+    return min(max(value, minimum), maximum)
+
+
+def _env_int(name: str, default: int, minimum: int, maximum: int) -> int:
+    try:
+        value = int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+    return min(max(value, minimum), maximum)
+
+
+def _normalize_cache_key(query: str, tbs: str, limit: int) -> str:
+    normalized_query = re.sub(r"\s+", " ", query.casefold()).strip()
+    return f"{normalized_query}|{tbs}|{limit}"
 
 
 class ScoutAgent(BaseAgent):
@@ -85,21 +113,75 @@ class ScoutAgent(BaseAgent):
 
     name = "Scout"
 
-    async def _run_firecrawl_search(self, query: str, tbs: str = "") -> tuple[list[dict[str, str]], str]:
+    def _firecrawl_timeout_seconds(self) -> float:
+        return _env_float("FIRECRAWL_TIMEOUT_SECONDS", 15.0, 0.001, 120.0)
+
+    def _firecrawl_max_results(self) -> int:
+        return _env_int("FIRECRAWL_MAX_RESULTS", 5, 1, 20)
+
+    def _firecrawl_cache_ttl_seconds(self) -> float:
+        return _env_float("FIRECRAWL_CACHE_TTL_SECONDS", 600.0, 0.0, 3600.0)
+
+    def _get_cached_search(self, query: str, tbs: str, limit: int) -> list[dict[str, str]] | None:
+        ttl = self._firecrawl_cache_ttl_seconds()
+        if ttl <= 0:
+            return None
+
+        key = _normalize_cache_key(query, tbs, limit)
+        cached = _SEARCH_CACHE.get(key)
+        if not cached:
+            return None
+
+        expires_at, results = cached
+        if expires_at <= time.monotonic():
+            _SEARCH_CACHE.pop(key, None)
+            return None
+
+        return [dict(item) for item in results]
+
+    def _set_cached_search(self, query: str, tbs: str, limit: int, results: list[dict[str, str]]) -> None:
+        ttl = self._firecrawl_cache_ttl_seconds()
+        if ttl <= 0:
+            return
+
+        key = _normalize_cache_key(query, tbs, limit)
+        _SEARCH_CACHE[key] = (
+            time.monotonic() + ttl,
+            [dict(item) for item in results[:limit]],
+        )
+
+    async def _run_firecrawl_search(self, query: str, tbs: str = "") -> tuple[list[dict[str, str]], str, bool]:
+        limit = self._firecrawl_max_results()
+        cached = self._get_cached_search(query, tbs, limit)
+        if cached is not None:
+            return cached, "" if cached else "firecrawl_empty", True
+
         try:
-            results = await firecrawl_search(
-                query,
-                session_id=self.paths.session_id,
-                tbs=tbs,
-                limit=5,
+            results = await asyncio.wait_for(
+                firecrawl_search(
+                    query,
+                    session_id=self.paths.session_id,
+                    tbs=tbs,
+                    limit=limit,
+                ),
+                timeout=self._firecrawl_timeout_seconds(),
             )
-            return results, "" if results else "firecrawl_empty"
+            limited_results = results[:limit]
+            self._set_cached_search(query, tbs, limit, limited_results)
+            return limited_results, "" if limited_results else "firecrawl_empty", False
+        except asyncio.TimeoutError:
+            return [], "firecrawl_timeout", False
         except FirecrawlProviderError:
-            return [], "firecrawl_error"
+            return [], "firecrawl_error", False
 
     async def _run_firecrawl_scrape(self, url: str) -> str:
         try:
-            return await firecrawl_scrape(url, session_id=self.paths.session_id)
+            return await asyncio.wait_for(
+                firecrawl_scrape(url, session_id=self.paths.session_id),
+                timeout=self._firecrawl_timeout_seconds(),
+            )
+        except asyncio.TimeoutError:
+            return ""
         except FirecrawlProviderError:
             return ""
 
@@ -291,21 +373,32 @@ class ScoutAgent(BaseAgent):
         }.get(date_filter, "")
         yield f"🔍 Buscando vagas de **{area}** em **{location}**{period_label}...\n\n"
 
+        yield "Buscando vagas reais...\nIsso pode levar alguns segundos.\n\n"
+
         # Monta query de busca
         query = f"vagas {area} {level} {location}".strip()
-        search_results, fallback_reason = await self._run_firecrawl_search(query, tbs)
+        max_results = self._firecrawl_max_results()
+        search_results, fallback_reason, cache_hit = await self._run_firecrawl_search(query, tbs)
+        search_status = "real_success" if search_results else "real_empty"
 
         if not search_results:
             # Tenta query mais ampla
             query_broad = f"vagas {area} {location}"
-            broad_results, broad_fallback_reason = await self._run_firecrawl_search(query_broad, tbs)
+            broad_results, broad_fallback_reason, broad_cache_hit = await self._run_firecrawl_search(query_broad, tbs)
+            cache_hit = cache_hit or broad_cache_hit
             if broad_results:
                 search_results = broad_results
                 fallback_reason = ""
+                search_status = "real_success"
             elif "firecrawl_error" in {fallback_reason, broad_fallback_reason}:
                 fallback_reason = "firecrawl_error"
+                search_status = "external_error"
+            elif "firecrawl_timeout" in {fallback_reason, broad_fallback_reason}:
+                fallback_reason = "firecrawl_timeout"
+                search_status = "timeout"
             else:
                 fallback_reason = "firecrawl_empty"
+                search_status = "real_empty"
 
         simulated_mode = False
         if not search_results:
@@ -319,7 +412,7 @@ class ScoutAgent(BaseAgent):
             yield f"✓ {len(search_results)} vagas encontradas. Analisando detalhes...\n\n"
 
         # Processa até 5 vagas reais quando a busca retorna resultados.
-        for i, job in enumerate(search_results[:5] if not simulated_mode else []):
+        for i, job in enumerate(search_results[:max_results] if not simulated_mode else []):
             url = job.get("url", "")
             title = job.get("titulo", job.get("title", "Título não informado"))
             description = job.get("descricao", job.get("description", ""))
@@ -390,13 +483,20 @@ dica_curriculo: [1 frase sobre o que destacar no currículo para esta vaga]"""
         recurring = self._recurring_requirements(jobs_output)
 
         # Formata saída final
-        yield "\n## RESPOSTA: SCOUT\n### estado\nsucesso\n\n"
+        response_state = "parcial" if simulated_mode else "sucesso"
+        yield f"\n## RESPOSTA: SCOUT\n### estado\n{response_state}\n\n"
         source_label = "oportunidades simuladas" if simulated_mode else "vagas encontradas"
         yield (
             f"### resumo\nAnalisei {len(jobs_output)} {source_label} para **{area}** em **{location}**. "
             "Abaixo estão os matches com score de aderência, lacunas, requisitos recorrentes e prioridade de candidatura.\n\n"
         )
         yield "### dados\n\n"
+        yield f"status_busca: {search_status}\n"
+        yield f"fallback_simulado: {str(simulated_mode).lower()}\n"
+        yield f"fallback_reason: {fallback_reason if simulated_mode else ''}\n"
+        yield f"fallback_message: {FALLBACK_MESSAGES.get(fallback_reason, '') if simulated_mode else ''}\n"
+        yield f"cache_hit: {str(cache_hit).lower()}\n"
+        yield f"max_resultados: {max_results}\n\n"
         yield "requisitos_mais_recorrentes:\n"
         if recurring:
             for index, (skill, count) in enumerate(recurring, 1):

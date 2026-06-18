@@ -6,6 +6,7 @@ import type { ChatMessage as ChatMessageType, SessionMode } from '../types'
 
 interface Props {
   disabled: boolean
+  scoutLoading: boolean
   messages: ChatMessageType[]
   isStreaming: boolean
   mode: SessionMode
@@ -67,7 +68,7 @@ function groupConsecutiveAgentMessages(messages: ChatMessageType[]): ChatMessage
   }, [])
 }
 
-export function ChatTerminal({ disabled, messages, mode, onQuickAction }: Props) {
+export function ChatTerminal({ disabled, scoutLoading, messages, mode, onQuickAction }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const visibleActions = mode === 'menu' ? WELCOME_ACTIONS : WELCOME_ACTIONS.slice(0, 1)
   const visualMessages = useMemo(() => groupConsecutiveAgentMessages(messages), [messages])
@@ -150,6 +151,16 @@ export function ChatTerminal({ disabled, messages, mode, onQuickAction }: Props)
           <ChatMessage key={message.id} message={message} />
         ))}
       </AnimatePresence>
+
+      {scoutLoading && (
+        <div className="scout-loading-note" role="status">
+          <Search size={15} aria-hidden="true" />
+          <span>
+            <strong>Buscando vagas reais...</strong>
+            <small>Isso pode levar alguns segundos.</small>
+          </span>
+        </div>
+      )}
 
       <div ref={bottomRef} className="chat-bottom-anchor" />
     </section>

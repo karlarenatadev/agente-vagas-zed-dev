@@ -6,9 +6,12 @@ e determinística — é o miolo que vale proteger. Chamamos os métodos interno
 diretamente; em teste isso é legítimo, são unidades de lógica.
 """
 
+import asyncio
+
 import pytest
 
-from agents.scout import ScoutAgent
+from agents.scout import ScoutAgent, _SEARCH_CACHE
+from firecrawl_client import FirecrawlProviderError
 
 
 PROFILE = (
@@ -22,6 +25,7 @@ PROFILE = (
 
 @pytest.fixture
 def scout():
+    _SEARCH_CACHE.clear()
     return ScoutAgent()
 
 
@@ -112,6 +116,91 @@ def test_simulate_opportunities_marca_source_simulated(scout):
 
 
 @pytest.mark.asyncio
+async def test_firecrawl_search_rapido_respeita_limite_configurado(monkeypatch, scout):
+    async def fake_firecrawl_search(*_args, **_kwargs):
+        return [
+            {"url": "https://jobs.example.com/1", "title": "Vaga 1", "description": ""},
+            {"url": "https://jobs.example.com/2", "title": "Vaga 2", "description": ""},
+        ]
+
+    monkeypatch.setenv("FIRECRAWL_TIMEOUT_SECONDS", "1")
+    monkeypatch.setenv("FIRECRAWL_MAX_RESULTS", "1")
+    monkeypatch.setattr("agents.scout.firecrawl_search", fake_firecrawl_search)
+
+    results, reason, cache_hit = await scout._run_firecrawl_search("vagas dados remoto")
+
+    assert len(results) == 1
+    assert reason == ""
+    assert cache_hit is False
+
+
+@pytest.mark.asyncio
+async def test_firecrawl_search_timeout_retorna_reason_sem_sucesso(monkeypatch, scout):
+    async def slow_firecrawl_search(*_args, **_kwargs):
+        await asyncio.sleep(0.05)
+        return [{"url": "https://jobs.example.com/1", "title": "Vaga 1", "description": ""}]
+
+    monkeypatch.setenv("FIRECRAWL_TIMEOUT_SECONDS", "0.01")
+    monkeypatch.setattr("agents.scout.firecrawl_search", slow_firecrawl_search)
+
+    results, reason, cache_hit = await scout._run_firecrawl_search("vagas dados remoto")
+
+    assert results == []
+    assert reason == "firecrawl_timeout"
+    assert cache_hit is False
+
+
+@pytest.mark.asyncio
+async def test_firecrawl_search_zero_resultados_retorna_empty(monkeypatch, scout):
+    async def empty_firecrawl_search(*_args, **_kwargs):
+        return []
+
+    monkeypatch.setattr("agents.scout.firecrawl_search", empty_firecrawl_search)
+
+    results, reason, cache_hit = await scout._run_firecrawl_search("vagas dados remoto")
+
+    assert results == []
+    assert reason == "firecrawl_empty"
+    assert cache_hit is False
+
+
+@pytest.mark.asyncio
+async def test_firecrawl_search_erro_externo_retorna_error(monkeypatch, scout):
+    async def failing_firecrawl_search(*_args, **_kwargs):
+        raise FirecrawlProviderError("falha")
+
+    monkeypatch.setattr("agents.scout.firecrawl_search", failing_firecrawl_search)
+
+    results, reason, cache_hit = await scout._run_firecrawl_search("vagas dados remoto")
+
+    assert results == []
+    assert reason == "firecrawl_error"
+    assert cache_hit is False
+
+
+@pytest.mark.asyncio
+async def test_firecrawl_search_reusa_cache_por_consulta(monkeypatch, scout):
+    calls = 0
+
+    async def fake_firecrawl_search(*_args, **_kwargs):
+        nonlocal calls
+        calls += 1
+        return [{"url": "https://jobs.example.com/1", "title": "Vaga 1", "description": ""}]
+
+    monkeypatch.setenv("FIRECRAWL_CACHE_TTL_SECONDS", "60")
+    monkeypatch.setattr("agents.scout.firecrawl_search", fake_firecrawl_search)
+
+    first_results, first_reason, first_cache_hit = await scout._run_firecrawl_search("vagas dados remoto")
+    second_results, second_reason, second_cache_hit = await scout._run_firecrawl_search(" vagas   dados remoto ")
+
+    assert first_results == second_results
+    assert first_reason == second_reason == ""
+    assert first_cache_hit is False
+    assert second_cache_hit is True
+    assert calls == 1
+
+
+@pytest.mark.asyncio
 async def test_run_resultado_real_emite_source_real(monkeypatch, scout):
     async def fake_search(_query: str, _tbs: str = ""):
         return [
@@ -120,7 +209,7 @@ async def test_run_resultado_real_emite_source_real(monkeypatch, scout):
                 "title": "Analista de Dados Junior",
                 "description": "Vaga com Python e SQL.",
             }
-        ], ""
+        ], "", False
 
     async def fake_scrape(_url: str):
         return "Vaga real com Python, SQL e comunicacao."
@@ -143,6 +232,8 @@ async def test_run_resultado_real_emite_source_real(monkeypatch, scout):
     output = await _collect(scout, {"profile": PROFILE})
 
     assert "source: real" in output
+    assert "status_busca: real_success" in output
+    assert "fallback_simulado: false" in output
     assert "link: https://jobs.example.com/vaga-123" in output
     assert "source: simulated" not in output
 
@@ -150,26 +241,28 @@ async def test_run_resultado_real_emite_source_real(monkeypatch, scout):
 @pytest.mark.asyncio
 async def test_run_firecrawl_com_erro_emite_fallback_estruturado(monkeypatch, scout):
     async def fake_search(_query: str, _tbs: str = ""):
-        return [], "firecrawl_error"
+        return [], "firecrawl_error", False
 
     monkeypatch.setattr(scout, "_run_firecrawl_search", fake_search)
 
     output = await _collect(scout, {"profile": PROFILE})
 
     assert "source: simulated" in output
+    assert "status_busca: external_error" in output
     assert "fallback_reason: firecrawl_error" in output
-    assert "fallback_message: Firecrawl falhou" in output
+    assert "fallback_message: Nao conseguimos buscar vagas reais agora" in output
 
 
 @pytest.mark.asyncio
 async def test_run_firecrawl_sem_resultados_emite_fallback_empty(monkeypatch, scout):
     async def fake_search(_query: str, _tbs: str = ""):
-        return [], "firecrawl_empty"
+        return [], "firecrawl_empty", False
 
     monkeypatch.setattr(scout, "_run_firecrawl_search", fake_search)
 
     output = await _collect(scout, {"profile": PROFILE})
 
     assert "source: simulated" in output
+    assert "status_busca: real_empty" in output
     assert "fallback_reason: firecrawl_empty" in output
-    assert "fallback_message: Firecrawl nao retornou vagas reais" in output
+    assert "fallback_message: Nenhuma vaga real encontrada" in output

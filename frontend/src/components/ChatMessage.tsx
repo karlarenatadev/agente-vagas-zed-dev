@@ -29,6 +29,10 @@ function parseScoutData(content: string): ScoutData | null {
   const resumo = resumoMatch
     ? resumoMatch[1].replace(/\*\*/g, '').replace(/\s+/g, ' ').trim()
     : ''
+  const field = (name: string) => {
+    const match = content.match(new RegExp(`^\\s*${name}:\\s*(.*)$`, 'im'))
+    return match ? match[1].trim() : ''
+  }
 
   const requisitos: ScoutData['requisitos'] = []
   const reqBlock = content.match(/requisitos_mais_recorrentes:\s*\n([\s\S]*?)(?:\nvagas_compativeis:|$)/i)
@@ -59,7 +63,15 @@ function parseScoutData(content: string): ScoutData | null {
   }
 
   if (vagas.length === 0) return null
-  return { resumo, requisitos, vagas }
+  return {
+    resumo,
+    status_busca: field('status_busca'),
+    fallback_simulado: field('fallback_simulado'),
+    fallback_reason: field('fallback_reason'),
+    fallback_message: field('fallback_message'),
+    requisitos,
+    vagas,
+  }
 }
 
 type CuratorSkillTextField = Exclude<keyof CuratorSkill, 'habilidade' | 'resources'>
