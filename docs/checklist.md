@@ -56,6 +56,9 @@ Agora que o motor esta blindado, o foco passa a ser entrega continua, infraestru
 
 * [ ] Rodar testes na nuvem: configurar GitHub Actions para executar a suite robusta (+70 testes) a cada push.
 * [ ] Pipeline bloqueante: impedir merge quando `test_concurrency.py` ou testes de contrato falharem.
+
+---
+
 ## Problemas críticos de arquitetura: isolamento + lock
 
 Sessão executada em 2026-06-16.
@@ -1242,6 +1245,7 @@ Uma etapa só deve ser considerada pronta quando:
 **Status:** RESOLVIDO em 2026-06-14
 
 **Descoberta:**
+
 - O código JÁ gerava o arquivo corretamente em `resume.py` linha 548
 - O problema era a **ausência da rota de leitura** em `data_files.py`
 
@@ -1253,6 +1257,7 @@ Uma etapa só deve ser considerada pronta quando:
 - ✅ Validado: lint e build passando sem erros
 
 ### 2. ~~Firecrawl estava dependente de CLI~~ RESOLVIDO
+
 **Status:** RESOLVIDO em 2026-06-17
 
 **Descoberta:**

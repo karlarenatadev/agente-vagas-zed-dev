@@ -1,3 +1,5 @@
 # Dependências só de desenvolvimento/teste (não vão pra produção).
 # Instale com:  .venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 pytest==9.1.0
+pytest-asyncio==1.4.0
+pytest-cov==7.0.0
