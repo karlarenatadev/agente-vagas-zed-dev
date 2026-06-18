@@ -11,7 +11,8 @@ interface Props {
 }
 
 const JOB_FIELDS = new Set([
-  'titulo', 'empresa', 'localizacao', 'salario', 'beneficios', 'link',
+  'titulo', 'source', 'fallback_reason', 'fallback_message',
+  'empresa', 'localizacao', 'salario', 'beneficios', 'link',
   'score_aderencia', 'prioridade_candidatura', 'habilidades_correspondentes',
   'soft_skills_correspondentes', 'habilidades_faltantes',
   'contagem_correspondencia', 'dica_curriculo',

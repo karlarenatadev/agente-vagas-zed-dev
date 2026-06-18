@@ -11,9 +11,25 @@ import pytest
 from agents.scout import ScoutAgent
 
 
+PROFILE = (
+    "Area de interesse: dados\n"
+    "Localizacao: remoto\n"
+    "Nivel de experiencia: junior\n"
+    "Habilidades atuais: Python, SQL\n"
+    "Soft skills: Comunicacao\n"
+)
+
+
 @pytest.fixture
 def scout():
     return ScoutAgent()
+
+
+async def _collect(agent: ScoutAgent, context: dict) -> str:
+    chunks = []
+    async for chunk in agent.run(context):
+        chunks.append(chunk)
+    return "".join(chunks)
 
 
 def test_match_skills_e_case_insensitive_e_separa_faltantes(scout):
@@ -73,7 +89,87 @@ def test_build_job_entry_monta_o_dict_esperado(scout):
     )
 
     assert entry["titulo"] == "Analista de Dados"
+    assert entry["source"] == "real"
+    assert entry["fallback_reason"] == ""
     assert isinstance(entry["score_aderencia"], int)
     assert entry["prioridade_candidatura"] in {"Alta", "Média", "Baixa"}
     # Python casa (matched), Docker não foi pedido; SQL não está no currículo.
     assert "SQL" in entry["habilidades_faltantes"]
+
+
+def test_simulate_opportunities_marca_source_simulated(scout):
+    jobs = scout._simulate_opportunities(
+        {"Area de interesse": "dados", "Localizacao": "remoto"},
+        ["Python"],
+        ["Comunicacao"],
+        "firecrawl_empty",
+    )
+
+    assert jobs
+    assert {job["source"] for job in jobs} == {"simulated"}
+    assert {job["fallback_reason"] for job in jobs} == {"firecrawl_empty"}
+    assert all(job["fallback_message"] for job in jobs)
+
+
+@pytest.mark.asyncio
+async def test_run_resultado_real_emite_source_real(monkeypatch, scout):
+    async def fake_search(_query: str, _tbs: str = ""):
+        return [
+            {
+                "url": "https://jobs.example.com/vaga-123",
+                "title": "Analista de Dados Junior",
+                "description": "Vaga com Python e SQL.",
+            }
+        ], ""
+
+    async def fake_scrape(_url: str):
+        return "Vaga real com Python, SQL e comunicacao."
+
+    async def fake_llm(_system: str, _prompt: str):
+        return (
+            "empresa: Acme\n"
+            "localizacao: Remoto\n"
+            "salario: Nao informado na descricao\n"
+            "beneficios: Nao informado na descricao\n"
+            "habilidades_requeridas: Python, SQL\n"
+            "soft_skills_requeridas: Comunicacao\n"
+            "dica_curriculo: Destaque projetos com dados.\n"
+        )
+
+    monkeypatch.setattr(scout, "_run_firecrawl_search", fake_search)
+    monkeypatch.setattr(scout, "_run_firecrawl_scrape", fake_scrape)
+    monkeypatch.setattr(scout, "call_llm", fake_llm)
+
+    output = await _collect(scout, {"profile": PROFILE})
+
+    assert "source: real" in output
+    assert "link: https://jobs.example.com/vaga-123" in output
+    assert "source: simulated" not in output
+
+
+@pytest.mark.asyncio
+async def test_run_firecrawl_com_erro_emite_fallback_estruturado(monkeypatch, scout):
+    async def fake_search(_query: str, _tbs: str = ""):
+        return [], "firecrawl_error"
+
+    monkeypatch.setattr(scout, "_run_firecrawl_search", fake_search)
+
+    output = await _collect(scout, {"profile": PROFILE})
+
+    assert "source: simulated" in output
+    assert "fallback_reason: firecrawl_error" in output
+    assert "fallback_message: Firecrawl falhou" in output
+
+
+@pytest.mark.asyncio
+async def test_run_firecrawl_sem_resultados_emite_fallback_empty(monkeypatch, scout):
+    async def fake_search(_query: str, _tbs: str = ""):
+        return [], "firecrawl_empty"
+
+    monkeypatch.setattr(scout, "_run_firecrawl_search", fake_search)
+
+    output = await _collect(scout, {"profile": PROFILE})
+
+    assert "source: simulated" in output
+    assert "fallback_reason: firecrawl_empty" in output
+    assert "fallback_message: Firecrawl nao retornou vagas reais" in output

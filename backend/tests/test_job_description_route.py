@@ -56,6 +56,22 @@ def test_analyze_persiste_e_latest_le_de_volta(client):
     assert "Python" in resp.json()["hard_skills"]
 
 
+def test_analyze_invalida_artefatos_dependentes(client, tmp_path):
+    dependent_files = [
+        tmp_path / "resume-match-report.md",
+        tmp_path / "resume-tailoring-suggestions.md",
+        tmp_path / "pdi-plan.md",
+    ]
+    for path in dependent_files:
+        path.write_text("artefato antigo", encoding="utf-8")
+
+    resp = client.post("/api/job-description/analyze", json={"description": VAGA_VALIDA})
+
+    assert resp.status_code == 200
+    assert (tmp_path / "job-description-analysis.md").exists()
+    assert all(not path.exists() for path in dependent_files)
+
+
 def test_latest_retorna_404_sem_analise_previa(client):
     # Sem nenhuma análise gravada, /latest tem que dar 404.
     resp = client.get("/api/job-description/latest")

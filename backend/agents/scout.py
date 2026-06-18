@@ -74,22 +74,28 @@ DATE_FILTER_TBS: dict[str, str] = {
     "1m": "qdr:m",
 }
 
+FALLBACK_MESSAGES: dict[str, str] = {
+    "firecrawl_error": "Firecrawl falhou; estas oportunidades sao simuladas para orientar a estrategia.",
+    "firecrawl_empty": "Firecrawl nao retornou vagas reais; estas oportunidades sao simuladas para orientar a estrategia.",
+}
+
 
 class ScoutAgent(BaseAgent):
     """Agente de busca de vagas via Firecrawl SDK."""
 
     name = "Scout"
 
-    async def _run_firecrawl_search(self, query: str, tbs: str = "") -> list[dict[str, str]]:
+    async def _run_firecrawl_search(self, query: str, tbs: str = "") -> tuple[list[dict[str, str]], str]:
         try:
-            return await firecrawl_search(
+            results = await firecrawl_search(
                 query,
                 session_id=self.paths.session_id,
                 tbs=tbs,
                 limit=5,
             )
+            return results, "" if results else "firecrawl_empty"
         except FirecrawlProviderError:
-            return []
+            return [], "firecrawl_error"
 
     async def _run_firecrawl_scrape(self, url: str) -> str:
         try:
@@ -174,6 +180,9 @@ class ScoutAgent(BaseAgent):
         level: str,
         area: str,
         tip: str = "",
+        source: str = "real",
+        fallback_reason: str = "",
+        fallback_message: str = "",
     ) -> dict[str, str | list[str] | int]:
         matched_tech, missing_tech = self._match_skills(required_skills, current_skills)
         matched_soft, _ = self._match_skills(required_soft, current_soft)
@@ -181,6 +190,9 @@ class ScoutAgent(BaseAgent):
 
         return {
             "titulo": title,
+            "source": source,
+            "fallback_reason": fallback_reason,
+            "fallback_message": fallback_message,
             "empresa": company,
             "localizacao": location,
             "salario": salary,
@@ -201,6 +213,7 @@ class ScoutAgent(BaseAgent):
         profile: dict[str, str],
         current_skills: list[str],
         current_soft: list[str],
+        fallback_reason: str,
     ) -> list[dict[str, str | list[str] | int]]:
         area = profile.get("Área de interesse", "Tecnologia")
         location = profile.get("Localização", "Remoto")
@@ -231,6 +244,9 @@ class ScoutAgent(BaseAgent):
                 current_soft=current_soft,
                 level=level,
                 area=area,
+                source="simulated",
+                fallback_reason=fallback_reason,
+                fallback_message=FALLBACK_MESSAGES.get(fallback_reason, ""),
             )
             entry["prioridade_candidatura"] = f"{entry['prioridade_candidatura']} - {priority_note}"
             opportunities.append(entry)
@@ -277,18 +293,27 @@ class ScoutAgent(BaseAgent):
 
         # Monta query de busca
         query = f"vagas {area} {level} {location}".strip()
-        search_results = await self._run_firecrawl_search(query, tbs)
+        search_results, fallback_reason = await self._run_firecrawl_search(query, tbs)
 
         if not search_results:
             # Tenta query mais ampla
             query_broad = f"vagas {area} {location}"
-            search_results = await self._run_firecrawl_search(query_broad, tbs)
+            broad_results, broad_fallback_reason = await self._run_firecrawl_search(query_broad, tbs)
+            if broad_results:
+                search_results = broad_results
+                fallback_reason = ""
+            elif "firecrawl_error" in {fallback_reason, broad_fallback_reason}:
+                fallback_reason = "firecrawl_error"
+            else:
+                fallback_reason = "firecrawl_empty"
 
         simulated_mode = False
         if not search_results:
             simulated_mode = True
             yield "⚠ Nenhum resultado real retornado pelo Firecrawl. Vou simular oportunidades compatíveis com seu perfil para orientar a estratégia.\n\n"
-            jobs_output = self._simulate_opportunities(profile, current_skills, current_soft)
+            yield f"fallback_reason: {fallback_reason}\n"
+            yield f"fallback_message: {FALLBACK_MESSAGES[fallback_reason]}\n\n"
+            jobs_output = self._simulate_opportunities(profile, current_skills, current_soft, fallback_reason)
         else:
             jobs_output = []
             yield f"✓ {len(search_results)} vagas encontradas. Analisando detalhes...\n\n"
@@ -386,6 +411,9 @@ dica_curriculo: [1 frase sobre o que destacar no currículo para esta vaga]"""
 
         for i, job in enumerate(jobs_output, 1):
             yield f"{i}. titulo: {job['titulo']}\n"
+            yield f"   source: {job['source']}\n"
+            yield f"   fallback_reason: {job['fallback_reason']}\n"
+            yield f"   fallback_message: {job['fallback_message']}\n"
             yield f"   empresa: {job['empresa']}\n"
             yield f"   localizacao: {job['localizacao']}\n"
             yield f"   salario: {job['salario']}\n"

@@ -65,6 +65,32 @@ def test_resume_upload_txt_persiste_analise_em_tmp_path(tmp_path, monkeypatch):
     assert "Python" in latest.json()["technical_skills"]
 
 
+def test_resume_upload_invalida_artefatos_dependentes(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+    dependent_files = [
+        tmp_path / "resume-match-report.md",
+        tmp_path / "resume-tailoring-suggestions.md",
+        tmp_path / "pdi-plan.md",
+    ]
+    for path in dependent_files:
+        _write(path, "artefato antigo")
+
+    content = (
+        "Nome: Pessoa Teste\n"
+        "Analista de dados junior com experiencia em Python, SQL, Excel e Power BI.\n"
+        "Boa comunicacao, trabalho em equipe e projetos de dashboards."
+    )
+
+    response = client.post(
+        "/api/resume/upload",
+        files={"file": ("curriculo.txt", content.encode("utf-8"), "text/plain")},
+    )
+
+    assert response.status_code == 200
+    assert (tmp_path / "resume-analysis.md").exists()
+    assert all(not path.exists() for path in dependent_files)
+
+
 def test_resume_upload_recusa_extensao_invalida(tmp_path, monkeypatch):
     client = _client(tmp_path, monkeypatch)
 

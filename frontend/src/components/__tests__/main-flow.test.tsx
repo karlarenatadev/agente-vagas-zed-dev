@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { describe, expect, it, vi } from 'vitest'
 import { ApplicationPipeline } from '../ApplicationPipeline'
 import { ApplicationTracker } from '../ApplicationTracker'
+import { ChatMessage } from '../ChatMessage'
 import { JobDescriptionAnalyzer } from '../JobDescriptionAnalyzer'
 import { PdiPlan } from '../PdiPlan'
 import { ResumeMatchReport } from '../ResumeMatchReport'
@@ -337,5 +338,102 @@ describe('fluxo principal do frontend', () => {
     render(<ApplicationTracker isOpen onClose={vi.fn()} />)
     expect(await screen.findByText(/Analista de Dados Junior/i)).toBeTruthy()
     expect(screen.getByText(/Acme/)).toBeTruthy()
+  })
+
+  it('diferencia vagas reais de oportunidades simuladas no Scout', () => {
+    const baseMessage = {
+      id: 'scout-1',
+      role: 'agent' as const,
+      agent: 'Scout' as const,
+      timestamp: new Date('2026-06-18T12:00:00'),
+    }
+
+    render(
+      <ChatMessage
+        message={{
+          ...baseMessage,
+          content: `## RESPOSTA: SCOUT
+### estado
+sucesso
+
+### resumo
+Analisei 1 vaga encontrada.
+
+### dados
+
+requisitos_mais_recorrentes:
+1. requisito: Python
+   ocorrencias: 1
+
+vagas_compativeis:
+1. titulo: Analista de Dados
+   source: real
+   fallback_reason:
+   fallback_message:
+   empresa: Acme
+   localizacao: Remoto
+   salario: Nao informado
+   beneficios: Nao informado
+   link: https://jobs.example.com/vaga-123
+   score_aderencia: 90/100
+   prioridade_candidatura: Alta
+   habilidades_correspondentes: Python
+   soft_skills_correspondentes: Comunicacao
+   habilidades_faltantes: SQL
+   contagem_correspondencia: 1 de 2 habilidades correspondem
+   dica_curriculo: Destaque projetos com dados.
+`,
+        }}
+      />,
+    )
+
+    expect(screen.getByRole('link', { name: /Ver vaga/i }).getAttribute('href'))
+      .toBe('https://jobs.example.com/vaga-123')
+
+    cleanup()
+
+    render(
+      <ChatMessage
+        message={{
+          ...baseMessage,
+          id: 'scout-2',
+          content: `## RESPOSTA: SCOUT
+### estado
+sucesso
+
+### resumo
+Analisei 1 oportunidade simulada.
+
+### dados
+
+requisitos_mais_recorrentes:
+1. requisito: Python
+   ocorrencias: 1
+
+vagas_compativeis:
+1. titulo: Analista de Dados
+   source: simulated
+   fallback_reason: firecrawl_error
+   fallback_message: Firecrawl falhou; oportunidade simulada para orientar a estrategia.
+   empresa: Acme
+   localizacao: Remoto
+   salario: Nao informado
+   beneficios: Nao informado
+   link: https://jobs.example.com/vaga-123
+   score_aderencia: 90/100
+   prioridade_candidatura: Alta
+   habilidades_correspondentes: Python
+   soft_skills_correspondentes: Comunicacao
+   habilidades_faltantes: SQL
+   contagem_correspondencia: 1 de 2 habilidades correspondem
+   dica_curriculo: Destaque projetos com dados.
+`,
+        }}
+      />,
+    )
+
+    expectTextNow('simulada')
+    expectTextNow('firecrawl falhou')
+    expect(screen.queryByRole('link', { name: /Ver vaga/i })).toBeNull()
   })
 })

@@ -201,6 +201,15 @@ def _error(message: str, status_code: int = 400) -> JSONResponse:
     )
 
 
+def _invalidate_downstream_artifacts(paths: SessionPaths) -> None:
+    for path in (
+        paths.RESUME_MATCH_REPORT_FILE,
+        paths.RESUME_TAILORING_SUGGESTIONS_FILE,
+        paths.PDI_PLAN_FILE,
+    ):
+        path.unlink(missing_ok=True)
+
+
 def _validate_upload_signature(
     content: bytes,
     extension: str,
@@ -804,6 +813,7 @@ async def upload_resume(
             _analysis_to_markdown(analysis),
         )
         profile_updated = await _merge_profile_suggestions(analysis, paths)
+        _invalidate_downstream_artifacts(paths)
 
     return {
         "success": True,

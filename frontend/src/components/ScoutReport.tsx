@@ -1,7 +1,10 @@
-import { Award, Briefcase, ExternalLink, Lightbulb, MapPin, Target, Wallet } from 'lucide-react'
+import { AlertTriangle, Award, Briefcase, ExternalLink, Lightbulb, MapPin, Target, Wallet } from 'lucide-react'
 
 interface Job {
   titulo?: string
+  source?: 'real' | 'simulated' | string
+  fallback_reason?: string
+  fallback_message?: string
   empresa?: string
   localizacao?: string
   salario?: string
@@ -28,17 +31,25 @@ function isMeaningful(value?: string) {
   return !!value && !NA.test(value.trim())
 }
 
-function normalizeLink(value?: string): string | null {
+function isRealSource(source?: string): boolean {
+  return source === 'real'
+}
+
+function isSimulatedSource(source?: string): boolean {
+  return source === 'simulated'
+}
+
+function normalizeHttpLink(value?: string, source?: string): string | null {
+  if (!isRealSource(source)) return null
   if (!isMeaningful(value)) return null
   const trimmed = value!.trim()
-  // Já tem protocolo absoluto (http, https, mailto, etc.) — usa direto
-  if (/^https?:\/\//i.test(trimmed)) return trimmed
-  // Sem protocolo: só aceita se parecer um domínio real (sem espaços e com TLD,
-  // ex: "linkedin.com/jobs/..."). Texto descritivo de vaga simulada
-  // (ex: "oportunidade simulada a partir do perfil") não é link — descarta.
-  const looksLikeDomain = /^[^\s]+\.[a-z]{2,}([/?#].*)?$/i.test(trimmed)
-  if (!looksLikeDomain) return null
-  return `https://${trimmed.replace(/^\/+/, '')}`
+  if (!/^https?:\/\//i.test(trimmed)) return null
+  try {
+    const url = new URL(trimmed)
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : null
+  } catch {
+    return null
+  }
 }
 
 function splitSkills(value?: string): string[] {
@@ -97,13 +108,20 @@ export function ScoutReport({ data }: { data: ScoutData }) {
           const matched = splitSkills(job.habilidades_correspondentes)
           const soft = splitSkills(job.soft_skills_correspondentes)
           const missing = splitSkills(job.habilidades_faltantes)
-          const jobLink = normalizeLink(job.link)
+          const simulated = isSimulatedSource(job.source)
+          const jobLink = normalizeHttpLink(job.link, job.source)
 
           return (
-            <article className="scout-card" key={index}>
+            <article className={`scout-card ${simulated ? 'simulated' : ''}`} key={index}>
               <header className="scout-card-head">
                 <div className="scout-card-title">
                   <h4>{job.titulo || 'Vaga sem título'}</h4>
+                  {simulated && (
+                    <span className="scout-source-badge simulated">
+                      <AlertTriangle size={12} aria-hidden="true" />
+                      Simulada
+                    </span>
+                  )}
                   {isMeaningful(job.empresa) && (
                     <span className="scout-company">
                       <Briefcase size={12} aria-hidden="true" />
@@ -119,6 +137,17 @@ export function ScoutReport({ data }: { data: ScoutData }) {
                   </div>
                 )}
               </header>
+
+              {simulated && (
+                <p className="scout-fallback-warning" role="note">
+                  <AlertTriangle size={14} aria-hidden="true" />
+                  <span>
+                    {isMeaningful(job.fallback_message)
+                      ? job.fallback_message
+                      : 'Oportunidade simulada. Use apenas como referencia estrategica; nao e uma vaga real validada.'}
+                  </span>
+                </p>
+              )}
 
               <div className="scout-meta">
                 {isMeaningful(job.localizacao) && (

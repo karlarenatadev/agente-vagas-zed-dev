@@ -39,6 +39,48 @@ def test_lista_vazia_no_inicio(client):
     assert resp.json() == []
 
 
+def test_arquivo_vazio_eh_lista_vazia_valida(client, tmp_path):
+    arquivo = tmp_path / "applications.json"
+    arquivo.write_text("", encoding="utf-8")
+
+    resp = client.get("/api/applications/")
+
+    assert resp.status_code == 200
+    assert resp.json() == []
+    assert arquivo.read_text(encoding="utf-8") == ""
+    assert list(tmp_path.glob("applications.corrupt-*.json")) == []
+
+
+def test_json_corrompido_retorna_409_cria_backup_e_preserva_original(client, tmp_path):
+    arquivo = tmp_path / "applications.json"
+    conteudo_corrompido = '[{"id": "app-1", "empresa": "Acme"}'
+    arquivo.write_text(conteudo_corrompido, encoding="utf-8")
+
+    resp = client.get("/api/applications/")
+
+    assert resp.status_code == 409
+    assert "corrompido" in resp.json()["detail"]
+    assert arquivo.read_text(encoding="utf-8") == conteudo_corrompido
+    backups = list(tmp_path.glob("applications.corrupt-*.json"))
+    assert len(backups) == 1
+    assert backups[0].read_text(encoding="utf-8") == conteudo_corrompido
+
+
+def test_json_corrompido_bloqueia_create_sem_sobrescrever(client, tmp_path):
+    arquivo = tmp_path / "applications.json"
+    conteudo_corrompido = '{"id": "objeto-nao-lista"}'
+    arquivo.write_text(conteudo_corrompido, encoding="utf-8")
+
+    resp = client.post("/api/applications/", json=_nova_candidatura())
+
+    assert resp.status_code == 409
+    assert "corrompido" in resp.json()["detail"]
+    assert arquivo.read_text(encoding="utf-8") == conteudo_corrompido
+    backups = list(tmp_path.glob("applications.corrupt-*.json"))
+    assert len(backups) == 1
+    assert backups[0].read_text(encoding="utf-8") == conteudo_corrompido
+
+
 def test_cria_e_lista(client):
     criada = client.post("/api/applications/", json=_nova_candidatura()).json()
 

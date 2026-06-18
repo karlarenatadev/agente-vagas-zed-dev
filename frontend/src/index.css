@@ -1768,6 +1768,11 @@ textarea::placeholder {
   background: rgba(255, 255, 255, 0.04);
 }
 
+.scout-card.simulated {
+  border-color: rgba(251, 113, 133, 0.45);
+  background: rgba(251, 113, 133, 0.06);
+}
+
 .scout-card-head {
   display: flex;
   align-items: flex-start;
@@ -1787,6 +1792,25 @@ textarea::placeholder {
   font-weight: 600;
   line-height: 1.35;
   color: var(--text-primary);
+}
+
+.scout-source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.scout-source-badge.simulated {
+  border: 1px solid rgba(251, 113, 133, 0.45);
+  background: rgba(251, 113, 133, 0.12);
+  color: var(--rose);
 }
 
 .scout-company {
@@ -1829,6 +1853,25 @@ textarea::placeholder {
 .scout-score.score-mid strong { color: var(--amber); }
 .scout-score.score-low { border-color: rgba(251, 113, 133, 0.4); color: var(--rose); }
 .scout-score.score-low strong { color: var(--rose); }
+
+.scout-fallback-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(251, 113, 133, 0.28);
+  background: rgba(251, 113, 133, 0.1);
+  color: var(--rose);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.scout-fallback-warning svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
 
 .scout-meta {
   display: flex;

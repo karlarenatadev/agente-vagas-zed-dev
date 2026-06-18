@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
 from datetime import datetime
@@ -16,7 +17,6 @@ from session import (
     SessionPaths,
     get_session_lock,
     get_session_paths,
-    read_text_async,
     write_text_atomic_async,
 )
 
@@ -44,9 +44,58 @@ class ApplicationUpdate(BaseModel):
     data_aplicacao: Optional[str] = None
 
 
+async def _read_existing_text(path: Path) -> str | None:
+    try:
+        return await asyncio.to_thread(path.read_text, encoding="utf-8")
+    except FileNotFoundError:
+        return None
+
+
+async def _backup_corrupted_file(path: Path, content: str, session_id: str) -> Path:
+    timestamp = datetime.now().strftime("%Y%m%dT%H%M%S%f")
+    backup_path = path.with_name(f"{path.stem}.corrupt-{timestamp}{path.suffix}")
+    try:
+        await write_text_atomic_async(backup_path, content)
+    except OSError:
+        logger.exception(
+            "Falha ao criar backup de applications.json corrompido",
+            extra={
+                "event": "applications_corrupt_backup_error",
+                "session_id": session_id,
+                "path": str(path),
+                "backup_path": str(backup_path),
+            },
+        )
+        raise
+    return backup_path
+
+
+async def _raise_corrupted_file(path: Path, session_id: str, content: str, reason: str) -> None:
+    backup_path = await _backup_corrupted_file(path, content, session_id)
+    logger.error(
+        "applications.json corrompido; escrita bloqueada",
+        extra={
+            "event": "applications_corrupted_file",
+            "session_id": session_id,
+            "path": str(path),
+            "backup_path": str(backup_path),
+            "reason": reason,
+        },
+    )
+    raise HTTPException(
+        status_code=409,
+        detail=(
+            "Arquivo de candidaturas corrompido. "
+            "A operacao foi bloqueada para evitar perda de dados."
+        ),
+    )
+
+
 async def _load(path: Path, session_id: str) -> list[dict[str, Any]]:
     try:
-        content = await read_text_async(path)
+        content = await _read_existing_text(path)
+        if content is None:
+            return []
         if not content.strip():
             return []
 
@@ -63,7 +112,7 @@ async def _load(path: Path, session_id: str) -> list[dict[str, Any]]:
                 "payload_type": type(payload).__name__,
             },
         )
-        return []
+        await _raise_corrupted_file(path, session_id, content, "invalid_payload")
     except json.JSONDecodeError as exc:
         logger.exception(
             "JSON invalido ao carregar candidaturas",
@@ -74,7 +123,7 @@ async def _load(path: Path, session_id: str) -> list[dict[str, Any]]:
                 "error_type": type(exc).__name__,
             },
         )
-        return []
+        await _raise_corrupted_file(path, session_id, content or "", "json_decode_error")
     except OSError:
         logger.exception(
             "Falha ao carregar candidaturas",

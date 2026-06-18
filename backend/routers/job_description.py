@@ -16,6 +16,15 @@ router = APIRouter()
 analyzer = JobDescriptionAnalyzer()
 
 
+def _invalidate_downstream_artifacts(paths: SessionPaths) -> None:
+    for path in (
+        paths.RESUME_MATCH_REPORT_FILE,
+        paths.RESUME_TAILORING_SUGGESTIONS_FILE,
+        paths.PDI_PLAN_FILE,
+    ):
+        path.unlink(missing_ok=True)
+
+
 class JobDescriptionRequest(BaseModel):
     description: str = Field(max_length=50000)
 
@@ -72,6 +81,7 @@ async def analyze_job_description(
             paths.JOB_DESCRIPTION_ANALYSIS_FILE,
             analysis_to_markdown(analysis),
         )
+        _invalidate_downstream_artifacts(paths)
 
     # Próxima etapa: combinar este resultado com RESUME_ANALYSIS_FILE para
     # produzir resume-match-report.md e, depois, um pdi-plan.md.
