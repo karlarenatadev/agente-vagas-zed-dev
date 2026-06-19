@@ -2,6 +2,7 @@ import type {
   JobApplication,
   JobDescriptionAnalysis,
   PdiPlan,
+  ReconciliationReport,
   ResumeAnalysis,
   ResumeMatchReport,
   ResumeTailoringSuggestions,
@@ -67,6 +68,19 @@ export const matchReportFixture: ResumeMatchReport = {
   safe_resume_suggestions: ['Evidenciar projetos em Python'],
   do_not_claim: ['Excel avancado'],
   next_steps: ['Gerar sugestoes seguras'],
+}
+
+export const reconciliationFixture: ReconciliationReport = {
+  focus: 'vaga',
+  consistency_score: 82,
+  consistency_level: 'coerente',
+  profile_resume_conflicts: [],
+  profile_job_conflicts: [],
+  resume_job_summary: 'Aderência currículo×vaga: 72/100 (Boa aderencia).',
+  match_score: 72,
+  aligned_fields: ['Nível alinhado', 'Habilidades técnicas com interseção em Python'],
+  focus_recommendations: ['Alinhe perfil e currículo ao que a vaga pede.'],
+  next_steps: ['Gerar sugestões seguras'],
 }
 
 export const tailoringFixture: ResumeTailoringSuggestions = {

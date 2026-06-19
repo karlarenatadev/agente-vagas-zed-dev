@@ -285,6 +285,7 @@ class MaestroAgent(BaseAgent):
             self.paths.RESUME_MATCH_REPORT_FILE,
             self.paths.RESUME_TAILORING_SUGGESTIONS_FILE,
             self.paths.PDI_PLAN_FILE,
+            self.paths.RECONCILIATION_FILE,
             self.paths.APPLICATIONS_FILE,
         )
         for path in reset_paths:

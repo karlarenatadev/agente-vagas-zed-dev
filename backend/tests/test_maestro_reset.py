@@ -18,6 +18,7 @@ def test_reset_remove_todos_os_artefatos_da_sessao(tmp_path):
         paths.RESUME_MATCH_REPORT_FILE,
         paths.RESUME_TAILORING_SUGGESTIONS_FILE,
         paths.PDI_PLAN_FILE,
+        paths.RECONCILIATION_FILE,
         paths.APPLICATIONS_FILE,
     ]
     for artifact in artifacts:
@@ -33,6 +34,7 @@ def test_handle_reset_recria_apenas_quiz_vazio(tmp_path):
     paths = SessionPaths("alice", base_dir=tmp_path)
     paths.RESUME_MATCH_REPORT_FILE.parent.mkdir(parents=True, exist_ok=True)
     paths.RESUME_MATCH_REPORT_FILE.write_text("match antigo", encoding="utf-8")
+    paths.RECONCILIATION_FILE.write_text("reconciliacao antiga", encoding="utf-8")
 
     agent = MaestroAgent(paths)
 
@@ -42,5 +44,6 @@ def test_handle_reset_recria_apenas_quiz_vazio(tmp_path):
     tokens = asyncio.run(run_reset())
 
     assert not paths.RESUME_MATCH_REPORT_FILE.exists()
+    assert not paths.RECONCILIATION_FILE.exists()
     assert paths.QUIZ_FILE.read_text(encoding="utf-8") == "Concluído: false\n"
     assert any("__STATE__:quiz:0" in token for token in tokens)

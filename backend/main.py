@@ -20,6 +20,7 @@ from routers import (
     job_description,
     pdi,
     profile,
+    reconciliation,
     resume,
     resume_match,
     resume_tailoring,
@@ -89,6 +90,11 @@ app.include_router(
     tags=["resume-tailoring"],
 )
 app.include_router(pdi.router, prefix="/api/pdi", tags=["pdi"])
+app.include_router(
+    reconciliation.router,
+    prefix="/api/reconciliation",
+    tags=["reconciliation"],
+)
 
 
 @app.exception_handler(RequestValidationError)

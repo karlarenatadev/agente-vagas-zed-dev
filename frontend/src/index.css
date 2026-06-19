@@ -3344,6 +3344,109 @@ textarea::placeholder {
   line-height: 1.5;
 }
 
+.reconciliation-step {
+  display: grid;
+  gap: 16px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.reconciliation-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px;
+  border: 1px solid rgba(34, 211, 238, 0.24);
+  border-radius: var(--radius-lg);
+  background: rgba(34, 211, 238, 0.05);
+}
+
+.reconciliation-callout > div:first-child {
+  display: grid;
+  gap: 5px;
+}
+
+.reconciliation-callout h3 {
+  color: var(--text-primary);
+  font-size: 15px;
+}
+
+.reconciliation-callout p:not(.eyebrow) {
+  max-width: 580px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.reconciliation-actions {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+}
+
+.focus-choice-group {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated);
+}
+
+.focus-choice-group button {
+  border: 0;
+  border-radius: var(--radius-full);
+  padding: 6px 10px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.focus-choice-group button.selected {
+  background: rgba(34, 211, 238, 0.14);
+  color: var(--color-arcade-cyan);
+}
+
+.focus-choice-group button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.reconciliation-result {
+  display: grid;
+  gap: 14px;
+}
+
+.reconciliation-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.reconciliation-summary > div {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+}
+
+.reconciliation-summary span,
+.section-card-body small {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.reconciliation-summary strong {
+  color: var(--text-primary);
+  font-size: 16px;
+  text-transform: capitalize;
+}
+
 .resume-tailoring {
   display: grid;
   gap: 16px;
@@ -3631,6 +3734,7 @@ textarea::placeholder {
   .match-breakdown,
   .match-evidence-grid,
   .match-detail-grid,
+  .reconciliation-summary,
   .tailoring-summary,
   .tailoring-category-grid,
   .pdi-summary,
@@ -3641,20 +3745,22 @@ textarea::placeholder {
 
   .job-analyzer-actions .primary-action-button,
   .resume-match-callout .primary-action-button,
+  .reconciliation-callout .primary-action-button,
   .resume-tailoring-callout .primary-action-button,
   .pdi-callout .primary-action-button {
     width: 100%;
     justify-content: center;
   }
 
-  .resume-match-callout {
+  .resume-match-callout,
+  .reconciliation-callout,
+  .resume-tailoring-callout {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .resume-tailoring-callout {
-    align-items: stretch;
-    flex-direction: column;
+  .reconciliation-actions {
+    justify-items: stretch;
   }
 
   .pdi-callout {
@@ -4830,6 +4936,7 @@ textarea::placeholder {
 }
 
 .resume-match-callout,
+.reconciliation-callout,
 .resume-tailoring-callout {
   border-radius: 18px;
   background:
@@ -5504,6 +5611,7 @@ button.product-nav-item:hover {
   }
 
   .resume-match-callout,
+  .reconciliation-callout,
   .resume-tailoring-callout {
     gap: 12px;
     padding: 13px;
@@ -6060,6 +6168,7 @@ button.product-nav-item:hover,
 
 .job-analyzer-intro,
 .resume-match-callout,
+.reconciliation-callout,
 .resume-tailoring-callout,
 .pdi-callout {
   border: 1px solid var(--line-soft);

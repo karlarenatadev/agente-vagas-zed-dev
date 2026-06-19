@@ -59,6 +59,12 @@ async def get_resume_match_report(paths: SessionPaths = Depends(get_session_path
     return _read_artifact(paths.RESUME_MATCH_REPORT_FILE)
 
 
+@router.get("/reconciliation")
+async def get_reconciliation_report(paths: SessionPaths = Depends(get_session_paths)):
+    """Retorna o último relatório de reconciliação entre perfil, currículo e vaga."""
+    return _read_artifact(paths.RECONCILIATION_FILE)
+
+
 @router.get("/resume-tailoring")
 async def get_resume_tailoring_suggestions(paths: SessionPaths = Depends(get_session_paths)):
     """Retorna as últimas sugestões seguras de currículo."""

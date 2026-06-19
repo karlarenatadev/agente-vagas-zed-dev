@@ -14,6 +14,7 @@ import {
   jobAnalysisFixture,
   matchReportFixture,
   pdiFixture,
+  reconciliationFixture,
   resumeAnalysisFixture,
   tailoringFixture,
 } from '../../test/fixtures'
@@ -77,6 +78,7 @@ describe('fluxo principal do frontend', () => {
       response({ exists: false, content: '' }),
       response({ exists: false, content: '' }),
       response({ exists: false, content: '' }),
+      response({ exists: false, content: '' }),
     )
 
     render(
@@ -89,7 +91,7 @@ describe('fluxo principal do frontend', () => {
       />,
     )
 
-    for (const label of ['curriculo', 'vaga', 'match', 'sugest', 'pdi', 'entrevista']) {
+    for (const label of ['curriculo', 'vaga', 'match', 'reconciliacao', 'sugest', 'pdi', 'entrevista']) {
       expectTextNow(label)
     }
 
@@ -111,6 +113,7 @@ describe('fluxo principal do frontend', () => {
       response({ exists: true, content: 'Match calculado.' }),
       response({ exists: false, content: '' }),
       response({ exists: false, content: '' }),
+      response({ exists: false, content: '' }),
     )
 
     render(
@@ -124,9 +127,9 @@ describe('fluxo principal do frontend', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByRole('list', { name: /3 de 6 etapas/i })).toBeTruthy()
+      expect(screen.getByRole('list', { name: /3 de 7 etapas/i })).toBeTruthy()
     })
-    expect(screen.getAllByLabelText(/Sugest/i).some(element =>
+    expect(screen.getAllByLabelText(/Reconcilia/i).some(element =>
       element.getAttribute('aria-label')?.includes('disponivel agora')
     )).toBe(true)
   })
@@ -212,7 +215,7 @@ describe('fluxo principal do frontend', () => {
     await expectTextEventually('envie e analise um curriculo primeiro')
   })
 
-  it('cobre match com vazio, loading, erro e sucesso', async () => {
+  it('cobre match com vazio, loading, erro, sucesso e reconciliacao', async () => {
     const onCompare = vi.fn()
 
     const { rerender } = render(
@@ -242,6 +245,11 @@ describe('fluxo principal do frontend', () => {
     expectTextNow('analise uma descricao de vaga primeiro')
     expectTextNow('curriculo e vaga analisados')
 
+    mockFetch(
+      response({ detail: 'Nenhuma reconciliacao foi gerada ainda.' }, { ok: false, status: 404 }),
+      response(reconciliationFixture),
+    )
+
     rerender(
       <ResumeMatchReport
         report={matchReportFixture}
@@ -252,6 +260,10 @@ describe('fluxo principal do frontend', () => {
     )
     expect(await screen.findByLabelText(/Score geral 72 de 100/i)).toBeTruthy()
     expectTextNow('relatorio de aderencia gerado')
+    expectTextNow('escolher o foco da candidatura')
+    fireEvent.click(screen.getByRole('button', { name: /Reconciliar candidatura/i }))
+    await expectTextEventually('reconciliacao concluida')
+    expectTextNow('sugestoes aguardando relatorio de match')
   })
 
   it('cobre sugestoes seguras com loading, erro e sucesso', async () => {

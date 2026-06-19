@@ -210,6 +210,10 @@ class SessionPaths:
         return self.dir / "pdi-plan.md"
 
     @property
+    def RECONCILIATION_FILE(self) -> Path:
+        return self.dir / "reconciliation.md"
+
+    @property
     def APPLICATIONS_FILE(self) -> Path:
         return self.dir / "applications.json"
 

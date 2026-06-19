@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import {
   CheckCircle2,
   Loader2,
@@ -6,7 +6,13 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { useScrollToResult } from '../hooks/useScrollToResult'
-import type { ResumeMatchReport as ResumeMatchReportData } from '../types'
+import { getFriendlyErrorMessage } from '../lib/errorMessages'
+import type {
+  ApplicationFocus,
+  ReconciliationConflict,
+  ReconciliationReport as ReconciliationReportData,
+  ResumeMatchReport as ResumeMatchReportData,
+} from '../types'
 import { ResumeTailoringSuggestions } from './ResumeTailoringSuggestions'
 import { FeedbackState } from './ui/FeedbackState'
 import { GeneratedResultNotice } from './ui/GeneratedResultNotice'
@@ -67,6 +73,214 @@ function MatchList({
         {items.map(item => <li key={`${title}-${item}`}>{item}</li>)}
       </ul>
     </SectionCard>
+  )
+}
+
+function ConflictList({
+  title,
+  conflicts,
+}: {
+  title: string
+  conflicts: ReconciliationConflict[]
+}) {
+  return (
+    <SectionCard
+      title={title}
+      variant={conflicts.length ? 'danger' : 'success'}
+    >
+      {conflicts.length ? (
+        <ul>
+          {conflicts.map(conflict => (
+            <li key={`${title}-${conflict.field}-${conflict.profile_value}-${conflict.other_value}`}>
+              <strong>{conflict.field}:</strong> perfil "{conflict.profile_value}" vs outro "{conflict.other_value}"
+              <small> Severidade: {conflict.severity}</small>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <small>Nenhum conflito detectado</small>
+      )}
+    </SectionCard>
+  )
+}
+
+function ReconciliationStep() {
+  const [focus, setFocus] = useState<ApplicationFocus>('vaga')
+  const [report, setReport] = useState<ReconciliationReportData | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+
+    async function loadLatest() {
+      setInitialLoading(true)
+      try {
+        const response = await fetch('/api/reconciliation/latest', { cache: 'no-store' })
+        if (response.status === 404) return
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data.detail || 'Não foi possível carregar a reconciliação salva.')
+        }
+        if (active) {
+          const latest = data as ReconciliationReportData
+          setReport(latest)
+          setFocus(latest.focus)
+        }
+      } catch (requestError) {
+        if (active) {
+          setError(getFriendlyErrorMessage(
+            requestError,
+            'Não foi possível carregar a reconciliação salva.'
+          ))
+        }
+      } finally {
+        if (active) setInitialLoading(false)
+      }
+    }
+
+    void loadLatest()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const analyze = async () => {
+    setLoading(true)
+    setError('')
+
+    try {
+      const response = await fetch('/api/reconciliation/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          use_latest_profile: true,
+          use_latest_resume_analysis: true,
+          use_latest_job_analysis: true,
+          use_latest_match_report: true,
+          focus,
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.detail || 'Não foi possível reconciliar perfil, currículo e vaga.')
+      }
+      setReport(data as ReconciliationReportData)
+      window.dispatchEvent(new Event('pipeline-updated'))
+    } catch (requestError) {
+      console.error('Falha na reconciliação da candidatura:', requestError)
+      setError(getFriendlyErrorMessage(
+        requestError,
+        'Não foi possível reconciliar perfil, currículo e vaga.'
+      ))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <section className="reconciliation-step">
+      <div className="reconciliation-callout">
+        <div>
+          <p className="eyebrow"><Scale size={13} aria-hidden="true" /> Reconciliação</p>
+          <h3>Escolher o foco da candidatura</h3>
+          <p>
+            Cruze perfil, currículo e vaga antes de adaptar sua apresentação. O foco define
+            qual fonte deve prevalecer quando houver conflito.
+          </p>
+        </div>
+        <div className="reconciliation-actions">
+          <div className="focus-choice-group" aria-label="Foco da candidatura">
+            {([
+              ['vaga', 'Vaga'],
+              ['curriculo', 'Currículo'],
+              ['perfil', 'Perfil'],
+            ] as const).map(([value, label]) => (
+              <button
+                type="button"
+                key={value}
+                className={focus === value ? 'selected' : ''}
+                onClick={() => setFocus(value)}
+                disabled={loading}
+                aria-pressed={focus === value}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="primary-action-button"
+            onClick={analyze}
+            disabled={loading || initialLoading}
+          >
+            {loading
+              ? <Loader2 size={16} className="spin" aria-hidden="true" />
+              : <Scale size={16} aria-hidden="true" />}
+            {loading ? 'Reconciliando...' : report ? 'Reconciliar novamente' : 'Reconciliar candidatura'}
+          </button>
+        </div>
+      </div>
+
+      {initialLoading && (
+        <FeedbackState
+          tone="loading"
+          title="Buscando reconciliação salva..."
+          description="Se não houver relatório salvo, você escolhe o foco e gera um novo."
+        />
+      )}
+
+      {error && (
+        <FeedbackState
+          tone="error"
+          title={error}
+          description="Verifique se perfil, currículo, vaga e match já existem."
+        />
+      )}
+
+      {report && (
+        <div className="reconciliation-result generated-result" tabIndex={-1}>
+          <GeneratedResultNotice
+            title="Reconciliação concluída"
+            nextStep="Próximo passo: gere sugestões seguras respeitando o foco escolhido."
+          />
+
+          <div className="reconciliation-summary">
+            <div>
+              <span>Consistência</span>
+              <strong>{report.consistency_score}/100</strong>
+            </div>
+            <div>
+              <span>Nível</span>
+              <strong>{report.consistency_level}</strong>
+            </div>
+            <div>
+              <span>Foco</span>
+              <strong>{report.focus === 'curriculo' ? 'currículo' : report.focus}</strong>
+            </div>
+          </div>
+
+          <div className="job-analysis-grid">
+            <ConflictList title="Conflitos perfil x currículo" conflicts={report.profile_resume_conflicts} />
+            <ConflictList title="Conflitos perfil x vaga" conflicts={report.profile_job_conflicts} />
+          </div>
+
+          <div className="job-analysis-grid">
+            <MatchList title="Campos alinhados" items={report.aligned_fields} />
+            <MatchList title="Recomendações pelo foco" items={report.focus_recommendations} />
+            <MatchList title="Próximos passos" items={report.next_steps} />
+          </div>
+
+          <div className="job-analysis-saved" role="status">
+            <CheckCircle2 size={15} aria-hidden="true" />
+            Reconciliação salva em data/reconciliation.md
+          </div>
+        </div>
+      )}
+
+      {report && <ResumeTailoringSuggestions />}
+    </section>
   )
 }
 
@@ -205,11 +419,11 @@ export function ResumeMatchReport({ report, loading, error, onCompare }: Props) 
 
           <p className="match-future-note">
             <Sparkles size={14} aria-hidden="true" />
-            Este relatório está pronto para alimentar sugestões de adaptação e o PDI personalizado,
-            sem editar o currículo nesta etapa.
+            Antes das sugestões, escolha se a candidatura deve priorizar a vaga,
+            o currículo real ou o perfil declarado.
           </p>
 
-          <ResumeTailoringSuggestions />
+          <ReconciliationStep />
         </div>
       )}
     </section>

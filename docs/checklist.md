@@ -1,5 +1,67 @@
 # Roadmap — Evolução do Import Vagas
 
+## Reconciliação perfil × currículo × vaga
+
+Sessão executada em 2026-06-18.
+
+Detecção de conflitos entre os três artefatos centrais da jornada (perfil do
+quiz, currículo analisado e vaga analisada) com escolha de "foco da
+candidatura" que define qual fonte deve prevalecer.
+
+### Arquitetura
+
+* [x] `agents/reconciliation.py`: heurística pura (sem LLM, sem IO), reusando
+  os helpers canônicos do `resume_matcher` (`_normalize`, `_canonical`,
+  `_unique`, `_parse_markdown`, `SENIORITY_ORDER`) para evitar falsos
+  conflitos de aliasing (ex.: "powerbi" vs "Power BI").
+* [x] `routers/reconciliation.py`: rota HTTP espelhando o padrão do
+  `resume_match` — `GET /api/reconciliation/latest` e
+  `POST /api/reconciliation/analyze`, com `read_required` + `validate_*` para
+  perfil/currículo/vaga e persistência atômica sob lock de sessão.
+* [x] O par currículo×vaga **não é recalculado**: o `Reconciler` reusa
+  `ResumeMatcher.match` (ou o relatório já salvo em
+  `resume-match-report.md`) e incorpora o score ao diagnóstico.
+
+### Detecção de conflitos
+
+* [x] **perfil↔currículo**: Área, Nível, Habilidades técnicas, Soft skills,
+  Funções alvo.
+* [x] **perfil↔vaga**: Nível, Habilidades técnicas, Ferramentas, Soft skills,
+  Modalidade, Localização.
+* [x] **currículo↔vaga**: reusado do `ResumeMatcher` existente.
+* [x] Score de consistência agregado (0–100) pesando match + conflitos +
+  alinhamentos, com nível textual (coerente / divergências relevantes /
+  inconsistente).
+
+### Foco da candidatura
+
+* [x] Linha `Foco da candidatura: {perfil|currículo|vaga}` em
+  `user-profile.md`, lida por `parse_focus` (tolera acento: "currículo").
+* [x] Resolução por precedência: parâmetro explícito no `POST /analyze` >
+  linha do perfil > default "vaga".
+* [x] Recomendações geradas conforme o foco (ex.: foco "currículo" →
+  atualizar o perfil para refletir o currículo).
+
+### Wiring e testes
+
+* [x] `RECONCILIATION_FILE` adicionado em `config.py` e `SessionPaths`
+  (`session.py`), espelhando o padrão dos demais artefatos.
+* [x] Router registrado em `main.py` (33 rotas totais, +2).
+* [x] `tests/test_reconciliation.py`: 20 testes cobrindo `validate_profile`,
+  `parse_focus`, detecção de conflitos nos dois pares novos, variação do
+  foco, reuso do match e round-trip Markdown.
+* [x] `py_compile` nos arquivos novos/modificados; `import main` com as rotas
+  registradas; `102 passed` na suíte completa.
+
+### Fora de escopo (registrado para próximas sessões)
+
+* [ ] Endpoint PUT/PATCH dedicado para setar o foco (hoje vem do perfil ou do
+  body do `POST /analyze`).
+* [ ] Integração com o fluxo conversacional do Maestro (opção de menu).
+* [ ] Leitura do foco pelos agentes match/tailor/PDI para pesar resultados.
+* [ ] "Atualizar perfil somente com confirmação do usuário" e os demais
+  sub-itens de escolha de base.
+
 ## Hardening do Backend e Resiliencia (Recem-Concluido)
 
 Esta etapa transformou o backend de um prototipo funcional para uma API com padrao de producao, resiliente a quedas de rede, falhas de LLM e I/O concorrente.
@@ -957,10 +1019,10 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 ## O que iremos acrescentar
 
-* [ ] Detectar conflito entre perfil e currículo.
+* [x] Detectar conflito entre perfil e currículo.
 * [x] Detectar conflito entre currículo e vaga.
-* [ ] Detectar conflito entre perfil e vaga.
-* [ ] Permitir escolher foco da candidatura.
+* [x] Detectar conflito entre perfil e vaga.
+* [x] Permitir escolher foco da candidatura.
 * [ ] Permitir usar dados do currículo como base.
 * [ ] Permitir usar dados do perfil como base.
 * [ ] Permitir usar a vaga como foco principal.
@@ -1349,9 +1411,10 @@ Uma etapa só deve ser considerada pronta quando:
 
 ### Reconciliação de dados
 
-* [ ] Detectar conflito entre perfil declarado e currículo analisado
-* [ ] Detectar conflito entre currículo e vaga
-* [ ] Permitir escolher foco da candidatura (perfil vs currículo vs vaga)
+* [x] Detectar conflito entre perfil declarado e currículo analisado
+* [x] Detectar conflito entre currículo e vaga
+* [x] Detectar conflito entre perfil e vaga
+* [x] Permitir escolher foco da candidatura (perfil vs currículo vs vaga)
 * [ ] Atualizar perfil somente com confirmação do usuário
 
 ### Isolamento multiusuário

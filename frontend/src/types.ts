@@ -121,6 +121,28 @@ export interface ResumeMatchReport {
   next_steps: string[]
 }
 
+export type ApplicationFocus = 'perfil' | 'curriculo' | 'vaga'
+
+export interface ReconciliationConflict {
+  field: string
+  profile_value: string
+  other_value: string
+  severity: string
+}
+
+export interface ReconciliationReport {
+  focus: ApplicationFocus
+  consistency_score: number
+  consistency_level: string
+  profile_resume_conflicts: ReconciliationConflict[]
+  profile_job_conflicts: ReconciliationConflict[]
+  resume_job_summary: string
+  match_score: number
+  aligned_fields: string[]
+  focus_recommendations: string[]
+  next_steps: string[]
+}
+
 export interface ResumeTailoringSuggestions {
   job_title: string
   match_score: number

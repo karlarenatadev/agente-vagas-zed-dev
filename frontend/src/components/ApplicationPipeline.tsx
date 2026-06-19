@@ -31,6 +31,7 @@ interface PipelineSnapshot {
   resume: boolean
   job: boolean
   match: boolean
+  reconciliation: boolean
   tailoring: boolean
   pdi: boolean
   failed: boolean
@@ -79,6 +80,7 @@ export function ApplicationPipeline({
     resume: false,
     job: false,
     match: false,
+    reconciliation: false,
     tailoring: false,
     pdi: false,
     failed: false,
@@ -99,14 +101,16 @@ export function ApplicationPipeline({
 
   const refresh = useCallback(async () => {
     try {
-      const [resumeAnalysis, job, match, tailoring, pdi] = await Promise.all([
+      const [resumeAnalysis, job, match, reconciliation, tailoring, pdi] = await Promise.all([
         readDataFile('/api/data/resume-analysis'),
         readDataFile('/api/data/job-description'),
         readDataFile('/api/data/resume-match'),
+        readDataFile('/api/data/reconciliation'),
         readDataFile('/api/data/resume-tailoring'),
         readDataFile('/api/data/pdi'),
       ])
       const matchCompleted = hasValidContent(match)
+      const reconciliationCompleted = hasValidContent(reconciliation)
       const tailoringCompleted = hasValidContent(tailoring)
       
       // A API é a fonte principal; artefatos dependentes preservam compatibilidade.
@@ -124,6 +128,7 @@ export function ApplicationPipeline({
         resume: resumeCompleted,
         job: hasValidContent(job),
         match: matchCompleted,
+        reconciliation: reconciliationCompleted,
         tailoring: tailoringCompleted,
         pdi: hasValidContent(pdi),
         failed: false,
@@ -148,8 +153,9 @@ export function ApplicationPipeline({
 
   const steps = useMemo(() => {
     const resumeCompleted = snapshot.resume
-    const jobCompleted = snapshot.job || snapshot.match || snapshot.tailoring
-    const matchCompleted = snapshot.match || snapshot.tailoring
+    const jobCompleted = snapshot.job || snapshot.match || snapshot.reconciliation || snapshot.tailoring
+    const matchCompleted = snapshot.match || snapshot.reconciliation || snapshot.tailoring
+    const reconciliationCompleted = snapshot.reconciliation || snapshot.tailoring
     const tailoringCompleted = snapshot.tailoring
     const pdiCompleted = snapshot.pdi
     const interviewCompleted = mode === 'coach'
@@ -191,15 +197,29 @@ export function ApplicationPipeline({
         actionLabel: matchCompleted ? 'Ver match' : 'Abrir vaga',
       },
       {
+        key: 'reconciliation',
+        label: 'Reconciliação',
+        description: 'Escolha se perfil, currículo ou vaga manda quando houver conflito.',
+        next: reconciliationCompleted
+          ? 'Foco da candidatura definido.'
+          : matchCompleted
+            ? 'Escolha o foco dentro do relatório.'
+            : 'Conclua o match primeiro.',
+        status: (reconciliationCompleted ? 'completed' : matchCompleted ? 'available' : 'blocked') as PipelineStatus,
+        icon: Scale,
+        action: onOpenJob,
+        actionLabel: reconciliationCompleted ? 'Ver foco' : 'Escolher foco',
+      },
+      {
         key: 'tailoring',
         label: 'Sugestões',
         description: 'Reposicione evidências sem inventar experiência.',
         next: tailoringCompleted
           ? 'Ajustes seguros disponíveis.'
-          : matchCompleted
+          : reconciliationCompleted
             ? 'Gere os ajustes no relatório.'
-            : 'Conclua o match primeiro.',
-        status: (tailoringCompleted ? 'completed' : matchCompleted ? 'available' : 'blocked') as PipelineStatus,
+            : 'Defina o foco da candidatura primeiro.',
+        status: (tailoringCompleted ? 'completed' : reconciliationCompleted ? 'available' : 'blocked') as PipelineStatus,
         icon: Sparkles,
         action: onOpenJob,
         actionLabel: tailoringCompleted ? 'Ver sugestões' : 'Abrir relatório',
