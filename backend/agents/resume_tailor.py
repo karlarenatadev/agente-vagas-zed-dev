@@ -102,6 +102,11 @@ def _value(data: dict[str, Any], key: str, fallback: str) -> str:
     return value if _normalize(str(value)) not in INVALID_MARKERS else fallback
 
 
+def _valid_score(value: str) -> bool:
+    match = re.fullmatch(r"(\d{1,3})/100", value)
+    return bool(match and 0 <= int(match.group(1)) <= 100)
+
+
 def validate_resume_analysis(content: str) -> bool:
     data = _parse_markdown(content)
     return bool(
@@ -123,7 +128,7 @@ def validate_match_report(content: str) -> bool:
     data = _parse_markdown(content)
     score = _value(data, "score_geral", "")
     return bool(
-        re.match(r"^\d{1,3}/100$", score)
+        _valid_score(score)
         and (
             _list(data, "evidencias_fortes_no_curriculo")
             or _list(data, "evidencias_parciais")

@@ -127,6 +127,11 @@ def _skill_from_sentence(value: str) -> str:
     return value.strip(" .")
 
 
+def _valid_score(value: str) -> bool:
+    match = re.fullmatch(r"(\d{1,3})/100", value)
+    return bool(match and 0 <= int(match.group(1)) <= 100)
+
+
 def validate_resume_analysis(content: str) -> bool:
     parsed = _parse_markdown(content)
     return bool(
@@ -147,7 +152,7 @@ def validate_job_analysis(content: str) -> bool:
 def validate_match_report(content: str) -> bool:
     parsed = _parse_markdown(content)
     return bool(
-        re.match(r"^\d{1,3}/100$", _value(parsed, "score_geral", ""))
+        _valid_score(_value(parsed, "score_geral", ""))
         and (
             _list(parsed, "evidencias_fortes_no_curriculo")
             or _list(parsed, "evidencias_parciais")

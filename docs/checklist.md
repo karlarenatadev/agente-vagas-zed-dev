@@ -99,6 +99,13 @@ Esta etapa transformou o backend de um prototipo funcional para uma API com padr
 * [x] Endurecimento do upload de curriculos com Magic Numbers, validacao de `Content-Type`, limite rigido de tamanho e retorno 413 para payload grande.
 * [x] Validacao automatizada: `pytest` completo com 73 testes passando.
 
+### Fase 6: Validacao em cascata
+
+* [x] Fluxo curriculo -> vaga -> match -> sugestoes -> PDI auditado no backend.
+* [x] Validadores de sugestoes e PDI fortalecidos para rejeitar score de match fora de 0..100.
+* [x] Testes unitarios cobrem score ausente, scores invalidos (-1/100, 101/100, 999/100, texto) e scores validos (0/100, 1/100, 50/100, 100/100).
+* [ ] Pendente: adicionar testes HTTP para artefatos corrompidos nas rotas de sugestoes e PDI.
+
 ## Carroceria e Pista (Proximos Marcos Arquiteturais)
 
 Agora que o motor esta blindado, o foco passa a ser entrega continua, infraestrutura e UX de erros.
