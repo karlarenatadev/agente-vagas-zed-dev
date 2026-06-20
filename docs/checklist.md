@@ -106,6 +106,11 @@ Agora que o motor esta blindado, o foco passa a ser entrega continua, infraestru
 ### 1. Frontend Resiliente (Conectando as pontas do Backend)
 
 * [ ] Tratamento visual de erros: consumir os contratos padronizados 422 e 500 do FastAPI para exibir toasts ou banners amigaveis quando o LLM demorar ou a API externa falhar.
+  * [x] Helper `frontend/src/lib/api.ts` criado para normalizar 422, 500, corpo vazio, HTML/texto inesperado, falha de rede e timeout.
+  * [x] Fluxos de curriculo, vaga, match/reconciliacao, sugestoes, PDI e pipeline passaram a usar `apiRequest`.
+  * [x] `ProfilePanel` e `ApplicationTracker` auditados e migrados para `apiRequest`, preservando loading, estado vazio, estado anterior e mensagens de erro existentes.
+  * [x] Validacoes executadas nesta frente: `npm run test`, `npm run lint` e `npm run build` no frontend.
+  * [ ] Pendente: tratar envio silencioso do WebSocket quando a conexao cai entre clique e `sendMessage`.
 * [ ] Recuperacao visual de sessao: fazer o React usar o estado restaurado do WebSocket no primeiro load para repintar quiz/Coach sem expor a reconexao ao usuario.
 
 ### 2. Infraestrutura e Containerizacao (Docker)

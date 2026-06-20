@@ -6,6 +6,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, ExternalLink, ChevronDown } from 'lucide-react'
+import { apiRequest } from '../lib/api'
+import { getFriendlyErrorMessage } from '../lib/errorMessages'
 import type { JobApplication, ApplicationStatus } from '../types'
 import { FeedbackState } from './ui/FeedbackState'
 
@@ -126,20 +128,19 @@ function ApplicationCard({
 
   const saveNotes = async () => {
     try {
-      const response = await fetch(`/api/applications/${app.id}`, {
+      await apiRequest<JobApplication>(`/api/applications/${app.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notas: notes }),
       })
 
-      if (!response.ok) {
-        throw new Error(`Falha HTTP ${response.status}`)
-      }
-
       setEditingNotes(false)
     } catch (requestError) {
       console.error('Falha ao salvar notas da candidatura:', requestError)
-      onError('Não foi possível salvar as notas. Confira a conexão e tente novamente.')
+      onError(getFriendlyErrorMessage(
+        requestError,
+        'Não foi possível salvar as notas. Confira a conexão e tente novamente.'
+      ))
     }
   }
 
@@ -319,12 +320,7 @@ export function ApplicationTracker({ isOpen, onClose }: Props) {
 
   const loadApplications = useCallback(async () => {
     try {
-      const response = await fetch('/api/applications/', { cache: 'no-store' })
-      if (!response.ok) {
-        throw new Error(`Falha HTTP ${response.status}`)
-      }
-
-      const data = await response.json()
+      const data = await apiRequest<unknown>('/api/applications/', { cache: 'no-store' })
       if (!Array.isArray(data)) {
         throw new Error('Resposta inválida da API de candidaturas')
       }
@@ -332,7 +328,10 @@ export function ApplicationTracker({ isOpen, onClose }: Props) {
       setApplications(data as JobApplication[])
     } catch (requestError) {
       console.error('Falha ao carregar candidaturas:', requestError)
-      setError('Não foi possível carregar suas candidaturas agora.')
+      setError(getFriendlyErrorMessage(
+        requestError,
+        'Não foi possível carregar suas candidaturas agora.'
+      ))
     } finally {
       setLoading(false)
     }
@@ -365,20 +364,19 @@ export function ApplicationTracker({ isOpen, onClose }: Props) {
     setError('')
 
     try {
-      const response = await fetch(`/api/applications/${id}`, {
+      await apiRequest<JobApplication>(`/api/applications/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
       })
 
-      if (!response.ok) {
-        throw new Error(`Falha HTTP ${response.status}`)
-      }
-
       setApplications(prev => prev.map(a => a.id === id ? { ...a, status } : a))
     } catch (requestError) {
       console.error('Falha ao atualizar candidatura:', requestError)
-      setError('Não foi possível atualizar o status. Confira a conexão e tente novamente.')
+      setError(getFriendlyErrorMessage(
+        requestError,
+        'Não foi possível atualizar o status. Confira a conexão e tente novamente.'
+      ))
     }
   }
 
@@ -386,15 +384,15 @@ export function ApplicationTracker({ isOpen, onClose }: Props) {
     setError('')
 
     try {
-      const response = await fetch(`/api/applications/${id}`, { method: 'DELETE' })
-      if (!response.ok) {
-        throw new Error(`Falha HTTP ${response.status}`)
-      }
+      await apiRequest<{ ok: boolean }>(`/api/applications/${id}`, { method: 'DELETE' })
 
       setApplications(prev => prev.filter(a => a.id !== id))
     } catch (requestError) {
       console.error('Falha ao remover candidatura:', requestError)
-      setError('Não foi possível remover a candidatura. Confira a conexão e tente novamente.')
+      setError(getFriendlyErrorMessage(
+        requestError,
+        'Não foi possível remover a candidatura. Confira a conexão e tente novamente.'
+      ))
     }
   }
 

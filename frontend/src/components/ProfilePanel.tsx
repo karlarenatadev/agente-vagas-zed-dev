@@ -21,6 +21,8 @@ import {
   UserRoundCheck,
   Zap,
 } from 'lucide-react'
+import { apiRequest } from '../lib/api'
+import { getFriendlyErrorMessage } from '../lib/errorMessages'
 import type { AgentName, DateFilter, UserProfile } from '../types'
 import { FeedbackState } from './ui/FeedbackState'
 import { SkillTag } from './ui/SkillTag'
@@ -39,6 +41,11 @@ const DATE_FILTERS: Array<{ value: DateFilter; label: string }> = [
   { value: '1m', label: '1 mês' },
   { value: 'all', label: 'Todas' },
 ]
+
+interface ProfileResponse {
+  exists?: boolean
+  data?: UserProfile
+}
 
 const LEVEL_PROGRESS: Record<string, number> = {
   'Júnior': 33,
@@ -344,28 +351,22 @@ export function ProfilePanel({
 
   const loadProfile = useCallback(async (cancelled?: () => boolean) => {
     try {
-      const response = await fetch('/api/profile/', {
+      const data = await apiRequest<ProfileResponse>('/api/profile/', {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache',
         },
       })
 
-      if (!response.ok) {
-        throw new Error(`Falha HTTP ${response.status}`)
-      }
-
-      const data = await response.json() as {
-        exists?: boolean
-        data?: UserProfile
-      }
-
       if (cancelled?.()) return
       setProfile(data.exists && data.data ? data.data : null)
     } catch (requestError) {
       console.error('Falha ao carregar perfil:', requestError)
       if (!cancelled?.()) {
-        setError('Não foi possível carregar seu perfil agora.')
+        setError(getFriendlyErrorMessage(
+          requestError,
+          'Não foi possível carregar seu perfil agora.'
+        ))
       }
     } finally {
       if (!cancelled?.()) setLoading(false)

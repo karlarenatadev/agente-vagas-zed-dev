@@ -6,6 +6,7 @@ import { ChatMessage } from '../ChatMessage'
 import { ChatTerminal } from '../ChatTerminal'
 import { JobDescriptionAnalyzer } from '../JobDescriptionAnalyzer'
 import { PdiPlan } from '../PdiPlan'
+import { ProfilePanel } from '../ProfilePanel'
 import { ResumeMatchReport } from '../ResumeMatchReport'
 import { ResumeTailoringSuggestions } from '../ResumeTailoringSuggestions'
 import { ResumeUpload } from '../ResumeUpload'
@@ -409,27 +410,51 @@ describe('fluxo principal do frontend', () => {
     expectTextNow('gerar novamente')
   })
 
-  it('cobre candidaturas com loading, vazio, erro e lista simples', async () => {
+  it('cobre candidaturas com loading, vazio e lista simples', async () => {
     mockFetch(response([]))
 
-    const { rerender, unmount } = render(<ApplicationTracker isOpen onClose={vi.fn()} />)
+    const { unmount } = render(<ApplicationTracker isOpen onClose={vi.fn()} />)
 
     expect(screen.getByText(/Carregando candidaturas/i)).toBeTruthy()
     expect(await screen.findByText(/Nenhuma candidatura salva ainda/i)).toBeTruthy()
-
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(
-      { detail: 'erro' },
-      { ok: false, status: 500 },
-    )))
-    rerender(<ApplicationTracker isOpen={false} onClose={vi.fn()} />)
-    rerender(<ApplicationTracker isOpen onClose={vi.fn()} />)
-    await expectTextEventually('nao foi possivel carregar suas candidaturas agora')
 
     unmount()
     mockFetch(response([applicationFixture]))
     render(<ApplicationTracker isOpen onClose={vi.fn()} />)
     expect(await screen.findByText(/Analista de Dados Junior/i)).toBeTruthy()
     expect(screen.getByText(/Acme/)).toBeTruthy()
+  })
+
+  it.each([
+    ['erro 500 com corpo texto', response(undefined, { ok: false, status: 500, text: '<html>erro interno</html>' }), 'backend encontrou uma falha'],
+    ['resposta vazia', response(undefined, { ok: true, status: 200, text: '' }), 'resposta vazia'],
+    [
+      'validacao FastAPI em lista',
+      response(
+        { detail: [{ type: 'missing', loc: ['body', 'status'], msg: 'Field required' }] },
+        { ok: false, status: 422 },
+      ),
+      'alguns dados enviados',
+    ],
+  ])('mostra erro amigavel no painel de candidaturas: %s', async (_caseName, failedResponse, expected) => {
+    mockFetch(failedResponse)
+
+    render(<ApplicationTracker isOpen onClose={vi.fn()} />)
+
+    await expectTextEventually(expected)
+    expectTextNow('tentar sincronizar novamente')
+  })
+
+  it.each([
+    ['erro 500 com corpo texto', response(undefined, { ok: false, status: 500, text: '<html>erro interno</html>' }), 'backend encontrou uma falha'],
+    ['resposta vazia', response(undefined, { ok: true, status: 200, text: '' }), 'resposta vazia'],
+  ])('mostra erro amigavel no painel de perfil: %s', async (_caseName, failedResponse, expected) => {
+    mockFetch(failedResponse)
+
+    render(<ProfilePanel activeAgent="Maestro" onNavigate={vi.fn()} />)
+
+    await expectTextEventually(expected)
+    expectTextNow('tente novamente')
   })
 
   it('diferencia vagas reais de oportunidades simuladas no Scout', () => {
