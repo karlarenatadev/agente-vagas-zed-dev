@@ -9,6 +9,7 @@ import { PdiPlan } from '../PdiPlan'
 import { ResumeMatchReport } from '../ResumeMatchReport'
 import { ResumeTailoringSuggestions } from '../ResumeTailoringSuggestions'
 import { ResumeUpload } from '../ResumeUpload'
+import { apiRequest } from '../../lib/api'
 import {
   applicationFixture,
   jobAnalysisFixture,
@@ -23,13 +24,15 @@ type MockResponse = {
   ok: boolean
   status: number
   json: () => Promise<unknown>
+  text: () => Promise<string>
 }
 
-function response(body: unknown, options: { ok?: boolean; status?: number } = {}): MockResponse {
+function response(body: unknown, options: { ok?: boolean; status?: number; text?: string } = {}): MockResponse {
   return {
     ok: options.ok ?? true,
     status: options.status ?? 200,
     json: async () => body,
+    text: async () => options.text ?? (body === undefined ? '' : JSON.stringify(body)),
   }
 }
 
@@ -71,6 +74,47 @@ function deferred<T>() {
 }
 
 describe('fluxo principal do frontend', () => {
+  it('normaliza erros de API com detail em lista, texto inesperado e corpo vazio', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(response(
+      { detail: [{ type: 'missing', loc: ['body', 'description'], msg: 'Field required' }] },
+      { ok: false, status: 422 },
+    )))
+    await expect(apiRequest('/api/job-description/analyze')).rejects.toThrow('Alguns dados enviados')
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(response(
+      undefined,
+      { ok: false, status: 500, text: '<html>erro interno</html>' },
+    )))
+    await expect(apiRequest('/api/resume-match/analyze')).rejects.toThrow('O backend encontrou uma falha')
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(response(
+      undefined,
+      { ok: true, status: 200, text: '' },
+    )))
+    await expect(apiRequest('/api/resume/upload')).rejects.toThrow('resposta vazia')
+  })
+
+  it('encerra chamadas de API lentas com mensagem amigavel de timeout', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.stubGlobal('fetch', vi.fn((_url: RequestInfo | URL, init?: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => {
+            reject(new DOMException('Aborted', 'AbortError'))
+          })
+        })
+      ))
+
+      const request = apiRequest('/api/resume/upload', { timeoutMs: 10 })
+      const assertion = expect(request).rejects.toThrow('demorou mais que o esperado')
+
+      await vi.advanceTimersByTimeAsync(11)
+      await assertion
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('renderiza a pipeline com etapas principais e bloqueia acoes sem prerequisito', async () => {
     mockFetch(
       response({ exists: false, content: '' }),

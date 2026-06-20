@@ -2,6 +2,7 @@ import { type ChangeEvent, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { AlertCircle, CheckCircle2, FileText, Loader2, UploadCloud } from 'lucide-react'
 import { useScrollToResult } from '../hooks/useScrollToResult'
+import { apiRequest } from '../lib/api'
 import { getFriendlyErrorMessage } from '../lib/errorMessages'
 import type { ResumeAnalysis, ResumeUploadResponse } from '../types'
 import { GeneratedResultNotice } from './ui/GeneratedResultNotice'
@@ -120,13 +121,12 @@ export function ResumeUpload({ onContinueQuiz }: Props) {
     setMessage('Enviando e analisando currículo...')
 
     try {
-      const response = await fetch('/api/resume/upload', {
+      const data = await apiRequest<ResumeUploadResponse>('/api/resume/upload', {
         method: 'POST',
         body: formData,
       })
-      const data = await response.json() as ResumeUploadResponse
 
-      if (!response.ok || !data.success || !data.analysis) {
+      if (!data.success || !data.analysis) {
         throw new Error(data.message || 'Não foi possível analisar o currículo.')
       }
 

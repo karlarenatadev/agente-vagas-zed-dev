@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { BriefcaseBusiness, Loader2, Search } from 'lucide-react'
 import { useScrollToResult } from '../hooks/useScrollToResult'
+import { apiRequest } from '../lib/api'
 import { getFriendlyErrorMessage } from '../lib/errorMessages'
 import type { JobDescriptionAnalysis, ResumeMatchReport as ResumeMatchReportData } from '../types'
 import { ResumeMatchReport } from './ResumeMatchReport'
@@ -102,18 +103,13 @@ export function JobDescriptionAnalyzer() {
     setError('')
 
     try {
-      const response = await fetch('/api/job-description/analyze', {
+      const data = await apiRequest<JobDescriptionAnalysis>('/api/job-description/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ description: cleanDescription }),
       })
-      const data = await response.json()
 
-      if (!response.ok) {
-        throw new Error(data.detail || 'Não foi possível analisar a descrição.')
-      }
-
-      setAnalysis(data as JobDescriptionAnalysis)
+      setAnalysis(data)
       setMatchReport(null)
       setMatchError('')
       reveal()
@@ -135,7 +131,7 @@ export function JobDescriptionAnalyzer() {
     setMatchError('')
 
     try {
-      const response = await fetch('/api/resume-match/analyze', {
+      const data = await apiRequest<ResumeMatchReportData>('/api/resume-match/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -143,11 +139,7 @@ export function JobDescriptionAnalyzer() {
           use_latest_resume_analysis: true,
         }),
       })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.detail || 'Não foi possível comparar a vaga com o currículo.')
-      }
-      setMatchReport(data as ResumeMatchReportData)
+      setMatchReport(data)
       window.dispatchEvent(new Event('pipeline-updated'))
     } catch (requestError) {
       console.error('Falha na comparação da vaga com o currículo:', requestError)

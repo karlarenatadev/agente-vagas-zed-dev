@@ -6,6 +6,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { useScrollToResult } from '../hooks/useScrollToResult'
+import { apiRequest, isApiErrorStatus } from '../lib/api'
 import { getFriendlyErrorMessage } from '../lib/errorMessages'
 import type {
   ApplicationFocus,
@@ -117,18 +118,13 @@ function ReconciliationStep() {
     async function loadLatest() {
       setInitialLoading(true)
       try {
-        const response = await fetch('/api/reconciliation/latest', { cache: 'no-store' })
-        if (response.status === 404) return
-        const data = await response.json()
-        if (!response.ok) {
-          throw new Error(data.detail || 'Não foi possível carregar a reconciliação salva.')
-        }
+        const data = await apiRequest<ReconciliationReportData>('/api/reconciliation/latest', { cache: 'no-store' })
         if (active) {
-          const latest = data as ReconciliationReportData
-          setReport(latest)
-          setFocus(latest.focus)
+          setReport(data)
+          setFocus(data.focus)
         }
       } catch (requestError) {
+        if (isApiErrorStatus(requestError, 404)) return
         if (active) {
           setError(getFriendlyErrorMessage(
             requestError,
@@ -151,7 +147,7 @@ function ReconciliationStep() {
     setError('')
 
     try {
-      const response = await fetch('/api/reconciliation/analyze', {
+      const data = await apiRequest<ReconciliationReportData>('/api/reconciliation/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -162,11 +158,7 @@ function ReconciliationStep() {
           focus,
         }),
       })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.detail || 'Não foi possível reconciliar perfil, currículo e vaga.')
-      }
-      setReport(data as ReconciliationReportData)
+      setReport(data)
       window.dispatchEvent(new Event('pipeline-updated'))
     } catch (requestError) {
       console.error('Falha na reconciliação da candidatura:', requestError)
