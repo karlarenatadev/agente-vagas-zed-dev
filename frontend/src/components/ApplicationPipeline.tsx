@@ -11,6 +11,7 @@ import {
   Target,
   UserRoundCheck,
 } from 'lucide-react'
+import { apiRequest } from '../lib/api'
 import type { PipelineStatus, SessionMode } from '../types'
 import { StatusBadge } from './ui/StatusBadge'
 
@@ -64,9 +65,7 @@ function hasValidContent(data: DataFileResponse | null): boolean {
 }
 
 async function readDataFile(path: string): Promise<DataFileResponse> {
-  const response = await fetch(path, { cache: 'no-store' })
-  if (!response.ok) throw new Error('Não foi possível ler o progresso salvo.')
-  return response.json() as Promise<DataFileResponse>
+  return apiRequest<DataFileResponse>(path, { cache: 'no-store' })
 }
 
 export function ApplicationPipeline({

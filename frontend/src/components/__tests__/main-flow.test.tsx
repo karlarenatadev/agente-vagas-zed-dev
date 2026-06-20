@@ -178,8 +178,18 @@ describe('fluxo principal do frontend', () => {
     )).toBe(true)
   })
 
-  it('mostra mensagem amigavel quando a pipeline nao consegue sincronizar', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+  it.each([
+    ['erro 500 com corpo texto', response(undefined, { ok: false, status: 500, text: '<html>erro interno</html>' })],
+    ['resposta vazia', response(undefined, { ok: true, status: 200, text: '' })],
+    [
+      'validacao FastAPI em lista',
+      response(
+        { detail: [{ type: 'missing', loc: ['query', 'path'], msg: 'Field required' }] },
+        { ok: false, status: 422 },
+      ),
+    ],
+  ])('mostra mensagem amigavel quando a pipeline nao consegue sincronizar: %s', async (_caseName, failedResponse) => {
+    mockFetch(failedResponse)
 
     render(
       <ApplicationPipeline
@@ -192,6 +202,7 @@ describe('fluxo principal do frontend', () => {
     )
 
     await expectTextEventually('nao conseguiu sincronizar')
+    expectTextNow('as acoes continuam disponiveis')
   })
 
   it('cobre upload de curriculo com loading, sucesso e erro local de arquivo', async () => {
