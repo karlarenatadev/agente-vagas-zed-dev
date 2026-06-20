@@ -1,17 +1,40 @@
 .venv/
-.env
-.backend/.env
 backend/.venv/
+
+# Environment files. Keep only safe examples versioned.
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+# Python caches
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+.pytest_cache/
+backend/.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node / tooling
 node_modules/
 .firecrawl/
 
-# Local agent state. Each user keeps their own generated Markdown data.
-data/*.md
-!data/README.md
-!data/*.example.md
-data/applications.json
+# Logs
+logs/
+*.log
+migration_errors.log
 
-data/sessions/
-backend\.pytest_cache
+# Local agent state. Generated files may contain resumes, jobs, matches, suggestions and PDI.
+data/*
+/data/*
+backend/data/
+backend/data/*
+!data/
+!/data/
+!data/README.md
+!/data/README.md
+!data/*.example.md
+!/data/*.example.md
+/data/applications.json
+/data/sessions/

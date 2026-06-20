@@ -197,6 +197,10 @@ import-vagas/
 > **Privacidade:** os arquivos `data/*.md`, `data/applications.json` e `data/sessions/` são estado local por pessoa/sessão e
 > podem conter dados sensíveis (currículo, perfil). Eles são ignorados pelo Git —
 > apenas `data/README.md` é versionado.
+> A pasta `data/` armazena artefatos locais gerados pela aplicação, incluindo currículo,
+> vaga, match, sugestões e PDI. Não versione esses arquivos. Variáveis reais devem ficar
+> somente em `.env` local ou GitHub Secrets. Este projeto ainda não deve ser usado com
+> dados reais sensíveis em produção sem proteção adicional.
 
 ---
 
@@ -336,6 +340,12 @@ O backend passou por uma etapa de hardening para operar como API de producao:
 | `DATA_DIR` | Diretório dos arquivos de estado | `../data` |
 | `PERSONAS_DIR` | Diretório das personas | `../personas` |
 | `SKILLS_DIR` | Diretório das skills | `../skills` |
+| `LOG_LEVEL` | Nível de logging do backend | `INFO` |
+| `LOG_TO_FILE` | Habilita escrita de logs em arquivo | `false` |
+| `LOG_DIR` | Diretório de logs quando `LOG_TO_FILE=true` | `../logs` |
+| `LOG_FILE` | Arquivo de log do backend | `../logs/backend.log` |
+| `LOG_MAX_BYTES` | Tamanho máximo do arquivo de log rotativo | `5242880` |
+| `LOG_BACKUP_COUNT` | Quantidade de backups de log rotativo | `3` |
 
 ---
 
