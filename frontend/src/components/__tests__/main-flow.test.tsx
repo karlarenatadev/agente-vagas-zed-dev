@@ -11,6 +11,7 @@ import { ResumeMatchReport } from '../ResumeMatchReport'
 import { ResumeTailoringSuggestions } from '../ResumeTailoringSuggestions'
 import { ResumeUpload } from '../ResumeUpload'
 import { apiRequest } from '../../lib/api'
+import { useWebSocket } from '../../hooks/useWebSocket'
 import {
   applicationFixture,
   jobAnalysisFixture,
@@ -74,7 +75,101 @@ function deferred<T>() {
   return { promise, resolve }
 }
 
+class MockWebSocket {
+  static CONNECTING = 0
+  static OPEN = 1
+  static CLOSING = 2
+  static CLOSED = 3
+
+  readyState = MockWebSocket.CONNECTING
+  sent: string[] = []
+  onopen: ((event: Event) => void) | null = null
+  onclose: ((event: Event) => void) | null = null
+  onerror: ((event: Event) => void) | null = null
+  onmessage: ((event: MessageEvent) => void) | null = null
+
+  url: string
+
+  constructor(url: string) {
+    this.url = url
+  }
+
+  send(data: string) {
+    this.sent.push(data)
+  }
+
+  close() {
+    this.readyState = MockWebSocket.CLOSED
+    this.onclose?.(new Event('close'))
+  }
+
+  open() {
+    this.readyState = MockWebSocket.OPEN
+    this.onopen?.(new Event('open'))
+  }
+}
+
+function installMockWebSocket() {
+  const sockets: MockWebSocket[] = []
+  const WebSocketMock = class extends MockWebSocket {
+    constructor(url: string) {
+      super(url)
+      sockets.push(this)
+    }
+  }
+
+  vi.stubGlobal('WebSocket', WebSocketMock)
+  return sockets
+}
+
+function WebSocketHarness() {
+  const { messages, sendMessage } = useWebSocket()
+
+  return (
+    <div>
+      <button type="button" onClick={() => sendMessage('Oi Maestro')}>Enviar WS</button>
+      <div>
+        {messages.map(message => (
+          <p key={message.id}>{message.role}: {message.content}</p>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 describe('fluxo principal do frontend', () => {
+  it('envia mensagem pelo WebSocket quando a conexao esta aberta', async () => {
+    const sockets = installMockWebSocket()
+
+    render(<WebSocketHarness />)
+
+    await waitFor(() => expect(sockets.length).toBe(1))
+    sockets[0].open()
+
+    fireEvent.click(screen.getByRole('button', { name: /Enviar WS/i }))
+
+    expect(sockets[0].sent).toEqual([
+      JSON.stringify({ type: 'message', content: 'Oi Maestro' }),
+    ])
+    expectTextNow('user: oi maestro')
+  })
+
+  it('mostra feedback quando o envio WebSocket falha por conexao interrompida', async () => {
+    const sockets = installMockWebSocket()
+
+    render(<WebSocketHarness />)
+
+    await waitFor(() => expect(sockets.length).toBe(1))
+    sockets[0].open()
+    sockets[0].readyState = MockWebSocket.CLOSED
+
+    fireEvent.click(screen.getByRole('button', { name: /Enviar WS/i }))
+
+    expect(sockets[0].sent).toEqual([])
+    await expectTextEventually('nao foi possivel enviar agora')
+    expectTextNow('aguarde reconectar')
+  })
+
   it('normaliza erros de API com detail em lista, texto inesperado e corpo vazio', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(response(
       { detail: [{ type: 'missing', loc: ['body', 'description'], msg: 'Field required' }] },

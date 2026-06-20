@@ -110,7 +110,9 @@ Agora que o motor esta blindado, o foco passa a ser entrega continua, infraestru
   * [x] Fluxos de curriculo, vaga, match/reconciliacao, sugestoes, PDI e pipeline passaram a usar `apiRequest`.
   * [x] `ProfilePanel` e `ApplicationTracker` auditados e migrados para `apiRequest`, preservando loading, estado vazio, estado anterior e mensagens de erro existentes.
   * [x] Validacoes executadas nesta frente: `npm run test`, `npm run lint` e `npm run build` no frontend.
-  * [ ] Pendente: tratar envio silencioso do WebSocket quando a conexao cai entre clique e `sendMessage`.
+  * [x] Envio silencioso do WebSocket auditado e corrigido: `sendMessage` retorna sucesso/falha e adiciona mensagem amigavel quando a conexao cai antes do envio.
+  * [x] Validado com teste de envio WebSocket aberto e tentativa de envio com socket fechado.
+  * [ ] Pendente: ampliar testes de estabilidade para reconexao real do WebSocket durante streaming longo.
 * [ ] Recuperacao visual de sessao: fazer o React usar o estado restaurado do WebSocket no primeiro load para repintar quiz/Coach sem expor a reconexao ao usuario.
 
 ### 2. Infraestrutura e Containerizacao (Docker)

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { getSessionId } from '../lib/session'
 import type {
   AgentName,
@@ -25,6 +25,9 @@ const INITIAL_LOADING: LoadingState = {
   coach: false,
   maestro: false,
 }
+
+const SEND_INTERRUPTED_MESSAGE =
+  'Não foi possível enviar agora porque a conexão foi interrompida. Aguarde reconectar e tente novamente.'
 
 function generateId(): string {
   return Math.random().toString(36).slice(2, 10)
@@ -72,6 +75,18 @@ export function useWebSocket() {
   const destroyedRef = useRef(false)
   const hasConnectedRef = useRef(false)
   const activeAgentRef = useRef<AgentName>('Maestro')
+
+  const addSystemMessage = useCallback((content: string) => {
+    setMessages(prev => [
+      ...prev,
+      {
+        id: generateId(),
+        role: 'system',
+        content,
+        timestamp: new Date(),
+      },
+    ])
+  }, [])
 
   useEffect(() => {
     activeAgentRef.current = agentFromSession(session)
@@ -210,15 +225,7 @@ export function useWebSocket() {
 
         else if (data.type === 'error') {
           console.error('Erro recebido do WebSocket:', data.content)
-          setMessages(prev => [
-            ...prev,
-            {
-              id: generateId(),
-              role: 'system',
-              content: 'Não consegui completar a resposta agora. Verifique a conexão e tente novamente.',
-              timestamp: new Date(),
-            },
-          ])
+          addSystemMessage('Não consegui completar a resposta agora. Verifique a conexão e tente novamente.')
           streamingIdRef.current = null
           setLoadingState(INITIAL_LOADING)
           setIsStreaming(false)
@@ -242,11 +249,16 @@ export function useWebSocket() {
         wsRef.current = null
       }
     }
-  }, [])
+  }, [addSystemMessage])
 
-  function sendMessage(content: string, dateFilter?: DateFilter) {
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
-    if (isStreaming) return
+  function sendMessage(content: string, dateFilter?: DateFilter): boolean {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      addSystemMessage(SEND_INTERRUPTED_MESSAGE)
+      setLoadingState(INITIAL_LOADING)
+      setIsStreaming(false)
+      return false
+    }
+    if (isStreaming) return false
 
     // Nova mensagem do usuário → a próxima resposta deve abrir uma bolha nova
     // logo abaixo, nunca anexar à resposta anterior.
@@ -272,6 +284,7 @@ export function useWebSocket() {
     }
 
     wsRef.current.send(JSON.stringify(payload))
+    return true
   }
 
   return {
