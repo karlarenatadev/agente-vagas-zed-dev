@@ -1,5 +1,164 @@
 # Relatório de andamento do projeto
 
+Data do levantamento: 2026-06-20
+
+## Melhorias realizadas após a avaliação técnica
+
+Após a avaliação inicial do projeto **Agente Import Vagas**, foram realizadas micro-rodadas de estabilização com foco em segurança básica, robustez do frontend, tratamento de erros, WebSocket e documentação de acompanhamento.
+
+### 1. Higiene de repositório e privacidade básica
+
+Foi reforçada a proteção de arquivos locais e sensíveis no repositório.
+
+Melhorias realizadas:
+
+* `.gitignore` atualizado para proteger arquivos `.env`, `.env.*`, logs, caches e diretórios de dados locais.
+* `data/` e `backend/data/` passaram a ser tratados explicitamente como diretórios locais que não devem ser versionados.
+* `backend/.env.example` foi sanitizado com placeholders seguros.
+* Variáveis de logging foram adicionadas ao `backend/.env.example`.
+* README recebeu nota de privacidade explicando que `data/` pode conter currículo, vaga, match, sugestões e PDI.
+* Ficou documentado que dados reais sensíveis não devem ser usados em produção sem proteção adicional.
+
+### 2. Criação do helper centralizado de API no frontend
+
+Foi criado o helper `apiRequest` para centralizar e normalizar chamadas REST no frontend.
+
+Melhorias realizadas:
+
+* Leitura da resposta como texto antes de tentar converter para JSON.
+* Tratamento seguro para corpo vazio.
+* Tratamento de respostas HTML ou texto inesperado.
+* Normalização de erros `400`, `413`, `422`, `500`, erro de rede e timeout.
+* Extração mais segura de mensagens vindas de `detail`, `message` ou `error`.
+* Suporte a `detail` em lista, como nos erros padrão do FastAPI.
+* Timeout com `AbortController`, evitando loading infinito em requisições penduradas.
+
+### 3. Migração dos fluxos principais para `apiRequest`
+
+Os principais fluxos REST do frontend foram migrados para o helper centralizado.
+
+Componentes migrados:
+
+* `ResumeUpload.tsx`
+* `JobDescriptionAnalyzer.tsx`
+* `ResumeMatchReport.tsx`
+* `ResumeTailoringSuggestions.tsx`
+* `PdiPlan.tsx`
+* `ApplicationPipeline.tsx`
+* `ProfilePanel.tsx`
+* `ApplicationTracker.tsx`
+
+Com isso, os fluxos abaixo passaram a lidar melhor com falhas:
+
+* upload de currículo;
+* análise de vaga;
+* geração e leitura de match;
+* reconciliação do relatório de match;
+* geração de sugestões seguras;
+* leitura e geração de PDI;
+* leitura da pipeline;
+* leitura do perfil;
+* leitura, edição e exclusão de candidaturas.
+
+### 4. Melhoria no tratamento de erros do frontend
+
+O frontend passou a apresentar comportamento mais previsível em cenários de falha.
+
+Melhorias realizadas:
+
+* Erros `422` do FastAPI agora viram mensagens amigáveis.
+* Erros `500` com HTML ou texto técnico não vazam mais para a interface.
+* Respostas vazias não quebram mais os componentes.
+* Payload inesperado é tratado como erro amigável.
+* Timeout não deixa loading preso indefinidamente.
+* Estados anteriores são preservados quando esse já era o comportamento esperado.
+* Estados de loading, erro, vazio e sucesso foram mantidos sem redesenhar a interface.
+
+### 5. ApplicationPipeline mais resiliente
+
+O `ApplicationPipeline` foi ajustado para usar `apiRequest` na leitura de dados.
+
+Melhorias realizadas:
+
+* `readDataFile` deixou de depender de `fetch + response.ok + response.json()`.
+* Erros de leitura agora são normalizados pelo helper.
+* Em caso de falha, a pipeline preserva o snapshot anterior.
+* A nota de sincronização existente foi mantida.
+* O empty state continuou funcionando.
+
+### 6. ProfilePanel e ApplicationTracker mais robustos
+
+Os painéis de perfil e acompanhamento de candidaturas também foram migrados para `apiRequest`.
+
+Melhorias realizadas:
+
+* `ProfilePanel` passou a tratar melhor falhas no `GET /api/profile/`.
+* `ApplicationTracker` passou a tratar melhor `GET`, `PATCH` e `DELETE`.
+* Erros `422`, `500`, corpo vazio, texto inesperado e timeout passaram a ser normalizados.
+* O perfil carregado anteriormente continua preservado em caso de falha.
+* A lista de candidaturas não é apagada quando ocorre erro em uma mutação.
+
+### 7. WebSocket com feedback em falha de envio
+
+O envio de mensagens via WebSocket foi ajustado para não falhar silenciosamente.
+
+Melhorias realizadas:
+
+* `sendMessage` agora retorna `true` quando a mensagem é enviada.
+* `sendMessage` retorna `false` quando o socket não está aberto.
+* Quando a conexão está fechada, o usuário recebe mensagem amigável.
+* Se a conexão cair entre o clique e o envio, o hook detecta o problema.
+* Estados de loading e streaming são liberados corretamente.
+* O fluxo normal de chat continua funcionando quando a conexão está aberta.
+
+### 8. Aumento da cobertura de testes no frontend
+
+Os testes do frontend foram ampliados durante as rodadas de estabilização.
+
+Melhorias realizadas:
+
+* Cobertura adicionada para erro `422` com `detail` em lista.
+* Cobertura adicionada para erro `500` com corpo não JSON.
+* Cobertura adicionada para resposta vazia.
+* Cobertura adicionada para HTML/texto inesperado.
+* Cobertura adicionada para falha de envio com WebSocket fechado.
+* Testes passaram de forma progressiva até chegar a 25 testes passando.
+
+Validações executadas:
+
+* `npm run test` passou.
+* `npm run lint` passou.
+* `npm run build` passou.
+* `git diff --check` passou sem erro crítico.
+
+### 9. Checklist de acompanhamento atualizado
+
+O checklist do projeto passou a acompanhar as micro-rodadas de estabilização.
+
+Melhorias realizadas:
+
+* Registro da criação e aplicação do `apiRequest`.
+* Registro da migração de componentes para tratamento de erro normalizado.
+* Registro da correção do envio silencioso no WebSocket.
+* Registro das validações executadas.
+* Registro das pendências restantes, como testes E2E, validação backend e reconexão WebSocket mais realista.
+
+### 10. Resultado geral das melhorias
+
+Após as estruturações realizadas, o projeto ficou mais estável no frontend e mais seguro para versionamento local.
+
+Principais ganhos:
+
+* O frontend ficou mais resiliente a falhas de API.
+* O usuário recebe feedback melhor em erros REST e WebSocket.
+* O risco de loading infinito foi reduzido.
+* O risco de quebra por resposta vazia ou não JSON foi reduzido.
+* O repositório ficou mais protegido contra versionamento acidental de dados sensíveis.
+* A documentação começou a acompanhar melhor a evolução do projeto.
+* A base ficou mais preparada para as próximas etapas: validação backend, E2E e CI/CD.
+
+---
+
 Data do levantamento: 2026-06-13
 
 ## Resumo executivo
