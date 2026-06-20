@@ -335,6 +335,18 @@ describe('fluxo principal do frontend', () => {
     await expectTextEventually('compare a vaga com o curriculo primeiro')
   })
 
+  it('mostra erro amigavel para sugestoes com validacao FastAPI em lista', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(
+      { detail: [{ type: 'missing', loc: ['body', 'use_latest_match_report'], msg: 'Field required' }] },
+      { ok: false, status: 422 },
+    )))
+
+    render(<ResumeTailoringSuggestions />)
+    fireEvent.click(screen.getByRole('button', { name: /Sugerir ajustes/i }))
+
+    await expectTextEventually('alguns dados enviados')
+  })
+
   it('cobre PDI com carregamento inicial, erro de prerequisito e sucesso', async () => {
     mockFetch(
       response({ detail: 'Nenhum PDI foi gerado ainda.' }, { ok: false, status: 404 }),
@@ -363,6 +375,18 @@ describe('fluxo principal do frontend', () => {
 
     await expectTextEventually('plano de desenvolvimento gerado')
     expect(screen.getByText(/PDI salvo/i)).toBeTruthy()
+  })
+
+  it('mostra erro amigavel para PDI quando backend retorna texto nao JSON', async () => {
+    mockFetch(
+      response({ detail: 'Nenhum PDI foi gerado ainda.' }, { ok: false, status: 404 }),
+      response(undefined, { ok: false, status: 500, text: '<html>erro interno</html>' }),
+    )
+
+    render(<PdiPlan />)
+    fireEvent.click(await screen.findByRole('button', { name: /Gerar PDI para essa vaga/i }))
+
+    await expectTextEventually('backend encontrou uma falha')
   })
 
   it('diferencia PDI salvo carregado de PDI gerado agora', async () => {

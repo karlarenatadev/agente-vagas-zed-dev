@@ -6,6 +6,7 @@ import {
   Map,
 } from 'lucide-react'
 import { useScrollToResult } from '../hooks/useScrollToResult'
+import { apiRequest } from '../lib/api'
 import { getFriendlyErrorMessage } from '../lib/errorMessages'
 import type { ResumeTailoringSuggestions as TailoringData } from '../types'
 import { CopyButton } from './ui/CopyButton'
@@ -55,7 +56,7 @@ export function ResumeTailoringSuggestions() {
     setLoading(true)
     setError('')
     try {
-      const response = await fetch('/api/resume-tailoring/generate', {
+      const result = await apiRequest<TailoringData>('/api/resume-tailoring/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -64,11 +65,7 @@ export function ResumeTailoringSuggestions() {
           use_latest_match_report: true,
         }),
       })
-      const result = await response.json()
-      if (!response.ok) {
-        throw new Error(result.detail || 'Não foi possível gerar as sugestões.')
-      }
-      setData(result as TailoringData)
+      setData(result)
       reveal()
       window.dispatchEvent(new Event('pipeline-updated'))
     } catch (requestError) {

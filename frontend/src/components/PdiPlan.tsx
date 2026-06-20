@@ -7,6 +7,7 @@ import {
   Target,
 } from 'lucide-react'
 import { useScrollToResult } from '../hooks/useScrollToResult'
+import { apiRequest, isApiErrorStatus } from '../lib/api'
 import { getFriendlyErrorMessage } from '../lib/errorMessages'
 import type { PdiPlan as PdiPlanData } from '../types'
 import { FeedbackState } from './ui/FeedbackState'
@@ -86,15 +87,10 @@ export function PdiPlan() {
 
     const loadSavedPlan = async () => {
       try {
-        const response = await fetch('/api/pdi/latest', { cache: 'no-store' })
-        if (response.status === 404) return
-
-        const result = await response.json()
-        if (!response.ok) {
-          throw new Error(result.detail || 'Não foi possível carregar o PDI salvo.')
-        }
-        if (active) setData(result as PdiPlanData)
+        const result = await apiRequest<PdiPlanData>('/api/pdi/latest', { cache: 'no-store' })
+        if (active) setData(result)
       } catch (requestError) {
+        if (isApiErrorStatus(requestError, 404)) return
         console.error('Falha ao carregar PDI:', requestError)
         if (active) {
           setError(getFriendlyErrorMessage(
@@ -117,7 +113,7 @@ export function PdiPlan() {
     setLoading(true)
     setError('')
     try {
-      const response = await fetch('/api/pdi/generate', {
+      const result = await apiRequest<PdiPlanData>('/api/pdi/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -127,11 +123,7 @@ export function PdiPlan() {
           use_latest_tailoring_suggestions: true,
         }),
       })
-      const result = await response.json()
-      if (!response.ok) {
-        throw new Error(result.detail || 'Não foi possível gerar o PDI.')
-      }
-      setData(result as PdiPlanData)
+      setData(result)
       setGeneratedNow(true)
       reveal()
       window.dispatchEvent(new Event('pipeline-updated'))
