@@ -2759,6 +2759,157 @@ textarea::placeholder {
 .menu-option.accent-pdi { --accent: var(--emerald); }
 .menu-option.accent-recon { --accent: var(--amber); }
 
+/* ──────────────────────────────────────────────────────────────────────────
+   FLUXO MASTER/DETAIL DAS ESTEIRAS
+   Substitui o accordion antigo. Reaproveita .menu-option / .menu-option-*.
+   ────────────────────────────────────────────────────────────────────────── */
+.esteira-flow {
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+}
+
+/* ── Master: os 2 botões compactos de esteira ───────────────────────────── */
+.esteira-picker {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+.esteira-pill {
+  --accent: var(--cyan);
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  flex: 1 1 0;
+  max-width: 340px;
+  padding: 10px 15px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent),
+    rgba(17, 27, 48, 0.72);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.esteira-pill:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.esteira-pill:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.esteira-pill-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.esteira-pill-copy {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.esteira-pill-copy strong {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.esteira-pill-copy small {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── Detail: cabeçalho (voltar + esteira ativa) + opções ─────────────────── */
+.esteira-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.esteira-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.esteira-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 14px 0 11px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.esteira-back:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.esteira-back:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.esteira-active {
+  --accent: var(--cyan);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.esteira-active svg {
+  color: var(--accent);
+}
+
+.esteira-options {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 10px;
+}
+
+/* ── Mapeamento de acento (mesmos das opções) ───────────────────────────── */
+.esteira-pill.accent-scout,   .esteira-active.accent-scout   { --accent: var(--cyan); }
+.esteira-pill.accent-curator, .esteira-active.accent-curator { --accent: var(--emerald); }
+.esteira-pill.accent-coach,   .esteira-active.accent-coach   { --accent: var(--amber); }
+.esteira-pill.accent-maestro, .esteira-active.accent-maestro { --accent: var(--violet); }
+.esteira-pill.accent-match,   .esteira-active.accent-match   { --accent: var(--cyan); }
+.esteira-pill.accent-tailor,  .esteira-active.accent-tailor  { --accent: var(--rose); }
+.esteira-pill.accent-pdi,     .esteira-active.accent-pdi     { --accent: var(--emerald); }
+.esteira-pill.accent-recon,   .esteira-active.accent-recon   { --accent: var(--amber); }
+
 .resume-modal {
   position: fixed;
   inset: 0;

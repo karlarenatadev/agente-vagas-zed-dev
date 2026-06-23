@@ -1,5 +1,23 @@
 # Roadmap — Evolução do Import Vagas
 
+## Menu de esteiras: accordion → master/detail (front)
+
+Sessão executada em 2026-06-23.
+
+Handoff de design do Claude Design alterando o comportamento dos botões do
+menu no rodapé do chat.
+
+* [x] `frontend/src/components/ChatInput.tsx`: substituído o accordion (2 cards
+  que expandiam) pelo fluxo **master/detail** — 2 pills compactos de esteira;
+  ao clicar, só as opções daquela esteira aparecem, com botão "Esteiras"
+  (ArrowLeft) para voltar. Estado `activeSection` (null = master).
+* [x] `useEffect` reseta para a seleção de esteiras quando o menu sai (agente
+  assume), garantindo que os 2 botões reapareçam ao retornar.
+* [x] `frontend/src/index.css`: removido o bloco `.menu-accordion-*`,
+  adicionado o CSS master/detail (`.esteira-flow`, `.esteira-picker`,
+  `.esteira-pill`, `.esteira-detail`, `.esteira-back`, `.esteira-active`).
+  `.menu-option*` reaproveitados. `tsc --noEmit` limpo.
+
 ## Reconciliação perfil × currículo × vaga
 
 Sessão executada em 2026-06-18.
