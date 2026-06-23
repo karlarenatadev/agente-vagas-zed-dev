@@ -1,4 +1,4 @@
-import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
+import { type KeyboardEvent, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowLeft,
@@ -90,10 +90,13 @@ export function ChatInput({ onSend, disabled, isStreaming, mode }: Props) {
   const isAwaitingJob = mode === 'await_job_description'
 
   // Ao sair do menu (ex.: um agente assume), volta para a seleção de esteiras,
-  // para que o usuário sempre reencontre os 2 botões ao retornar.
-  useEffect(() => {
+  // para que o usuário sempre reencontre os 2 botões ao retornar. Ajuste de
+  // estado durante o render (padrão recomendado pelo React) em vez de useEffect.
+  const [prevShowOptions, setPrevShowOptions] = useState(showOptions)
+  if (prevShowOptions !== showOptions) {
+    setPrevShowOptions(showOptions)
     if (!showOptions && activeSection !== null) setActiveSection(null)
-  }, [showOptions, activeSection])
+  }
 
   const current = MENU_SECTIONS.find(section => section.key === activeSection) ?? null
 
