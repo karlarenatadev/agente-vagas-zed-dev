@@ -10,6 +10,7 @@ export type SessionMode =
   | 'scout'
   | 'curator'
   | 'coach'
+  | 'await_job_description'
   | 'agent_running'
 
 export interface SessionState {

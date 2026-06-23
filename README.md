@@ -278,7 +278,8 @@ O mock simula todas as respostas dos agentes com dados realistas e streaming tok
    └── Responda só o que faltar das 7 perguntas
        (área, nível, localização, preferências, soft skills, objetivo, habilidades)
 
-2. Menu principal
+2. Menu principal (duas seções, letras A–I)
+   ╭─ Esteira de Carreira ────────────────────────────╮
    ├── [A] Buscar Vagas
    │       Scout pesquisa vagas compatíveis com seu perfil e calcula o
    │       match de habilidades. Filtro de recência: 24h · 7 dias · 1 mês · todas
@@ -295,11 +296,31 @@ O mock simula todas as respostas dos agentes com dados realistas e streaming tok
    │
    └── [D] Refazer Quiz
            Reseta o perfil e reinicia do zero
-
-3. Esteira de candidatura (Career Arcade Pipeline)
-   Currículo → Vaga → Match → Sugestões → PDI → Entrevista
-   Analise uma vaga, veja o match, gere sugestões seguras de currículo,
-   monte um PDI de 7/30/60 dias e salve candidaturas no tracker.
+   ╰──────────────────────────────────────────────────╯
+   ╭─ Esteira de Candidatura ─────────────────────────╮
+   ├── [E] Analisar Vaga
+   │       Cole a descrição da vaga e o Maestro extrai cargo, empresa,
+   │       senioridade, hard/soft skills, ferramentas, requisitos e alertas.
+   │       Reanalisar apaga o match/tailoring/PDI anteriores.
+   │
+   ├── [F] Comparar Vaga × Currículo
+   │       ResumeMatcher calcula o score de aderência (0–100) e separa
+   │       evidências fortes, parciais e lacunas críticas.
+   │
+   ├── [G] Sugestões de Currículo
+   │       ResumeTailor gera orientações seguras por seção (resumo,
+   │       habilidades, projetos, experiências) e palavras-chave.
+   │
+   ├── [H] Gerar PDI
+   │       PdiGenerator transforma as lacunas em plano de 7/30/60 dias,
+   │       com projetos práticos, estudos e preparação para entrevista.
+   │
+   └── [I] Reconciliar
+           Reconciler detecta conflitos entre perfil, currículo e vaga,
+           com score de consistência e recomendações pelo foco da candidatura.
+   ╰──────────────────────────────────────────────────╯
+   As etapas E–I também rodam pela Career Arcade Pipeline (botões/REST);
+   o chat é a via conversacional para acioná-las sem sair do terminal.
 ```
 
 ---

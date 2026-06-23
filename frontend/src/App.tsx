@@ -34,6 +34,7 @@ const MODE_STATUS: Record<SessionMode, (step: number) => string> = {
   quiz: step => `Quiz de perfil: pergunta ${Math.min(step + 1, 7)} de 7`,
   quiz_resume: () => 'Retomar ou refazer perfil',
   menu: () => 'Esteira de carreira pronta',
+  await_job_description: () => 'Aguardando descrição da vaga',
   scout: () => 'Scout analisando vagas compatíveis',
   curator: () => 'Curator montando recomendações',
   coach: () => 'Coach conduzindo entrevista',

@@ -20,7 +20,37 @@ from agents.base import BaseAgent, LLMProviderError
 from agents.scout import ScoutAgent
 from agents.curator import CuratorAgent
 from agents.coach import CoachAgent
-from agents.job_description_analyzer import analysis_from_markdown
+from agents.job_description_analyzer import (
+    JobDescriptionAnalyzer,
+    analysis_from_markdown,
+    analysis_to_markdown,
+)
+# Validadores de currículo/vaga/match aparecem em vários módulos com a mesma
+# assinatura; importamos de um módulo-base e usamos alias para os específicos.
+from agents.resume_matcher import (
+    ResumeMatcher,
+    match_report_to_markdown,
+    validate_job_analysis as match_validate_job_analysis,
+    validate_resume_analysis as match_validate_resume_analysis,
+)
+from agents.resume_tailor import (
+    ResumeTailor,
+    tailoring_to_markdown,
+    validate_match_report as tailor_validate_match_report,
+    validate_resume_analysis as tailor_validate_resume_analysis,
+    validate_job_analysis as tailor_validate_job_analysis,
+)
+from agents.pdi_generator import (
+    PdiGenerator,
+    pdi_to_markdown,
+    validate_match_report as pdi_validate_match_report,
+    validate_tailoring_suggestions,
+)
+from agents.reconciliation import (
+    Reconciler,
+    reconciliation_to_markdown,
+    validate_profile,
+)
 from logging_config import get_logger
 
 
@@ -122,9 +152,17 @@ MENU_TEXT = """
 ║  [B]  Mapear lacunas e evolução           Curator ║
 ║  [C]  Simular entrevista direcionada       Coach  ║
 ║  [D]  Refazer diagnóstico                 Maestro ║
+╠════════════════════════════════════════════════════╣
+║           ESTEIRA DE CANDIDATURA                  ║
+╠════════════════════════════════════════════════════╣
+║  [E]  Analisar descrição de vaga          Análise ║
+║  [F]  Comparar vaga × currículo            Match  ║
+║  [G]  Sugestões de currículo              Tailor  ║
+║  [H]  Gerar plano de desenvolvimento        PDI   ║
+║  [I]  Reconciliar perfil × currículo × vaga Recon ║
 ╚════════════════════════════════════════════════════╝
 
-Digite A, B, C ou D:"""
+Digite uma letra de A a I:"""
 
 
 class MaestroAgent(BaseAgent):
@@ -149,7 +187,7 @@ class MaestroAgent(BaseAgent):
         # Estado da sessão em memória
         self.quiz_answers: dict[str, str] = {}
         self.quiz_step: int = 0
-        self.mode: str = "init"  # init | quiz | menu | scout | curator | coach
+        self.mode: str = "init"  # init | quiz | menu | scout | curator | coach | await_job_description
         self.coach_step: int = 0
         self.interview_context: str = ""
         # Filtro de recência das vagas escolhido no frontend (24h/7d/1mês/todas).
@@ -340,6 +378,10 @@ class MaestroAgent(BaseAgent):
 
         elif self.mode == "coach":
             async for token in self._handle_coach(message):
+                yield token
+
+        elif self.mode == "await_job_description":
+            async for token in self._handle_job_description_paste(message):
                 yield token
 
         else:
@@ -609,9 +651,29 @@ class MaestroAgent(BaseAgent):
             async for token in self._handle_reset():
                 yield token
 
+        elif choice == "E":
+            async for token in self._prompt_job_description():
+                yield token
+
+        elif choice == "F":
+            async for token in self._dispatch_resume_match():
+                yield token
+
+        elif choice == "G":
+            async for token in self._dispatch_resume_tailoring():
+                yield token
+
+        elif choice == "H":
+            async for token in self._dispatch_pdi():
+                yield token
+
+        elif choice == "I":
+            async for token in self._dispatch_reconciliation():
+                yield token
+
         else:
             yield f"⚠ Opção inválida: **{message}**\n"
-            yield "Por favor, escolha uma das opções do menu: A, B, C ou D.\n\n"
+            yield "Por favor, escolha uma das opções do menu: A, B, C, D, E, F, G, H ou I.\n\n"
             async for token in self._show_menu():
                 yield token
             yield "\n__STATE__:menu"
@@ -1032,6 +1094,294 @@ class MaestroAgent(BaseAgent):
                 continue
             lines.append(clean)
         return " ".join(lines).strip()
+
+    # ─── Esteira de Candidatura (E–I) ─────────────────────────────────────────
+
+    def _invalidate_job_downstream(self) -> None:
+        """Apaga match/tailoring/PDI ao (re)analisar a vaga (espelha job_description.py)."""
+        for path in (
+            self.paths.RESUME_MATCH_REPORT_FILE,
+            self.paths.RESUME_TAILORING_SUGGESTIONS_FILE,
+            self.paths.PDI_PLAN_FILE,
+        ):
+            path.unlink(missing_ok=True)
+
+    async def _prompt_job_description(self) -> AsyncGenerator[str, None]:
+        """E: pede ao usuário que cole a descrição da vaga."""
+        yield "\n📝 **ANÁLISE DE VAGA** — Cole a descrição da vaga para eu analisar.\n\n"
+        yield "Cole abaixo a descrição da vaga (mínimo 40 caracteres). Digite **menu** para cancelar.\n"
+        yield "\n__STATE__:await_job_description"
+
+    async def _handle_job_description_paste(self, message: str) -> AsyncGenerator[str, None]:
+        """E: processa a descrição colada — valida, analisa e invalida downstream."""
+        if self._is_coach_exit_command(message):
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
+
+        description = message.strip()
+        if len(description) < 40:
+            yield "⚠ Descrição muito curta. Cole uma vaga com pelo menos 40 caracteres.\n\n"
+            yield "Digite **menu** para cancelar.\n"
+            yield "\n__STATE__:await_job_description"
+            return
+
+        analysis = JobDescriptionAnalyzer().analyze(description)
+        self._write_file(
+            self.paths.JOB_DESCRIPTION_ANALYSIS_FILE,
+            analysis_to_markdown(analysis),
+        )
+        had_downstream = any(
+            path.exists()
+            for path in (
+                self.paths.RESUME_MATCH_REPORT_FILE,
+                self.paths.RESUME_TAILORING_SUGGESTIONS_FILE,
+                self.paths.PDI_PLAN_FILE,
+            )
+        )
+        self._invalidate_job_downstream()
+
+        title = analysis.get("title") or "Não identificado"
+        company = analysis.get("company") or "Não identificado"
+        seniority = analysis.get("seniority") or "Não identificada"
+        top_skills = analysis.get("hard_skills", [])[:5]
+        alerts = analysis.get("alerts", [])
+
+        yield "\n✓ **Vaga analisada e salva.**\n\n"
+        yield f"• Cargo: **{title}**\n"
+        yield f"• Empresa: {company}\n"
+        yield f"• Senioridade: {seniority}\n"
+        if top_skills:
+            yield f"• Top hard skills: {', '.join(top_skills)}\n"
+        if alerts:
+            yield f"• Alertas: {len(alerts)}\n"
+        yield "\nPróximos passos: compare com seu currículo (**F**) e gere sugestões (**G**) e PDI (**H**).\n"
+        if had_downstream:
+            yield "\nℹ Reanalisar a vaga apagou o match, o tailoring e o PDI anteriores — rode **F**, **G** e **H** de novo.\n"
+        async for token in self._show_menu():
+            yield token
+        yield "\n__STATE__:menu"
+
+    async def _dispatch_resume_match(self) -> AsyncGenerator[str, None]:
+        """F: compara vaga × currículo."""
+        job = self._read_file(self.paths.JOB_DESCRIPTION_ANALYSIS_FILE)
+        resume = self._read_file(self.paths.RESUME_ANALYSIS_FILE)
+
+        if not match_validate_job_analysis(job):
+            yield "⚠ Preciso de uma vaga analisada primeiro.\n"
+            yield "Cole uma descrição de vaga pela opção **E** antes de comparar.\n\n"
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
+
+        if not match_validate_resume_analysis(resume):
+            yield "⚠ Preciso do seu currículo analisado.\n"
+            yield "Envie seu currículo pela aba de currículo (upload) antes de comparar com a vaga.\n\n"
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
+
+        yield "\n🎯 **MATCH** — Comparando vaga e currículo...\n\n"
+
+        report = ResumeMatcher().match(job, resume)
+        self._write_file(
+            self.paths.RESUME_MATCH_REPORT_FILE,
+            match_report_to_markdown(report),
+        )
+
+        score = report.get("overall_score", 0)
+        readiness = report.get("readiness_level", "")
+        gaps = report.get("critical_gaps", [])[:3]
+        strengths = report.get("strengths", [])[:3]
+
+        yield f"✓ **Aderência: {score}/100** ({readiness}).\n\n"
+        if strengths:
+            yield "Pontos fortes:\n"
+            for item in strengths:
+                yield f"• {item}\n"
+        if gaps:
+            yield "\nLacunas críticas:\n"
+            for item in gaps:
+                yield f"• {item}\n"
+        yield "\nVeja o relatório completo no painel de Match.\n"
+        async for token in self._show_menu():
+            yield token
+        yield "\n__STATE__:menu"
+
+    async def _dispatch_resume_tailoring(self) -> AsyncGenerator[str, None]:
+        """G: sugestões de currículo a partir do match."""
+        resume = self._read_file(self.paths.RESUME_ANALYSIS_FILE)
+        job = self._read_file(self.paths.JOB_DESCRIPTION_ANALYSIS_FILE)
+        match = self._read_file(self.paths.RESUME_MATCH_REPORT_FILE)
+
+        if not tailor_validate_resume_analysis(resume):
+            yield "⚠ Preciso do seu currículo analisado.\n"
+            yield "Envie seu currículo pela aba de currículo (upload) antes de gerar sugestões.\n\n"
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
+
+        if not tailor_validate_job_analysis(job):
+            yield "⚠ Preciso de uma vaga analisada primeiro.\n"
+            yield "Use a opção **E** para analisar a vaga e depois a **F** para comparar.\n\n"
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
+
+        if not tailor_validate_match_report(match):
+            yield "⚠ Preciso do relatório de aderência primeiro.\n"
+            yield "Use a opção **F** para comparar vaga × currículo antes de gerar sugestões.\n\n"
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
+
+        yield "\n✨ **SUGESTÕES DE CURRÍCULO** — Gerando orientações seguras...\n\n"
+
+        result = ResumeTailor().generate(resume, job, match)
+        self._write_file(
+            self.paths.RESUME_TAILORING_SUGGESTIONS_FILE,
+            tailoring_to_markdown(result),
+        )
+
+        score = result.get("match_score", 0)
+        summary_n = len(result.get("summary_suggestions", []))
+        skills_n = len(result.get("skills_suggestions", []))
+        keywords = result.get("keywords_to_include", [])[:4]
+
+        yield f"✓ **{summary_n} sugestões de resumo** e **{skills_n} de habilidades** (aderência base: {score}/100).\n\n"
+        if keywords:
+            yield f"Palavras-chave para incluir com segurança: {', '.join(keywords)}.\n"
+        yield "\nVeja as orientações completas no painel de Sugestões de Currículo.\n"
+        async for token in self._show_menu():
+            yield token
+        yield "\n__STATE__:menu"
+
+    async def _dispatch_pdi(self) -> AsyncGenerator[str, None]:
+        """H: gera o PDI a partir de currículo, vaga, match e tailoring."""
+        resume = self._read_file(self.paths.RESUME_ANALYSIS_FILE)
+        job = self._read_file(self.paths.JOB_DESCRIPTION_ANALYSIS_FILE)
+        match = self._read_file(self.paths.RESUME_MATCH_REPORT_FILE)
+        tailoring = self._read_file(self.paths.RESUME_TAILORING_SUGGESTIONS_FILE)
+
+        if not pdi_validate_match_report(match):
+            yield "⚠ Preciso da cadeia completa antes do PDI.\n"
+            yield "Rode na ordem: **E** (analisar vaga) → **F** (match) → **G** (sugestões).\n\n"
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
+
+        if not validate_tailoring_suggestions(tailoring):
+            yield "⚠ Preciso das sugestões de currículo antes do PDI.\n"
+            yield "Use a opção **G** para gerar as sugestões antes de criar o plano.\n\n"
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
+
+        # resume e job são exigidos indiretamente pelo gerador; validamos por segurança.
+        if not match_validate_resume_analysis(resume) or not match_validate_job_analysis(job):
+            yield "⚠ Currículo ou vaga ausentes. Rode a cadeia **E** → **F** → **G** primeiro.\n\n"
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
+
+        yield "\n📋 **PDI** — Gerando seu plano de desenvolvimento...\n\n"
+
+        result = PdiGenerator().generate(resume, job, match, tailoring)
+        self._write_file(self.paths.PDI_PLAN_FILE, pdi_to_markdown(result))
+
+        target = result.get("target_role", "")
+        readiness = result.get("readiness_level", "")
+        gaps = result.get("priority_gaps", [])[:3]
+        week = result.get("seven_day_plan", [])[:2]
+
+        yield f"✓ **PDI para {target}** ({readiness}).\n\n"
+        if gaps:
+            yield "Lacunas prioritárias:\n"
+            for item in gaps:
+                yield f"• {item}\n"
+        if week:
+            yield "\nInício do plano de 7 dias:\n"
+            for item in week:
+                yield f"• {item}\n"
+        yield "\nVeja o plano completo no painel de PDI.\n"
+        async for token in self._show_menu():
+            yield token
+        yield "\n__STATE__:menu"
+
+    async def _dispatch_reconciliation(self) -> AsyncGenerator[str, None]:
+        """I: reconcilia perfil × currículo × vaga."""
+        profile = self._read_file(self.paths.PROFILE_FILE)
+        resume = self._read_file(self.paths.RESUME_ANALYSIS_FILE)
+        job = self._read_file(self.paths.JOB_DESCRIPTION_ANALYSIS_FILE)
+        match = self._read_file(self.paths.RESUME_MATCH_REPORT_FILE)
+
+        if not validate_profile(profile):
+            yield "⚠ Preciso do seu perfil concluído.\n"
+            yield "Complete o diagnóstico (opção **D** para refazer) antes de reconciliar.\n\n"
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
+
+        if not match_validate_resume_analysis(resume):
+            yield "⚠ Preciso do seu currículo analisado.\n"
+            yield "Envie seu currículo pela aba de currículo (upload) antes de reconciliar.\n\n"
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
+
+        if not match_validate_job_analysis(job):
+            yield "⚠ Preciso de uma vaga analisada primeiro.\n"
+            yield "Use a opção **E** para analisar a vaga antes de reconciliar.\n\n"
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
+
+        yield "\n⚖ **RECONCILIAÇÃO** — Comparando perfil, currículo e vaga...\n\n"
+
+        # match é opcional: o Reconciler recalcula a aderência se não vier.
+        result = Reconciler().reconcile(
+            profile,
+            resume,
+            job,
+            match_content=match if match.strip() else None,
+            focus=None,
+        )
+        self._write_file(
+            self.paths.RECONCILIATION_FILE,
+            reconciliation_to_markdown(result),
+        )
+
+        score = result.get("consistency_score", 0)
+        level = result.get("consistency_level", "")
+        focus = result.get("focus", "")
+        conflicts = (
+            result.get("profile_resume_conflicts", [])
+            + result.get("profile_job_conflicts", [])
+        )
+        recs = result.get("focus_recommendations", [])[:3]
+
+        yield f"✓ **Consistência: {score}/100** ({level}). Foco: {focus}.\n\n"
+        yield f"• Conflitos detectados: {len(conflicts)}\n"
+        if recs:
+            yield "\nRecomendações:\n"
+            for item in recs:
+                yield f"• {item}\n"
+        yield "\nVeja o diagnóstico completo no painel de Reconciliação.\n"
+        async for token in self._show_menu():
+            yield token
+        yield "\n__STATE__:menu"
 
     # ─── Reset ────────────────────────────────────────────────────────────────
 

@@ -22,6 +22,7 @@ const MODE_LABEL: Record<SessionMode, string> = {
   quiz: 'Criando perfil',
   quiz_resume: 'Retomando perfil',
   menu: 'Menu principal',
+  await_job_description: 'Analisar vaga',
   scout: 'Vagas',
   curator: 'Cursos',
   coach: 'Entrevista',

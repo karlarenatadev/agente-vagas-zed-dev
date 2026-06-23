@@ -717,20 +717,21 @@ O Maestro é o orquestrador principal do sistema.
 
 ### O que iremos acrescentar
 
-* [ ] Roteamento para análise de descrição de vaga.
-  Hoje só via botão/REST; `_handle_menu` não despacha análise de vaga pelo chat.
-* [ ] Roteamento para comparação vaga x currículo.
-  Idem: existe `POST /api/resume-match/analyze`, mas sem entrada no menu do Maestro.
-* [ ] Roteamento para sugestões seguras de currículo.
-  Idem: existe rota REST, sem opção conversacional.
-* [ ] Roteamento para geração de PDI por vaga.
-  Idem: existe rota REST, sem opção conversacional.
+* [x] Roteamento para análise de descrição de vaga.
+  Opção **E** do menu abre `await_job_description`: o usuário cola a vaga, o
+  Maestro analisa, salva `job-description-analysis.md` e invalida downstream.
+* [x] Roteamento para comparação vaga x currículo.
+  Opção **F** roda `ResumeMatcher.match` e salva `resume-match-report.md`.
+* [x] Roteamento para sugestões seguras de currículo.
+  Opção **G** roda `ResumeTailor.generate` e salva `resume-tailoring-suggestions.md`.
+* [x] Roteamento para geração de PDI por vaga.
+  Opção **H** roda `PdiGenerator.generate` e salva `pdi-plan.md`.
 * [x] Roteamento para entrevista baseada em uma vaga específica.
   O Coach agora despacha usando a vaga analisada (`job-description-analysis.md`)
   quando disponível, com fallback no Scout. Falta ainda o roteamento
   conversacional do Maestro para colar/analisar a vaga (item separado da auditoria).
-* [ ] Etapa de reconciliação entre perfil, currículo e vaga.
-  Agente/rota existem (`/api/reconciliation/*`), mas não há opção no menu do Maestro.
+* [x] Etapa de reconciliação entre perfil, currículo e vaga.
+  Opção **I** roda `Reconciler.reconcile` e salva `reconciliation.md`.
 * [ ] Mensagens mais claras quando houver conflito entre dados do usuário.
 * [x] Limpar também currículo, vaga analisada, match, tailoring e PDI ao refazer o diagnóstico.
   `_reset_data_files` remove todos os artefatos dependentes (coberto por
@@ -1533,10 +1534,15 @@ Revisão que cruzou cada item `[ ]` do checklist contra o código real em
 * [x] **Coach conectado à vaga** — agora lê
   `job-description-analysis.md` e `resume-match-report.md` (além de Scout/Curator),
   prioriza a vaga analisada no `interview_context` e relaxa o gate para iniciar
-  com Scout **ou** vaga analisada. Fechado em 2026-06-23 (plano
-  `docs/plano-coach-vaga.md`); `test_coach.py` cobre a lógica pura.
-* [ ] **Roteamento conversacional do Maestro** para análise de vaga, match,
+  com Scout **ou** vaga analisada. Fechado em 2026-06-23 (spec do plano já
+  removida; ver histórico do git); `test_coach.py` cobre a lógica pura.
+* [x] **Roteamento conversacional do Maestro** para análise de vaga, match,
   tailoring, PDI e reconciliação — hoje só acessíveis por botões/REST.
+  Fechado em 2026-06-23: opções **E**–**I** no menu (seção "Esteira de
+  Candidatura"); `_handle_job_description_paste` + `_dispatch_resume_match` /
+  `_dispatch_resume_tailoring` / `_dispatch_pdi` / `_dispatch_reconciliation` em
+  `maestro.py`; `await_job_description` reconhecido em `chat.py`; cards E–I em
+  `ChatInput.tsx`; `test_maestro_routing.py` cobre menu, gating e cadeia.
 
 **Robustez / dados reais:**
 
@@ -1558,8 +1564,8 @@ Revisão que cruzou cada item `[ ]` do checklist contra o código real em
 ## Coach conectado à vaga analisada — 2026-06-23
 
 Sessão executada em 2026-06-23 implementando o item 1 da auditoria de backend
-(`docs/plano-coach-vaga.md`). Conecta o Coach à descrição da vaga analisada e ao
-relatório de aderência, fechando a "entrevista baseada na vaga".
+(spec do plano já removida; ver histórico do git). Conecta o Coach à descrição
+da vaga analisada e ao relatório de aderência, fechando a "entrevista baseada na vaga".
 
 * [x] `coach.py` lê `job-description-analysis.md` e `resume-match-report.md`
   (via parsers canônicos `analysis_from_markdown` / `match_report_from_markdown`).
@@ -1577,3 +1583,37 @@ relatório de aderência, fechando a "entrevista baseada na vaga".
 * [x] `test_coach.py` novo (8 testes) + fixture `match_markdown` no `conftest.py`.
 * [x] `python -m py_compile` OK; `import main` OK; `pytest` em **120 passed**
   (era 112; +8 do Coach), sem regressões.
+
+## Roteamento conversacional do Maestro — 2026-06-23
+
+Sessão executada em 2026-06-23 implementando o item 2 da auditoria de backend
+(`docs/plano-roteamento-maestro.md`). Expõe pelo chat os cinco agentes que
+antes só eram acessíveis por botão/REST (análise de vaga, match, tailoring,
+PDI e reconciliação), fechando o loop conversacional iniciado com o Coach.
+
+* [x] `MENU_TEXT` reescrito em duas seções (Esteira de Carreira A–D e Esteira
+  de Candidatura E–I), mantendo o estilo de moldura.
+* [x] Imports dos cinco agentes + serializadores + validadores em `maestro.py`
+  (aliases para evitar colisão dos `validate_*` repetidos entre módulos).
+* [x] Novo branch `await_job_description` em `run()` e ramos E–I em `_handle_menu`.
+* [x] Fluxo **E** (`_prompt_job_description` + `_handle_job_description_paste`):
+  valida mínimo de 40 chars, analisa, salva o artefato, invalida downstream
+  (match/tailoring/PDI, espelhando `routers/job_description.py`), resume no
+  chat; "menu" cancela.
+* [x] Dispatchers **F**–**I** (`_dispatch_resume_match`, `_dispatch_resume_tailoring`,
+  `_dispatch_pdi`, `_dispatch_reconciliation`): validam pré-requisitos com os
+  `validate_*` reusados, rodam o agente síncrono, persistem o artefato com o
+  serializador `*_to_markdown` e resumem o resultado no chat.
+* [x] `chat.py`: `await_job_description` incluído no conjunto que fixa
+  `active_agent = "Maestro"` em `_apply_state_update`.
+* [x] Frontend: `'await_job_description'` na união `SessionMode` (`types.ts`);
+  `ChatInput.tsx` com duas seções e 9 cards E–I (ícones do `lucide-react`,
+  acentos `match`/`tailor`/`pdi`/`recon`); composer aparece no modo colar com
+  placeholder dedicado; `MODE_STATUS`/`MODE_LABEL` em `App.tsx`/`StatusBar.tsx`
+  cobrem o novo modo.
+* [x] `test_maestro_routing.py` (11 testes): menu E, vaga curta, vaga válida com
+  invalidação, "menu" cancela, F/G/H/I bloqueando sem pré-requisitos, reconciliação
+  completa e cadeia E→F→G→H→I de ponta a ponta.
+* [x] `python -m py_compile` OK; `import main` OK; `pytest` em **135 passed**
+  (era 124; +11 do roteamento), sem regressões.
+* [x] `npm run lint` e `npm run build` passam.

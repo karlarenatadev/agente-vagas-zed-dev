@@ -2651,10 +2651,29 @@ textarea::placeholder {
 /* Cards de opção que substituem a barra de escrita no modo menu */
 .menu-options {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 10px;
+  gap: 14px;
   max-width: 1040px;
   margin: 0 auto;
+}
+
+.menu-section {
+  display: grid;
+  gap: 8px;
+}
+
+.menu-section-label {
+  margin: 0;
+  padding: 0 4px;
+  font: 700 11px/1 var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-ghost);
+}
+
+.menu-section-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
 }
 
 .menu-option {
@@ -2735,6 +2754,10 @@ textarea::placeholder {
 .menu-option.accent-curator { --accent: var(--emerald); }
 .menu-option.accent-coach { --accent: var(--amber); }
 .menu-option.accent-maestro { --accent: var(--violet); }
+.menu-option.accent-match { --accent: var(--cyan); }
+.menu-option.accent-tailor { --accent: var(--rose); }
+.menu-option.accent-pdi { --accent: var(--emerald); }
+.menu-option.accent-recon { --accent: var(--amber); }
 
 .resume-modal {
   position: fixed;

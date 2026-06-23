@@ -55,7 +55,7 @@ def _apply_state_update(session: dict[str, Any], update: dict[str, Any]) -> None
     mode = update.get("mode", session.get("mode", "init"))
     session.update(update)
 
-    if mode in {"init", "quiz", "quiz_resume", "menu"}:
+    if mode in {"init", "quiz", "quiz_resume", "menu", "await_job_description"}:
         session["active_agent"] = "Maestro"
     elif mode == "scout":
         session["active_agent"] = "Scout"
