@@ -12,6 +12,7 @@ from agents.job_description_analyzer import (
     JobDescriptionAnalyzer,
     analysis_to_markdown,
 )
+from agents.resume_matcher import ResumeMatcher, match_report_to_markdown
 
 
 @pytest.fixture(autouse=True)
@@ -50,3 +51,10 @@ def resume_markdown() -> str:
         "- Comunicação\n"
         "- Trabalho em equipe\n"
     )
+
+
+@pytest.fixture
+def match_markdown(job_markdown: str, resume_markdown: str) -> str:
+    """Markdown de relatório de aderência, no formato real do `resume-match-report.md`."""
+    report = ResumeMatcher().match(job_markdown, resume_markdown)
+    return match_report_to_markdown(report)

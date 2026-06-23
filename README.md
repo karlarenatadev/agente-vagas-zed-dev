@@ -26,7 +26,7 @@ O sistema é orquestrado pelo **Maestro**, que coordena três agentes especializ
 |--------|-------|---------------|
 | **Scout** | Busca de vagas | Pesquisa vagas via Firecrawl SDK oficial, extrai requisitos e calcula o match com suas habilidades |
 | **Curator** | Trilha de aprendizado | Para cada habilidade que falta, prioriza materiais gratuitos, videos, documentacao oficial e cursos pagos acessiveis; premium entra apenas quando for relevante |
-| **Coach** | Entrevista simulada | Conduz 5 perguntas técnicas e comportamentais com feedback em tempo real e pontuação final |
+| **Coach** | Entrevista simulada | Conduz 5 perguntas técnicas e comportamentais com feedback em tempo real e pontuação final; quando há vaga analisada e relatório de aderência, calibra as perguntas pela vaga e pelas lacunas do match |
 
 ---
 
@@ -289,7 +289,9 @@ O mock simula todas as respostas dos agentes com dados realistas e streaming tok
    │
    ├── [C] Entrevista Simulada
    │       Coach conduz 5 perguntas com feedback em tempo real
-   │       e entrega pontuação final com áreas de melhoria
+   │       e entrega pontuação final com áreas de melhoria.
+   │       Quando há vaga analisada + relatório de aderência, as perguntas
+   │       técnicas e de cenário são calibradas pela vaga e pelas lacunas do match
    │
    └── [D] Refazer Quiz
            Reseta o perfil e reinicia do zero

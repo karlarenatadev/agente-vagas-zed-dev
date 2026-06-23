@@ -20,6 +20,7 @@ from agents.base import BaseAgent, LLMProviderError
 from agents.scout import ScoutAgent
 from agents.curator import CuratorAgent
 from agents.coach import CoachAgent
+from agents.job_description_analyzer import analysis_from_markdown
 from logging_config import get_logger
 
 
@@ -688,6 +689,31 @@ class MaestroAgent(BaseAgent):
 
     # ─── Coach ────────────────────────────────────────────────────────────────
 
+    def _resolve_interview_context(self, profile: str, job_results: str, job_analysis: str) -> str:
+        """Define o rótulo da entrevista: vaga analisada > Scout > funções alvo do perfil."""
+        analysis = analysis_from_markdown(job_analysis) if job_analysis.strip() else None
+        if analysis:
+            title = (analysis.get("title") or "").strip()
+            company = (analysis.get("company") or "").strip()
+            if title and company:
+                return f"{title} — {company}"
+            if title:
+                return title
+
+        if job_results.strip():
+            lines = job_results.splitlines()
+            titulo = next((l.split(":", 1)[1].strip() for l in lines if l.strip().startswith("titulo:")), "")
+            empresa = next((l.split(":", 1)[1].strip() for l in lines if l.strip().startswith("empresa:")), "")
+            if titulo:
+                return f"{titulo} — {empresa}" if empresa else titulo
+
+        for line in profile.splitlines():
+            if line.startswith("Funções alvo:"):
+                value = line.split(":", 1)[1].strip()
+                if value:
+                    return value
+        return "Posição baseada no seu perfil"
+
     async def _dispatch_coach_start(self) -> AsyncGenerator[str, None]:
         """Inicia a sequência de entrevista simulada (Despacho 1)."""
         profile = self._read_file(self.paths.PROFILE_FILE)
@@ -699,9 +725,14 @@ class MaestroAgent(BaseAgent):
             return
 
         job_results = self._read_file(self.paths.JOB_RESULTS_FILE)
-        if not job_results or "habilidades_faltantes" not in job_results:
-            yield "⚠ Ainda não há resultados do Scout para direcionar a entrevista.\n"
-            yield "Rode a opção **A** primeiro para mapear oportunidades, lacunas e requisitos recorrentes.\n\n"
+        job_analysis = self._read_file(self.paths.JOB_DESCRIPTION_ANALYSIS_FILE)
+        match_report = self._read_file(self.paths.RESUME_MATCH_REPORT_FILE)
+
+        has_scout = bool(job_results.strip()) and "habilidades_faltantes" in job_results
+        has_job_analysis = bool(job_analysis.strip())
+        if not has_scout and not has_job_analysis:
+            yield "⚠ Ainda não há contexto de vaga para direcionar a entrevista.\n"
+            yield "Rode a opção **A** (Scout) ou cole/analise uma descrição de vaga antes de iniciar a entrevista.\n\n"
             async for token in self._show_menu():
                 yield token
             yield "\n__STATE__:menu"
@@ -711,21 +742,8 @@ class MaestroAgent(BaseAgent):
         if not course_recommendations.strip():
             yield "ℹ A trilha do Curator ainda não foi gerada. Vou iniciar a entrevista com base no perfil e nas oportunidades; para uma preparação mais completa, rode a opção **B** depois.\n\n"
 
-        # Resolve contexto da vaga
-        if job_results:
-            # Extrai primeira vaga dos resultados
-            lines = job_results.splitlines()
-            titulo = next((l.split(":", 1)[1].strip() for l in lines if l.strip().startswith("titulo:")), "")
-            empresa = next((l.split(":", 1)[1].strip() for l in lines if l.strip().startswith("empresa:")), "")
-            self.interview_context = f"{titulo} — {empresa}" if titulo else "Posição baseada no seu perfil"
-        else:
-            # Usa funções alvo do perfil
-            for line in profile.splitlines():
-                if line.startswith("Funções alvo:"):
-                    self.interview_context = line.split(":", 1)[1].strip()
-                    break
-            else:
-                self.interview_context = "Posição baseada no seu perfil"
+        # Resolve contexto da vaga (prioridade: vaga analisada > Scout > perfil).
+        self.interview_context = self._resolve_interview_context(profile, job_results, job_analysis)
 
         # Inicializa arquivo de sessão
         session_content = f"Contexto da Vaga: {self.interview_context}\nNúmero da Pergunta: 1\nHistórico de Perguntas e Respostas:\n"
@@ -742,6 +760,8 @@ class MaestroAgent(BaseAgent):
                 "profile": profile,
                 "job_results": job_results,
                 "course_recommendations": course_recommendations,
+                "job_analysis": job_analysis,
+                "match_report": match_report,
                 "interview_context": self.interview_context,
                 "history": [],
             }):
@@ -777,6 +797,8 @@ class MaestroAgent(BaseAgent):
         profile = self._read_file(self.paths.PROFILE_FILE)
         job_results = self._read_file(self.paths.JOB_RESULTS_FILE)
         course_recommendations = self._read_file(self.paths.COURSE_RECS_FILE)
+        job_analysis = self._read_file(self.paths.JOB_DESCRIPTION_ANALYSIS_FILE)
+        match_report = self._read_file(self.paths.RESUME_MATCH_REPORT_FILE)
         session = self._read_file(self.paths.INTERVIEW_FILE)
 
         if self._is_coach_exit_command(message):
@@ -811,6 +833,8 @@ class MaestroAgent(BaseAgent):
                     "profile": profile,
                     "job_results": job_results,
                     "course_recommendations": course_recommendations,
+                    "job_analysis": job_analysis,
+                    "match_report": match_report,
                     "interview_context": self.interview_context,
                     "history": history,
                 }):
@@ -861,6 +885,8 @@ class MaestroAgent(BaseAgent):
                     "profile": profile,
                     "job_results": job_results,
                     "course_recommendations": course_recommendations,
+                    "job_analysis": job_analysis,
+                    "match_report": match_report,
                     "interview_context": self.interview_context,
                     "history": history,
                 }):

@@ -130,8 +130,10 @@ Agora que o motor esta blindado, o foco passa a ser entrega continua, infraestru
 
 ### 3. Esteira de Automacao Continua (CI/CD Definitivo)
 
-* [ ] Rodar testes na nuvem: configurar GitHub Actions para executar a suite robusta (+70 testes) a cada push.
-* [ ] Pipeline bloqueante: impedir merge quando `test_concurrency.py` ou testes de contrato falharem.
+* [x] Rodar testes na nuvem: configurar GitHub Actions para executar a suite robusta (+70 testes) a cada push.
+  `backend-ci.yml` roda `pytest backend/tests/ -v` em PRs/pushes para `main` (último estado: 120 testes).
+* [x] Pipeline bloqueante: impedir merge quando `test_concurrency.py` ou testes de contrato falharem.
+  `backend-ci.yml` roda a suíte completa, incluindo `test_concurrency.py`.
 
 ---
 
@@ -225,7 +227,8 @@ Validação executada nesta revisão:
 * [x] Rotas REST e WebSocket registradas na aplicação.
 * [x] Firecrawl SDK (`firecrawl-py`) declarado no backend e usado sem CLI/subprocess.
 * [x] `FIRECRAWL_API_KEY` configurada em `backend/.env` e carregada por caminho absoluto.
-* [ ] Suíte automatizada de testes disponível.
+* [x] Suíte automatizada de testes disponível.
+  `backend/tests/` cobre agentes, rotas, concorrência e isolamento por sessão. Última execução: `120 passed`.
 * [x] QA visual completo executado em navegadores reais.
   A estabilização responsiva foi validada no Chrome em oito resoluções. As rodadas finais de visual, acessibilidade e fluxo funcional com backend real foram validadas no Chrome e Edge.
 
@@ -654,7 +657,8 @@ Sessão refletida pelos commits `d01b67c` e `ce92319`.
 * [x] Workflow `Backend CI` criado em `.github/workflows/backend-ci.yml` para instalar dependências, compilar arquivos Python e importar a aplicação FastAPI.
 * [x] Workflow `Data Guard` criado em `.github/workflows/data-guard.yml` para bloquear arquivos sensíveis de runtime rastreados em `data/`.
 * [x] Workflow `Docs Check` criado em `.github/workflows/docs-check.yml` para verificar a presença dos documentos principais.
-* [ ] Incluir `data/applications.json` no `.gitignore`, além do bloqueio de rastreamento já coberto pelo `Data Guard`.
+* [x] Incluir `data/applications.json` no `.gitignore`, além do bloqueio de rastreamento já coberto pelo `Data Guard`.
+  Presente no `.gitignore` raiz (`data/applications.json`).
 
 ## Visão geral
 
@@ -706,19 +710,31 @@ O Maestro é o orquestrador principal do sistema.
 * [x] Roteamento para Scout, Curator e Coach.
 * [x] Controle da entrevista simulada.
 * [ ] Tratamento de erros completo.
-  Situação atual: Coach e novas rotas têm tratamento explícito; falhas de Firecrawl no Scout podem ser ocultadas pelo fallback.
+  Situação atual: Coach e novas rotas têm tratamento explícito; falhas de
+  Firecrawl no Scout ainda são ocultadas pelo fallback silencioso — precisa
+  expor a falha parcial ao usuário.
 * [x] Manutenção do estado da sessão.
 
 ### O que iremos acrescentar
 
 * [ ] Roteamento para análise de descrição de vaga.
+  Hoje só via botão/REST; `_handle_menu` não despacha análise de vaga pelo chat.
 * [ ] Roteamento para comparação vaga x currículo.
+  Idem: existe `POST /api/resume-match/analyze`, mas sem entrada no menu do Maestro.
 * [ ] Roteamento para sugestões seguras de currículo.
+  Idem: existe rota REST, sem opção conversacional.
 * [ ] Roteamento para geração de PDI por vaga.
-* [ ] Roteamento para entrevista baseada em uma vaga específica.
+  Idem: existe rota REST, sem opção conversacional.
+* [x] Roteamento para entrevista baseada em uma vaga específica.
+  O Coach agora despacha usando a vaga analisada (`job-description-analysis.md`)
+  quando disponível, com fallback no Scout. Falta ainda o roteamento
+  conversacional do Maestro para colar/analisar a vaga (item separado da auditoria).
 * [ ] Etapa de reconciliação entre perfil, currículo e vaga.
+  Agente/rota existem (`/api/reconciliation/*`), mas não há opção no menu do Maestro.
 * [ ] Mensagens mais claras quando houver conflito entre dados do usuário.
-* [ ] Limpar também currículo, vaga analisada, match, tailoring e PDI ao refazer o diagnóstico.
+* [x] Limpar também currículo, vaga analisada, match, tailoring e PDI ao refazer o diagnóstico.
+  `_reset_data_files` remove todos os artefatos dependentes (coberto por
+  `test_maestro_reset.py`).
 
 ---
 
@@ -810,13 +826,20 @@ O Coach é o agente responsável pela entrevista simulada.
 
 ### O que iremos acrescentar
 
-* [ ] Gerar entrevista a partir da descrição da vaga analisada.
-* [ ] Usar o relatório de aderência como contexto.
-* [ ] Criar perguntas técnicas com base nas lacunas.
-* [ ] Criar perguntas comportamentais com base nas responsabilidades da vaga.
+* [x] Gerar entrevista a partir da descrição da vaga analisada.
+  O Coach agora lê `job-description-analysis.md` (além de `job-search-results.md`
+  e `course-recommendations.md`); o `interview_context` prioriza a vaga analisada.
+* [x] Usar o relatório de aderência como contexto.
+  `resume-match-report.md` agora é lido pelo Coach (enriquece o brief).
+* [x] Criar perguntas técnicas com base nas lacunas.
+  Passo 2 usa requisitos obrigatórios + hard skills da vaga; passo 4 usa
+  responsabilidades da vaga + lacunas críticas do match (fallback Scout/perfil).
+* [x] Criar perguntas comportamentais com base nas responsabilidades da vaga.
 * [ ] Adaptar feedback ao nível de aderência do usuário.
+  Pendente: o feedback ainda é genérico (calibração do LLM via brief).
 * [ ] Sugerir respostas mais estratégicas com base no currículo.
-* [ ] Preparar roteiro de entrevista para vaga específica.
+* [x] Preparar roteiro de entrevista para vaga específica.
+  Gate relaxado: a entrevista inicia com Scout **ou** vaga analisada.
 
 ---
 
@@ -995,6 +1018,7 @@ Transformar as lacunas entre vaga e currículo em plano de desenvolvimento indiv
 * [x] Sugerir estudos gratuitos.
 * [x] Sugerir documentação oficial.
 * [ ] Sugerir cursos pagos apenas quando fizer sentido.
+  Único sub-item do PDI ainda em aberto; hoje só há estudos gratuitos e oficiais.
 * [x] Sugerir projetos práticos.
 * [x] Sugerir entregáveis para portfólio.
 * [x] Sugerir ajustes futuros no currículo.
@@ -1012,12 +1036,16 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 ### O que será acrescentado
 
-* [ ] Usar a descrição da vaga como contexto.
-* [ ] Usar o relatório de aderência como contexto.
-* [ ] Criar perguntas técnicas baseadas nos requisitos.
-* [ ] Criar perguntas comportamentais baseadas nas responsabilidades.
-* [ ] Criar perguntas sobre lacunas críticas.
+* [x] Usar a descrição da vaga como contexto.
+  O Coach lê `job-description-analysis.md` e o `interview_context` prioriza a
+  vaga analisada (título + empresa) antes do Scout.
+* [x] Usar o relatório de aderência como contexto.
+  O Coach lê `resume-match-report.md` (score, nível de prontidão, lacunas).
+* [x] Criar perguntas técnicas baseadas nos requisitos.
+* [x] Criar perguntas comportamentais baseadas nas responsabilidades.
+* [x] Criar perguntas sobre lacunas críticas.
 * [ ] Gerar feedback direcionado.
+  Pendente: calibração do feedback do LLM pelo nível de aderência.
 * [ ] Criar plano de melhoria após a entrevista.
 
 ---
@@ -1037,9 +1065,13 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 * [x] Detectar conflito entre currículo e vaga.
 * [x] Detectar conflito entre perfil e vaga.
 * [x] Permitir escolher foco da candidatura.
+  `focus` em `POST /api/reconciliation/analyze` ou linha no perfil.
 * [ ] Permitir usar dados do currículo como base.
+  Falta endpoint PUT/PATCH para setar o foco e persistir a escolha.
 * [ ] Permitir usar dados do perfil como base.
+  Idem.
 * [ ] Permitir usar a vaga como foco principal.
+  Idem.
 * [ ] Atualizar perfil somente com confirmação do usuário.
 * [x] Normalizar habilidades antes de qualquer cálculo de aderência.
 
@@ -1060,7 +1092,8 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 * [x] Remover do rastreamento os arquivos reais de runtime, preservando a geração local.
 * [x] Manter somente `data/README.md` rastreado e permitir exemplos sanitizados `*.example.md`.
 * [x] Documentar em `data/README.md` que a pasta armazena estado local e pode conter dados sensíveis.
-* [ ] Ignorar também `data/applications.json` e futuros formatos de runtime não Markdown.
+* [x] Ignorar também `data/applications.json` e futuros formatos de runtime não Markdown.
+  `data/applications.json` já está no `.gitignore`.
 
 ---
 
@@ -1086,6 +1119,8 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 * [ ] Tratar resultados parciais tambem na UX do frontend.
 * [x] Tratar ausencia de resultados reais sem quebrar o fluxo por meio de fallback local.
 * [ ] Expor ao usuario as falhas parciais do Firecrawl em vez de descarta-las silenciosamente.
+  O Scout já retorna `source: empty/error` no relatório estruturado; falta refletir
+  isso na UX do Maestro/front, que hoje mostra só o fallback.
 
 ---
 
@@ -1103,16 +1138,31 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 ### Backend
 
-* [ ] Testar análise de descrição de vaga de forma reproduzível.
-* [ ] Testar comparação vaga x currículo de forma reproduzível.
-* [ ] Testar ausência de currículo.
-* [ ] Testar ausência de vaga.
-* [ ] Testar geração de Markdown.
-* [ ] Testar normalização de aliases.
-* [ ] Testar cálculo de score.
-* [ ] Testar geração do PDI personalizado.
-* [ ] Testar ausência de currículo, vaga, relatório de aderência e sugestões de currículo no PDI.
-* [ ] Testar leitura de `data/pdi-plan.md` pela API.
+* [x] Testar análise de descrição de vaga de forma reproduzível.
+  `test_job_description_analyzer.py` + `test_job_description_route.py` (análise,
+  round-trip Markdown, validadores e rota REST com persistência).
+* [x] Testar comparação vaga x currículo de forma reproduzível.
+  `test_resume_matcher.py` + `test_backend_route_prerequisites.py::test_match_*`.
+* [x] Testar ausência de currículo.
+  `test_match_sem_curriculo_retorna_400`.
+* [x] Testar ausência de vaga.
+  `test_match_sem_vaga_valida_retorna_400`.
+* [x] Testar geração de Markdown.
+  `*_report_roundtrip` / `*_markdown_roundtrip` no matcher, vaga e reconciliação.
+* [x] Testar normalização de aliases.
+  `test_reconcile_normaliza_foco_explicito_com_acento` + helpers do matcher.
+* [x] Testar cálculo de score.
+  `test_match_score_fica_entre_0_e_100` e `test_reconcile_score_fica_entre_0_e_100`.
+* [x] Testar geração do PDI personalizado.
+  `test_pdi_com_artefatos_validos_persiste_e_le_latest`.
+* [x] Testar ausência de currículo, vaga, relatório de aderência e sugestões de currículo no PDI.
+  `test_pdi_sem_sugestoes_retorna_400` e `test_pdi_validators.py` rejeitam entradas inválidas.
+* [x] Testar leitura de `data/pdi-plan.md` pela API.
+  `test_pdi_com_artefatos_validos_persiste_e_le_latest` cobre `GET /api/pdi/latest`.
+* [x] Testar concorrência e atomicidade de escrita.
+  `test_concurrency.py` + `test_applications.py::test_escrita_atomica_*`.
+* [x] Testar isolamento multiusuário por `session_id`.
+  `test_session.py` + `test_agents_paths.py`.
 
 ### Frontend
 
@@ -1133,7 +1183,11 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 * [x] Gerar relatório de aderência.
 * [x] Gerar sugestões seguras.
 * [x] Gerar PDI.
-* [ ] Iniciar entrevista baseada na vaga.
+* [x] Iniciar entrevista baseada na vaga.
+  O Coach consome `job-description-analysis.md` e `resume-match-report.md`
+  (além do Scout/Curator). As perguntas técnicas e de cenário priorizam a vaga
+  analisada e as lacunas do match; o `interview_context` prefere a vaga colada.
+  Gate relaxado: inicia com Scout **ou** vaga analisada.
 
 ---
 
@@ -1198,8 +1252,11 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
   Validado com upload TXT real em 2026-06-14.
 * [x] Integrar o componente `PdiPlan` ao frontend visível e à pipeline.
 * [x] Adicionar rota de leitura para `resume-analysis` em `data_files.py`.
-* [ ] Conectar a entrevista à vaga analisada e ao match.
-* [ ] Criar testes mínimos dos fluxos críticos.
+* [x] Conectar a entrevista à vaga analisada e ao match.
+  Coach lê `job-description-analysis.md` e `resume-match-report.md`; testes em
+  `test_coach.py` cobrem brief, perguntas de fallback e gate relaxado.
+* [x] Criar testes mínimos dos fluxos críticos.
+  Suíte com 120 testes cobrindo agentes, rotas REST, WebSocket/estado, concorrência e isolamento.
 
 ## Base concluída
 
@@ -1220,11 +1277,14 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 * [x] Garantir que `resume-analysis.md` seja criado durante análise de currículo.
 * [x] Adicionar rota GET para `resume-analysis` em `data_files.py`.
 * [x] Disponibilizar visualização do PDI no frontend.
-* [ ] Conectar Coach à vaga analisada e ao relatório de aderência.
-* [ ] Resolver divergência entre perfil, currículo e vaga.
+* [x] Conectar Coach à vaga analisada e ao relatório de aderência.
+* [x] Resolver divergência entre perfil, currículo e vaga.
+  Agente `reconciliation.py` + rota `/api/reconciliation/*` (detecta conflitos nos
+  três pares e respeita o foco da candidatura).
 * [x] Configurar dados reais com Firecrawl (`FIRECRAWL_API_KEY`).
 * [x] Separar arquivos locais de `data/` do que deve ser versionado (privacidade).
-* [ ] Criar testes mínimos automatizados.
+* [x] Criar testes mínimos automatizados.
+  120 testes em `backend/tests/`.
 * [ ] Atualizar documentação (README, plano.md, project-update-report.md).
 
 ---
@@ -1386,7 +1446,9 @@ Uma etapa só deve ser considerada pronta quando:
 ### Testes automatizados
 
 * [x] Criar testes unitarios para agentes principais
+  Scout, Curator, matcher, validadores de PDI/tailor e reconciliação (120 testes).
 * [x] Criar testes de integracao para rotas criticas
+  `test_backend_route_prerequisites.py` cobre upload, match, tailoring e PDI via TestClient.
 * [ ] Criar testes E2E para fluxo completo de candidatura
 * [ ] Adicionar validação de schemas dos arquivos Markdown
 
@@ -1417,11 +1479,13 @@ Uma etapa só deve ser considerada pronta quando:
 
 ### Coach conectado à vaga
 
-* [ ] Usar descrição da vaga como contexto
-* [ ] Usar relatório de aderência como contexto
-* [ ] Criar perguntas técnicas baseadas nos requisitos
-* [ ] Criar perguntas comportamentais baseadas nas responsabilidades
+* [x] Usar descrição da vaga como contexto
+* [x] Usar relatório de aderência como contexto
+* [x] Criar perguntas técnicas baseadas nos requisitos
+* [x] Criar perguntas comportamentais baseadas nas responsabilidades
 * [ ] Gerar feedback direcionado às lacunas identificadas
+  Pendente: o brief já leva as lacunas ao LLM, mas o feedback ainda não é
+  calibrado pelo nível de aderência.
 
 ### Reconciliação de dados
 
@@ -1433,7 +1497,83 @@ Uma etapa só deve ser considerada pronta quando:
 
 ### Isolamento multiusuário
 
-* [ ] Implementar sessions ou user IDs
-* [ ] Separar dados por usuário em `data/{user_id}/`
-* [ ] Evitar sobrescrita de dados entre usuários simultâneos
-* [ ] Adicionar lock em operações read-modify-write (ex: applications.json)
+* [x] Implementar sessions ou user IDs
+  `session_id` anônimo via header `X-Session-Id` e query string do WebSocket.
+* [x] Separar dados por usuário em `data/sessions/{id}/`
+  `SessionPaths` isola todos os artefatos por sessão.
+* [x] Evitar sobrescrita de dados entre usuários simultâneos
+  Coberto por `test_session.py` e `test_agents_paths.py`.
+* [x] Adicionar lock em operações read-modify-write (ex: applications.json)
+  `get_session_lock` + escrita atômica; `test_applications.py` valida.
+
+---
+
+## Auditoria de backend — 2026-06-23
+
+Revisão que cruzou cada item `[ ]` do checklist contra o código real em
+`backend/` e a suíte de testes (`112 passed`). Resultado:
+
+### Concluído nesta auditoria (marcado `[ ]` → `[x]`)
+
+* [x] Suíte automatizada de testes (16 arquivos em `backend/tests/`, 112 testes).
+* [x] Cobertura da seção 8 (Backend): análise de vaga, match, ausência de
+  currículo/vaga, round-trip Markdown, normalização de aliases, cálculo de
+  score, PDI, leitura de `pdi-plan.md`, concorrência e isolamento.
+* [x] `data/applications.json` no `.gitignore` (já estava).
+* [x] Isolamento multiusuário (`session.py`) e lock/escrita atômica de
+  `applications.json`.
+* [x] CI roda a suíte na nuvem (`backend-ci.yml`, pipeline bloqueante).
+* [x] Reset do Maestro limpa currículo, vaga, match, tailoring e PDI.
+* [x] Reconciliação (detecção de conflitos nos três pares + foco).
+
+### Realmente pendente (mantido `[ ]`)
+
+**Gap funcional principal:**
+
+* [x] **Coach conectado à vaga** — agora lê
+  `job-description-analysis.md` e `resume-match-report.md` (além de Scout/Curator),
+  prioriza a vaga analisada no `interview_context` e relaxa o gate para iniciar
+  com Scout **ou** vaga analisada. Fechado em 2026-06-23 (plano
+  `docs/plano-coach-vaga.md`); `test_coach.py` cobre a lógica pura.
+* [ ] **Roteamento conversacional do Maestro** para análise de vaga, match,
+  tailoring, PDI e reconciliação — hoje só acessíveis por botões/REST.
+
+**Robustez / dados reais:**
+
+* [ ] Expor falhas parciais do Firecrawl ao usuário (hoje silenciosas).
+* [ ] Validar salários e requisitos extraídos; registrar origem dos dados.
+* [ ] Sugerir cursos pagos no PDI quando fizer sentido.
+* [ ] Leitura do foco pelos agentes match/tailor/PDI para pesar resultados.
+* [ ] Endpoint PUT/PATCH para setar o foco da candidatura.
+* [ ] Migração de dados legados `data/*.md` → sessão.
+* [ ] Normalizar links do `CuratorReport` (mesmo bug já corrigido no Scout).
+
+**Infraestrutura:**
+
+* [ ] Dockerização (backend, frontend e `docker-compose.yml`).
+* [ ] Testes do caminho real de LLM (tudo cai em fallback hoje).
+* [ ] Testes E2E do fluxo completo + validação de schemas dos Markdown.
+* [ ] Atualizar `plano.md` e `project-update-report.md`.
+
+## Coach conectado à vaga analisada — 2026-06-23
+
+Sessão executada em 2026-06-23 implementando o item 1 da auditoria de backend
+(`docs/plano-coach-vaga.md`). Conecta o Coach à descrição da vaga analisada e ao
+relatório de aderência, fechando a "entrevista baseada na vaga".
+
+* [x] `coach.py` lê `job-description-analysis.md` e `resume-match-report.md`
+  (via parsers canônicos `analysis_from_markdown` / `match_report_from_markdown`).
+* [x] `_build_interview_brief` reflete vaga (título, empresa, senioridade,
+  responsabilidades, requisitos obrigatórios, hard skills, ferramentas) + match
+  (score, nível de prontidão, lacunas críticas, requisitos ausentes, evidências).
+  Fallback Scout/perfil intacto quando os artefatos faltam.
+* [x] `_question_for_step` (passos 2 e 4) prioriza requisitos/responsabilidades da
+  vaga e lacunas do match; cai no Scout/perfil quando os campos estão vazios.
+* [x] `QUESTION_PLAN` dos passos 2 e 4 atualizado para citar vaga/match.
+* [x] Maestro lê os dois artefatos em `_dispatch_coach_start` e `_handle_coach` e
+  os repassa nas três chamadas a `coach.run`.
+* [x] `interview_context` prioriza vaga analisada > Scout > funções alvo > default.
+* [x] Gate relaxado: a entrevista inicia com Scout **ou** vaga analisada.
+* [x] `test_coach.py` novo (8 testes) + fixture `match_markdown` no `conftest.py`.
+* [x] `python -m py_compile` OK; `import main` OK; `pytest` em **120 passed**
+  (era 112; +8 do Coach), sem regressões.

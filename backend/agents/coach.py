@@ -13,6 +13,8 @@ import re
 from typing import AsyncGenerator
 
 from agents.base import BaseAgent, LLMProviderError
+from agents.job_description_analyzer import analysis_from_markdown
+from agents.resume_matcher import match_report_from_markdown
 
 
 COACH_SYSTEM_PROMPT = """Voce e o Coach, agente especializado em entrevistas simuladas do sistema Recoloca IA.
@@ -33,9 +35,15 @@ Regras:
 
 QUESTION_PLAN = {
     1: ("comportamental", "trajetoria, motivacao e aderencia ao objetivo de carreira"),
-    2: ("tecnica", "habilidades atuais, requisitos recorrentes e lacunas do Scout"),
+    2: (
+        "tecnica",
+        "habilidades atuais, requisitos e responsabilidades da vaga analisada",
+    ),
     3: ("comportamental", "colaboracao, comunicacao, lideranca ou tomada de decisao"),
-    4: ("tecnica", "cenario pratico ligado as vagas compativeis"),
+    4: (
+        "tecnica",
+        "cenario pratico ligado as lacunas criticas do relatorio de aderencia",
+    ),
     5: ("estrategica", "priorizacao de carreira, aprendizado e proximos passos"),
 }
 
@@ -118,12 +126,33 @@ class CoachAgent(BaseAgent):
                     focus.append(skill)
         return focus[:5]
 
+    def _parse_job_analysis(self, text: str) -> dict:
+        return analysis_from_markdown(text) or {}
+
+    def _parse_match_report(self, text: str) -> dict:
+        return match_report_from_markdown(text) or {}
+
+    @staticmethod
+    def _join_items(items, limit: int) -> str:
+        if not items:
+            return "nao informado"
+        clean: list[str] = []
+        for item in items:
+            value = str(item).strip()
+            if value and value not in clean:
+                clean.append(value)
+            if len(clean) >= limit:
+                break
+        return ", ".join(clean) if clean else "nao informado"
+
     def _build_interview_brief(
         self,
         profile_text: str,
         job_results: str,
         course_recommendations: str,
         interview_context: str,
+        job_analysis: str = "",
+        match_report: str = "",
     ) -> str:
         profile = self._parse_profile(profile_text)
         area = self._profile_value(profile, "Area de interesse", "Área de interesse")
@@ -144,22 +173,48 @@ class CoachAgent(BaseAgent):
             else "Trilha do Curator ausente; preparar entrevista com base em perfil e Scout."
         )
 
-        return "\n".join(
-            [
-                f"Contexto da entrevista: {interview_context or 'Posicao baseada no perfil'}",
-                f"Area de interesse: {area}",
-                f"Nivel de experiencia: {level}",
-                f"Funcoes alvo: {target_roles}",
-                f"Objetivo de carreira: {career_goal}",
-                f"Preferencias de trabalho: {work_prefs}",
-                f"Habilidades atuais declaradas: {current_skills}",
-                f"Vagas compativeis do Scout: {', '.join(compatible_jobs) if compatible_jobs else 'nao informado'}",
-                f"Habilidades faltantes: {', '.join(missing_skills) if missing_skills else 'nao informado'}",
-                f"Requisitos recorrentes: {', '.join(recurring_requirements) if recurring_requirements else 'nao informado'}",
-                f"Focos da trilha de evolucao: {', '.join(learning_focus) if learning_focus else 'nao informado'}",
-                f"Status da preparacao: {course_status}",
-            ]
-        )
+        brief_lines = [
+            f"Contexto da entrevista: {interview_context or 'Posicao baseada no perfil'}",
+            f"Area de interesse: {area}",
+            f"Nivel de experiencia: {level}",
+            f"Funcoes alvo: {target_roles}",
+            f"Objetivo de carreira: {career_goal}",
+            f"Preferencias de trabalho: {work_prefs}",
+            f"Habilidades atuais declaradas: {current_skills}",
+            f"Vagas compativeis do Scout: {', '.join(compatible_jobs) if compatible_jobs else 'nao informado'}",
+            f"Habilidades faltantes: {', '.join(missing_skills) if missing_skills else 'nao informado'}",
+            f"Requisitos recorrentes: {', '.join(recurring_requirements) if recurring_requirements else 'nao informado'}",
+            f"Focos da trilha de evolucao: {', '.join(learning_focus) if learning_focus else 'nao informado'}",
+            f"Status da preparacao: {course_status}",
+        ]
+
+        analysis = self._parse_job_analysis(job_analysis)
+        if analysis:
+            brief_lines.extend(
+                [
+                    f"Vaga analisada (titulo): {analysis.get('title') or 'nao informado'}",
+                    f"Vaga analisada (empresa): {analysis.get('company') or 'nao informado'}",
+                    f"Senioridade da vaga: {analysis.get('seniority') or 'nao informado'}",
+                    f"Responsabilidades da vaga: {self._join_items(analysis.get('responsibilities'), 6)}",
+                    f"Requisitos obrigatorios da vaga: {self._join_items(analysis.get('required_requirements'), 8)}",
+                    f"Hard skills da vaga: {self._join_items(analysis.get('hard_skills'), 8)}",
+                    f"Ferramentas da vaga: {self._join_items(analysis.get('tools'), 6)}",
+                ]
+            )
+
+        report = self._parse_match_report(match_report)
+        if report:
+            brief_lines.extend(
+                [
+                    f"Score de aderencia: {report.get('overall_score', 0)}/100",
+                    f"Nivel de prontidao: {report.get('readiness_level') or 'nao informado'}",
+                    f"Lacunas criticas do match: {self._join_items(report.get('critical_gaps'), 6)}",
+                    f"Requisitos ausentes no curriculo: {self._join_items(report.get('missing_requirements'), 6)}",
+                    f"Evidencias fortes do curriculo: {self._join_items(report.get('strong_evidence'), 6)}",
+                ]
+            )
+
+        return "\n".join(brief_lines)
 
     def _read_context_file(self, path) -> str:
         return self._read_file(path)
@@ -198,6 +253,12 @@ class CoachAgent(BaseAgent):
         requirements = self._brief_value(interview_brief, "Requisitos recorrentes")
         jobs = self._brief_value(interview_brief, "Vagas compativeis do Scout")
 
+        # Campos da vaga analisada (opcionais; cai em Scout/perfil quando ausentes).
+        job_requirements = self._brief_value(interview_brief, "Requisitos obrigatorios da vaga")
+        job_hard_skills = self._brief_value(interview_brief, "Hard skills da vaga")
+        job_responsibilities = self._brief_value(interview_brief, "Responsabilidades da vaga")
+        match_gaps = self._brief_value(interview_brief, "Lacunas criticas do match")
+
         if step == 1:
             return (
                 f"Para uma oportunidade em {area}, mirando {target_roles}, conte como sua trajetoria ate aqui "
@@ -205,10 +266,16 @@ class CoachAgent(BaseAgent):
                 "e qual resultado ou aprendizado conseguiu gerar."
             )
         if step == 2:
+            if job_requirements != "nao informado" or job_hard_skills != "nao informado":
+                focus = (
+                    f"requisitos obrigatorios da vaga ({job_requirements}) "
+                    f"e hard skills esperadas ({job_hard_skills})"
+                )
+            else:
+                focus = f"habilidades atuais ({current_skills}) e requisitos recorrentes ({requirements})"
             return (
-                f"Considerando suas habilidades atuais ({current_skills}) e os requisitos recorrentes ({requirements}), "
-                "explique como voce resolveria um problema tecnico comum dessa funcao. Deixe claro seu raciocinio, "
-                "ferramentas usadas e principais tradeoffs."
+                f"Considerando {focus}, explique como voce resolveria um problema tecnico comum dessa funcao. "
+                "Deixe claro seu raciocinio, ferramentas usadas e principais tradeoffs."
             )
         if step == 3:
             return (
@@ -216,6 +283,12 @@ class CoachAgent(BaseAgent):
                 "ou lidar com conflito em equipe. Qual era o contexto, que acao voce tomou e qual foi o resultado?"
             )
         if step == 4:
+            if job_responsibilities != "nao informado" or match_gaps != "nao informado":
+                return (
+                    f"Considerando as responsabilidades da vaga ({job_responsibilities}) e as lacunas criticas "
+                    f"do match ({match_gaps}), escolha uma delas e explique como voce se prepararia para "
+                    "aplicar essa habilidade em um projeto real nos proximos 30 dias."
+                )
             return (
                 f"As oportunidades mapeadas incluem {jobs}. Escolha uma lacuna relevante ({missing_skills}) e explique "
                 "como voce se prepararia para aplicar essa habilidade em um projeto real nos proximos 30 dias."
@@ -374,17 +447,28 @@ LLM indisponivel durante avaliacao final ({type(error).__name__}). Usei avaliaca
         profile = context.get("profile", "") or self._read_context_file(self.paths.PROFILE_FILE)
         job_results = context.get("job_results", "") or self._read_context_file(self.paths.JOB_RESULTS_FILE)
         course_recommendations = context.get("course_recommendations", "") or self._read_context_file(self.paths.COURSE_RECS_FILE)
+        job_analysis = context.get("job_analysis", "") or self._read_context_file(self.paths.JOB_DESCRIPTION_ANALYSIS_FILE)
+        match_report = context.get("match_report", "") or self._read_context_file(self.paths.RESUME_MATCH_REPORT_FILE)
         interview_context = context.get("interview_context", "")
         history = context.get("history", [])
         history_text = self._format_history(history)
-        interview_brief = self._build_interview_brief(profile, job_results, course_recommendations, interview_context)
+        interview_brief = self._build_interview_brief(
+            profile,
+            job_results,
+            course_recommendations,
+            interview_context,
+            job_analysis,
+            match_report,
+        )
 
         if not self._is_profile_complete(profile):
             yield "## RESPOSTA: COACH\n### estado\nerro\n\n### resumo\nPerfil incompleto.\n\n### dados\n\n### erros\nConclua o diagnostico antes de iniciar a entrevista simulada.\n"
             return
 
-        if not job_results.strip() or "habilidades_faltantes" not in job_results:
-            yield "## RESPOSTA: COACH\n### estado\nerro\n\n### resumo\nAinda nao ha resultados do Scout para direcionar a entrevista.\n\n### dados\n\n### erros\nRode a opcao A primeiro para gerar oportunidades, lacunas e requisitos recorrentes.\n"
+        has_scout = bool(job_results.strip()) and "habilidades_faltantes" in job_results
+        has_job_analysis = bool(job_analysis.strip())
+        if not has_scout and not has_job_analysis:
+            yield "## RESPOSTA: COACH\n### estado\nerro\n\n### resumo\nAinda nao ha contexto de vaga para direcionar a entrevista.\n\n### dados\n\n### erros\nRode a busca do Scout (A) ou analise uma vaga antes de iniciar a entrevista.\n"
             return
 
         if step == 1:
