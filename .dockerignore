@@ -1,0 +1,41 @@
+# Contexto de build do backend (context = raiz do repo). Mantém a imagem enxuta.
+
+# VCS / CI
+.git
+.gitignore
+.github
+
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+.venv/
+backend/.venv/
+
+# Frontend (tem imagem própria; não entra na imagem do backend)
+frontend/
+
+# Estado local e logs (data/ é montado como volume nomeado)
+data/
+logs/
+*.log
+
+# Segredos: nunca assados na imagem (o compose injeta em runtime)
+**/.env
+!**/.env.example
+
+# Docs e artefatos que não vão para a imagem
+docs/
+*.md
+!personas/*.md
+!skills/*.md
+README.Docker.md
+
+# Docker
+Dockerfile
+**/Dockerfile
+.dockerignore
+docker-compose*.yml

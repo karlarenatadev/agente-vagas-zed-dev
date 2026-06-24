@@ -1,0 +1,70 @@
+# Orquestração local do import vagas.
+#
+#   docker compose up --build          → backend (API :8000) + frontend (site :8080)
+#   docker compose --profile mock up    → sobe também o mock server (:8001)
+#
+# Para o frontend usar o mock em vez do backend real:
+#   BACKEND_UPSTREAM=mock:8000 docker compose --profile mock up --build
+#
+# Requer Docker Compose v2.24+ (sintaxe env_file.required).
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    # Chaves reais ficam só em backend/.env (não versionado). Sem o arquivo, o
+    # backend sobe em modo degradado (Scout simula vagas, LLM cai em fallback).
+    env_file:
+      - path: backend/.env
+        required: false
+    environment:
+      # Caminhos absolutos no container; sobrepõem os relativos do .env.
+      DATA_DIR: /app/data
+      PERSONAS_DIR: /app/personas
+      SKILLS_DIR: /app/skills
+      LOG_DIR: /app/logs
+      LOG_FILE: /app/logs/backend.log
+    volumes:
+      # Persiste o estado local (perfil, currículo, match, PDI, sessões).
+      - backend-data:/app/data
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      # Destino do proxy reverso do Nginx (/api e /ws). Troque para mock:8000
+      # para apontar ao mock server.
+      BACKEND_UPSTREAM: ${BACKEND_UPSTREAM:-backend:8000}
+      # Restringe o envsubst à nossa variável, preservando $host/$uri do Nginx.
+      NGINX_ENVSUBST_FILTER: "^BACKEND_"
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # Mock server: respostas simuladas, sem necessidade de chaves de API.
+  # Só sobe com `--profile mock`.
+  mock:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["uvicorn", "mock_server:app", "--host", "0.0.0.0", "--port", "8000"]
+    profiles: ["mock"]
+    ports:
+      - "8001:8000"
+    restart: unless-stopped
+
+volumes:
+  backend-data:
