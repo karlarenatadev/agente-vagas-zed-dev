@@ -20,6 +20,7 @@ from agents.reconciliation import (
     normalize_focus,
     reconciliation_from_markdown,
     reconciliation_to_markdown,
+    upsert_focus_line,
     validate_profile,
 )
 from agents.resume_matcher import (
@@ -170,3 +171,44 @@ async def analyze_reconciliation(
         )
 
     return result
+
+
+# ── Foco da candidatura (PUT) ────────────────────────────────────────────────
+
+
+class FocusUpdateRequest(BaseModel):
+    focus: str
+
+    @field_validator("focus")
+    @classmethod
+    def validate_focus_value(cls, value: str) -> str:
+        focus = normalize_focus(value)
+        if focus is None:
+            raise ValueError("Foco deve ser perfil, curriculo ou vaga.")
+        return focus
+
+
+class FocusUpdateResponse(BaseModel):
+    focus: str
+
+
+@router.put("/focus", response_model=FocusUpdateResponse)
+async def set_candidacy_focus(
+    body: FocusUpdateRequest,
+    paths: SessionPaths = Depends(get_session_paths),
+) -> dict[str, Any]:
+    """Fixa o foco da candidatura no perfil (``user-profile.md``).
+
+    Persiste a linha "Foco da candidatura: {perfil|curriculo|vaga}", lida depois
+    pela reconciliação e pelos agentes de match, tailoring e PDI para priorizar a
+    fonte escolhida. Foco inválido → 422; perfil ausente/vazio → 400.
+    """
+    profile_content = read_required(
+        paths.PROFILE_FILE,
+        "Conclua o quiz de perfil primeiro.",
+        "O perfil está vazio. Refaça o diagnóstico.",
+    )
+    updated = upsert_focus_line(profile_content, body.focus)
+    async with get_session_lock(paths.session_id):
+        await write_text_atomic_async(paths.PROFILE_FILE, updated)
+    return {"focus": body.focus}

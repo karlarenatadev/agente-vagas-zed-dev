@@ -271,6 +271,23 @@ def pdi_to_markdown(result: dict[str, Any]) -> str:
 """
 
 
+def _focus_pdi_step(focus: str, high: list[str], strong: list[str]) -> str:
+    """Próximo passo do PDI calibrado pelo foco da candidatura."""
+    if focus == "curriculo":
+        base = ", ".join(strong[:2]) or "as evidências já existentes"
+        return (
+            f"Como o foco é o currículo, comece transformando {base} em entregáveis "
+            "fortes antes de cobrir novas lacunas."
+        )
+    if focus == "perfil":
+        return (
+            "Como o foco é o perfil declarado, priorize o desenvolvimento alinhado ao "
+            "seu objetivo de carreira; trate lacunas específicas da vaga como secundárias."
+        )
+    alvo = ", ".join(high[:2]) or "as lacunas de alta prioridade"
+    return f"Como o foco é a vaga, ataque primeiro {alvo} para destravar a candidatura."
+
+
 class PdiGenerator:
     """Converte lacunas em tarefas priorizadas e evidências futuras."""
 
@@ -280,6 +297,7 @@ class PdiGenerator:
         job_content: str,
         match_content: str,
         tailoring_content: str,
+        focus: str = "vaga",
     ) -> dict[str, Any]:
         resume = _parse_markdown(resume_content)
         job = _parse_markdown(job_content)
@@ -431,6 +449,7 @@ class PdiGenerator:
             "study_resources": _unique(study_resources),
             "interview_preparation": _unique(interview_preparation),
             "next_steps": [
+                _focus_pdi_step(focus, high, strong),
                 "Escolher no máximo duas lacunas de alta prioridade para começar.",
                 "Executar o plano de 7 dias e registrar evidências reais.",
                 "Não incluir habilidade nova como domínio antes de concluir uma entrega verificável.",

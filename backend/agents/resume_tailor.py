@@ -247,6 +247,25 @@ def tailoring_from_markdown(content: str) -> dict[str, Any] | None:
     }
 
 
+def _focus_tailor_step(focus: str, absent: list[str], strong: list[str]) -> str:
+    """Próximo passo do tailoring calibrado pelo foco da candidatura."""
+    if focus == "curriculo":
+        return (
+            "Como o foco é o currículo, mantenha a narrativa atual e aplique só os "
+            "ajustes de clareza; evite reescrever o currículo inteiro para a vaga."
+        )
+    if focus == "perfil":
+        return (
+            "Como o foco é o perfil declarado, ajuste o currículo para reforçar seu "
+            "objetivo de carreira antes de mirar requisitos específicos da vaga."
+        )
+    alvo = ", ".join(absent[:3]) or "as palavras-chave da vaga"
+    return (
+        "Como o foco é a vaga, priorize as sugestões que aproximam o currículo de "
+        f"{alvo}, sempre sem inventar evidências."
+    )
+
+
 class ResumeTailor:
     """Transforma o match em orientações, sem escrever experiências fictícias."""
 
@@ -255,6 +274,7 @@ class ResumeTailor:
         resume_content: str,
         job_content: str,
         match_content: str,
+        focus: str = "vaga",
     ) -> dict[str, Any]:
         resume = _parse_markdown(resume_content)
         job = _parse_markdown(job_content)
@@ -385,6 +405,7 @@ class ResumeTailor:
             "do_not_claim": _unique(safe_do_not_claim),
             "safety_alerts": safety_alerts,
             "next_steps": [
+                _focus_tailor_step(focus, absent, strong),
                 "Confirmar quais sugestões correspondem a experiências reais antes de editar o currículo.",
                 "Aplicar primeiro as melhorias de clareza e organização que usam evidências fortes.",
                 "Criar evidências práticas para lacunas prioritárias antes de adicioná-las como habilidades.",

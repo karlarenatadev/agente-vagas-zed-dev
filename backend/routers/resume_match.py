@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from session import SessionPaths, get_session_lock, get_session_paths, write_text_atomic_async
-from routers.common import read_required
+from routers.common import read_required, resolve_focus
 from agents.resume_matcher import (
     ResumeMatcher,
     match_report_from_markdown,
@@ -24,6 +24,9 @@ matcher = ResumeMatcher()
 class ResumeMatchRequest(BaseModel):
     use_latest_job_analysis: bool = True
     use_latest_resume_analysis: bool = True
+    # Foco da candidatura (perfil/curriculo/vaga). Ausente → lê do perfil; se
+    # ainda faltar, assume "vaga". Valor inválido cai no fallback (sem erro).
+    focus: str | None = None
 
 
 class ScoreBreakdown(BaseModel):
@@ -114,7 +117,14 @@ async def analyze_resume_match(
             detail="A análise do currículo está vazia ou inválida. Envie o currículo novamente.",
         )
 
-    report = matcher.match(job_content, resume_content)
+    # Foco da candidatura: corpo da requisição > perfil > "vaga".
+    try:
+        profile_content = paths.PROFILE_FILE.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        profile_content = None
+    focus = resolve_focus(profile_content, request.focus)
+
+    report = matcher.match(job_content, resume_content, focus=focus)
     async with get_session_lock(paths.session_id):
         await write_text_atomic_async(
             paths.RESUME_MATCH_REPORT_FILE,

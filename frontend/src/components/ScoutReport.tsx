@@ -25,6 +25,8 @@ export interface ScoutData {
   fallback_simulado?: string
   fallback_reason?: string
   fallback_message?: string
+  busca_degradada?: string
+  aviso_degradacao?: string
   requisitos: { requisito: string; ocorrencias: string }[]
   vagas: Job[]
 }
@@ -91,6 +93,12 @@ export function ScoutReport({ data }: { data: ScoutData }) {
   const fallbackMessage = isMeaningful(data.fallback_message)
     ? data.fallback_message
     : 'Nao conseguimos buscar vagas reais agora. Exibindo oportunidades simuladas.'
+  // Busca degradada: vagas REAIS vindas da busca ampla porque a específica
+  // falhou (erro/timeout). Distinta da simulação — só mostra se não for simulada.
+  const isDegradedSearch = !hasSimulatedFallback && data.busca_degradada === 'true'
+  const degradedMessage = isMeaningful(data.aviso_degradacao)
+    ? data.aviso_degradacao
+    : 'A busca específica falhou; estas vagas vêm de uma busca mais ampla e podem estar menos alinhadas ao seu filtro.'
 
   return (
     <div className="scout-report">
@@ -100,6 +108,13 @@ export function ScoutReport({ data }: { data: ScoutData }) {
         <p className="scout-fallback-warning scout-fallback-summary" role="status">
           <AlertTriangle size={14} aria-hidden="true" />
           <span>{fallbackMessage}</span>
+        </p>
+      )}
+
+      {isDegradedSearch && (
+        <p className="scout-fallback-warning scout-fallback-summary" role="status">
+          <AlertTriangle size={14} aria-hidden="true" />
+          <span>{degradedMessage}</span>
         </p>
       )}
 

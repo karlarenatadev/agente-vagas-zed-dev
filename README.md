@@ -269,6 +269,40 @@ O mock simula todas as respostas dos agentes com dados realistas e streaming tok
 
 ---
 
+## Rodar com Docker
+
+Para subir tudo com um comando, sem instalar Python ou Node — basta o [Docker](https://docs.docker.com/get-docker/):
+
+```bash
+# (opcional) configure as chaves reais
+cp backend/.env.example backend/.env   # edite OPENAI_API_KEY e FIRECRAWL_API_KEY
+
+docker compose up --build
+```
+
+- **Site (frontend):** <http://localhost:8080>
+- **API + docs (backend):** <http://localhost:8000/docs>
+
+O frontend é servido por Nginx, que faz proxy reverso de `/api` e `/ws` para o
+backend. Por isso, quem só **acessa** o site precisa apenas do navegador; o
+Docker é necessário apenas em quem **roda/hospeda** os containers.
+
+O estado local (perfil, currículo, match, PDI, sessões) é persistido no volume
+`backend-data`, sobrevivendo a reinícios. Sem `backend/.env`, o backend sobe em
+modo degradado (Scout simula vagas e o LLM cai em fallback).
+
+Para explorar sem chaves de API, suba também o mock server e aponte o proxy do
+frontend para ele — defina `BACKEND_UPSTREAM=mock:8000` (em um `.env` na raiz do
+projeto ou como variável de ambiente) e rode:
+
+```bash
+docker compose --profile mock up --build
+```
+
+> Requer Docker Compose v2.24+ (sintaxe `env_file.required`).
+
+---
+
 ## Fluxo de uso
 
 ```
@@ -349,7 +383,7 @@ O backend passou por uma etapa de hardening para operar como API de producao:
 - **Estado do WebSocket recuperavel** em `data/sessions/{session_id}/chat_state.json`.
 - **Firecrawl SDK oficial** (`firecrawl-py`) no lugar de CLI/subprocess, executado fora do Event Loop com `asyncio.to_thread`.
 - **Upload de curriculos endurecido** com limite de tamanho, validacao de `Content-Type` e Magic Numbers para PDF/DOCX.
-- **Suite automatizada** com 73 testes passando, incluindo stress test de 50 escritas simultaneas.
+- **Suite automatizada** com 150 testes passando, incluindo stress test de 50 escritas simultaneas.
 
 ---
 

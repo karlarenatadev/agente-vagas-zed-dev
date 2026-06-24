@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from session import SessionPaths, get_session_lock, get_session_paths, write_text_atomic_async
-from routers.common import read_required
+from routers.common import read_required, resolve_focus
 from agents.pdi_generator import (
     PdiGenerator,
     pdi_from_markdown,
@@ -28,6 +28,9 @@ class PdiRequest(BaseModel):
     use_latest_job_analysis: bool = True
     use_latest_match_report: bool = True
     use_latest_tailoring_suggestions: bool = True
+    # Foco da candidatura (perfil/curriculo/vaga). Ausente → lê do perfil; se
+    # ainda faltar, assume "vaga". Valor inválido cai no fallback (sem erro).
+    focus: str | None = None
 
 
 class PdiResponse(BaseModel):
@@ -129,11 +132,19 @@ async def generate_pdi(
             detail="As sugestões de currículo estão vazias ou inválidas. Gere as sugestões novamente.",
         )
 
+    # Foco da candidatura: corpo da requisição > perfil > "vaga".
+    try:
+        profile_content = paths.PROFILE_FILE.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        profile_content = None
+    focus = resolve_focus(profile_content, request.focus)
+
     result = generator.generate(
         resume_content,
         job_content,
         match_content,
         tailoring_content,
+        focus=focus,
     )
     async with get_session_lock(paths.session_id):
         await write_text_atomic_async(paths.PDI_PLAN_FILE, pdi_to_markdown(result))

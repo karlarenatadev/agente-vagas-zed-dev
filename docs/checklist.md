@@ -73,10 +73,12 @@ candidatura" que define qual fonte deve prevalecer.
 
 ### Fora de escopo (registrado para próximas sessões)
 
-* [ ] Endpoint PUT/PATCH dedicado para setar o foco (hoje vem do perfil ou do
+* [x] Endpoint PUT/PATCH dedicado para setar o foco (hoje vem do perfil ou do
   body do `POST /analyze`).
+  Fechado em 2026-06-24: `PUT /api/reconciliation/focus`.
 * [ ] Integração com o fluxo conversacional do Maestro (opção de menu).
-* [ ] Leitura do foco pelos agentes match/tailor/PDI para pesar resultados.
+* [x] Leitura do foco pelos agentes match/tailor/PDI para pesar resultados.
+  Fechado em 2026-06-24: agentes recebem `focus` e priorizam o `next_steps`.
 * [ ] "Atualizar perfil somente com confirmação do usuário" e os demais
   sub-itens de escolha de base.
 
@@ -142,9 +144,16 @@ Agora que o motor esta blindado, o foco passa a ser entrega continua, infraestru
 
 ### 2. Infraestrutura e Containerizacao (Docker)
 
-* [ ] Dockerizacao do Backend: criar `Dockerfile` com imagem Python leve, dependencias instaladas e porta 8000 configurada.
-* [ ] Dockerizacao do Frontend: criar `Dockerfile` para build React/Vite servido por Nginx.
-* [ ] Docker Compose: orquestrar Frontend, Backend e Mock Server com `docker-compose up`.
+* [x] Dockerizacao do Backend: criar `Dockerfile` com imagem Python leve, dependencias instaladas e porta 8000 configurada.
+  `backend/Dockerfile` (`python:3.12-slim`, usuário sem privilégios, `HEALTHCHECK` em
+  `/health`, `uvicorn main:app` em 0.0.0.0:8000); contexto de build na raiz para
+  incluir `personas/` e `skills/`.
+* [x] Dockerizacao do Frontend: criar `Dockerfile` para build React/Vite servido por Nginx.
+  `frontend/Dockerfile` multi-stage (`node:22-alpine` → `nginx:1.27-alpine`) +
+  `nginx.conf.template` com proxy reverso de `/api` e `/ws`.
+* [x] Docker Compose: orquestrar Frontend, Backend e Mock Server com `docker-compose up`.
+  `docker-compose.yml` com os três serviços, volume `backend-data` para o estado e
+  profile `mock`.
 
 ### 3. Esteira de Automacao Continua (CI/CD Definitivo)
 
@@ -246,7 +255,7 @@ Validação executada nesta revisão:
 * [x] Firecrawl SDK (`firecrawl-py`) declarado no backend e usado sem CLI/subprocess.
 * [x] `FIRECRAWL_API_KEY` configurada em `backend/.env` e carregada por caminho absoluto.
 * [x] Suíte automatizada de testes disponível.
-  `backend/tests/` cobre agentes, rotas, concorrência e isolamento por sessão. Última execução: `120 passed`.
+  `backend/tests/` cobre agentes, rotas, concorrência e isolamento por sessão. Última execução: `150 passed`.
 * [x] QA visual completo executado em navegadores reais.
   A estabilização responsiva foi validada no Chrome em oito resoluções. As rodadas finais de visual, acessibilidade e fluxo funcional com backend real foram validadas no Chrome e Edge.
 
@@ -1085,12 +1094,12 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 * [x] Detectar conflito entre perfil e vaga.
 * [x] Permitir escolher foco da candidatura.
   `focus` em `POST /api/reconciliation/analyze` ou linha no perfil.
-* [ ] Permitir usar dados do currículo como base.
-  Falta endpoint PUT/PATCH para setar o foco e persistir a escolha.
-* [ ] Permitir usar dados do perfil como base.
-  Idem.
-* [ ] Permitir usar a vaga como foco principal.
-  Idem.
+* [x] Permitir usar dados do currículo como base.
+  `PUT /api/reconciliation/focus` com `focus="curriculo"` persiste a escolha no perfil.
+* [x] Permitir usar dados do perfil como base.
+  `PUT /api/reconciliation/focus` com `focus="perfil"`.
+* [x] Permitir usar a vaga como foco principal.
+  `PUT /api/reconciliation/focus` com `focus="vaga"` (default).
 * [ ] Atualizar perfil somente com confirmação do usuário.
 * [x] Normalizar habilidades antes de qualquer cálculo de aderência.
 
@@ -1135,11 +1144,14 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 * [ ] Validar salarios.
 * [ ] Validar requisitos extraidos.
 * [ ] Registrar origem dos dados.
-* [ ] Tratar resultados parciais tambem na UX do frontend.
+* [x] Tratar resultados parciais tambem na UX do frontend.
+  Banner de busca degradada no `ScoutReport`, distinto do banner de simulação.
 * [x] Tratar ausencia de resultados reais sem quebrar o fluxo por meio de fallback local.
-* [ ] Expor ao usuario as falhas parciais do Firecrawl em vez de descarta-las silenciosamente.
-  O Scout já retorna `source: empty/error` no relatório estruturado; falta refletir
-  isso na UX do Maestro/front, que hoje mostra só o fallback.
+* [x] Expor ao usuario as falhas parciais do Firecrawl em vez de descarta-las silenciosamente.
+  Fechado em 2026-06-24: além da simulação total (já exposta), o Scout sinaliza
+  busca degradada (`status_busca: real_degraded`, `busca_degradada: true`,
+  `aviso_degradacao`) quando a query específica falha e só a ampla recupera; o
+  front mostra banner próprio.
 
 ---
 
@@ -1362,7 +1374,7 @@ Uma etapa só deve ser considerada pronta quando:
 
 ### Backend (FastAPI + Python)
 
-* [x] 22 endpoints HTTP, 1 WebSocket e 4 rotas automáticas de documentação registrados
+* [x] 30 endpoints HTTP, 1 WebSocket e 4 rotas automáticas de documentação registrados
 * [x] 9 agentes especializados implementados
 * [x] WebSocket para chat em tempo real
 * [x] Persistência em arquivos Markdown
@@ -1564,17 +1576,24 @@ Revisão que cruzou cada item `[ ]` do checklist contra o código real em
 
 **Robustez / dados reais:**
 
-* [ ] Expor falhas parciais do Firecrawl ao usuário (hoje silenciosas).
+* [x] Expor falhas parciais do Firecrawl ao usuário (hoje silenciosas).
+  Fechado em 2026-06-24: a simulação total já era exposta ponta-a-ponta; agora o
+  Scout também sinaliza busca **degradada** (`busca_degradada`/`aviso_degradacao`,
+  `status_busca: real_degraded`) quando a query específica falha (erro/timeout) e
+  só a ampla recupera, com banner próprio no `ScoutReport`.
 * [ ] Validar salários e requisitos extraídos; registrar origem dos dados.
 * [ ] Sugerir cursos pagos no PDI quando fizer sentido.
-* [ ] Leitura do foco pelos agentes match/tailor/PDI para pesar resultados.
-* [ ] Endpoint PUT/PATCH para setar o foco da candidatura.
+* [x] Leitura do foco pelos agentes match/tailor/PDI para pesar resultados.
+  Fechado em 2026-06-24: os agentes recebem `focus` e priorizam o `next_steps`
+  conforme a fonte (precedência body > perfil > "vaga" via `resolve_focus`).
+* [x] Endpoint PUT/PATCH para setar o foco da candidatura.
+  Fechado em 2026-06-24: `PUT /api/reconciliation/focus`.
 * [ ] Migração de dados legados `data/*.md` → sessão.
 * [ ] Normalizar links do `CuratorReport` (mesmo bug já corrigido no Scout).
 
 **Infraestrutura:**
 
-* [ ] Dockerização (backend, frontend e `docker-compose.yml`).
+* [x] Dockerização (backend, frontend e `docker-compose.yml`).
 * [ ] Testes do caminho real de LLM (tudo cai em fallback hoje).
 * [ ] Testes E2E do fluxo completo + validação de schemas dos Markdown.
 * [ ] Atualizar `plano.md` e `project-update-report.md`.
@@ -1635,3 +1654,99 @@ PDI e reconciliação), fechando o loop conversacional iniciado com o Coach.
 * [x] `python -m py_compile` OK; `import main` OK; `pytest` em **135 passed**
   (era 124; +11 do roteamento), sem regressões.
 * [x] `npm run lint` e `npm run build` passam.
+
+## Dockerização — 2026-06-24
+
+Sessão executada em 2026-06-24 implementando a containerização (item de
+infraestrutura da auditoria de backend). Empacota backend, frontend e mock para
+rodar com um comando, sem instalar Python/Node na máquina.
+
+* [x] `backend/Dockerfile`: `python:3.12-slim`, deps de `requirements.txt` (wheels
+  cp312, sem compilação), usuário `appuser` sem privilégios, `HEALTHCHECK` em
+  `/health` e `uvicorn main:app --host 0.0.0.0`. Contexto de build na raiz do
+  repo para incluir `personas/` e `skills/` (resolvidos por `config.py` em
+  PROJECT_ROOT); `DATA_DIR`/`PERSONAS_DIR`/`SKILLS_DIR`/`LOG_DIR` fixados em `/app/*`.
+* [x] `frontend/Dockerfile`: multi-stage `node:22-alpine` (`npm ci && npm run
+  build`) → `nginx:1.27-alpine` servindo `dist/`.
+* [x] `frontend/nginx.conf.template`: SPA com fallback para `index.html` + proxy
+  reverso de `/api` e `/ws` (com upgrade de WebSocket) para `${BACKEND_UPSTREAM}`,
+  resolvido em runtime pelo DNS do Docker (127.0.0.11). `NGINX_ENVSUBST_FILTER=^BACKEND_`
+  preserva as variáveis nativas do Nginx (`$host`, `$uri`, etc.).
+* [x] `docker-compose.yml`: serviços `backend` (API :8000, volume `backend-data`
+  em `/app/data`, `env_file` opcional `backend/.env`), `frontend` (Nginx :8080) e
+  `mock` (profile `mock`, :8001). `docker compose up --build` sobe o site em
+  http://localhost:8080.
+* [x] `.dockerignore` na raiz e em `frontend/` (excluem `.venv`, `node_modules`,
+  `data/`, `logs/`, `**/.env` e caches; mantêm `personas/` e `skills/`).
+* [x] README: nova seção "Rodar com Docker" (real e modo mock).
+* [x] Validação possível sem Docker neste ambiente: `docker-compose.yml` parseado
+  como YAML válido (3 serviços + volume `backend-data`); `npm run build` do
+  frontend conclui (`vite build` → `dist/`, mesma etapa da imagem); suíte do
+  backend em **135 passed**.
+* [ ] Pendente: rodar `docker compose up --build` numa máquina com Docker para
+  validar o build das imagens e o runtime ponta a ponta (Docker indisponível no
+  ambiente desta sessão).
+
+## Falha degradada do Firecrawl + foco da candidatura — 2026-06-24
+
+Sessão executada em 2026-06-24 implementando a "Parte 2" do roadmap de backend:
+(A) expor as falhas parciais do Firecrawl e (B) endpoint de foco da candidatura +
+leitura do foco por match/tailor/PDI.
+
+### Parte A — falha degradada do Firecrawl
+
+Constatado que a **simulação total** já era exposta ponta-a-ponta (Scout emite
+`fallback_simulado`/`fallback_reason`/`fallback_message`; o `ScoutReport` já
+mostrava banner). O gap real era a **busca degradada-mas-real**: quando a query
+específica falhava (erro/timeout) e só a query ampla recuperava vagas, o
+`search_status` virava `real_success` silenciosamente.
+
+* [x] `scout.py`: novo `status_busca: real_degraded` + `busca_degradada`/
+  `aviso_degradacao` (dict `DEGRADED_MESSAGES`) quando a query específica falha
+  por erro/timeout e a ampla recupera; `response_state` também vira "parcial".
+* [x] Frontend: `parseScoutData` (ChatMessage.tsx) extrai `busca_degradada`/
+  `aviso_degradacao`; `ScoutReport.tsx` mostra um banner de degradação distinto
+  do banner de simulação (reusa as classes existentes, sem CSS novo).
+* [x] `test_scout.py` (+2): busca degradada sinalizada; sucesso limpo não marca
+  degradação.
+
+### Parte B — foco da candidatura
+
+* [x] `reconciliation.py`: `upsert_focus_line(profile, focus)` (+`FOCUS_PROFILE_KEY`)
+  insere/atualiza a linha "Foco da candidatura:" no perfil sem duplicar.
+* [x] `routers/common.py`: `resolve_focus(profile, explicit)` — precedência
+  explícito > perfil > "vaga" (importa `normalize_focus`/`parse_focus`; sem ciclo).
+* [x] `routers/reconciliation.py`: `PUT /api/reconciliation/focus` (valida via
+  `normalize_focus` → 422 se inválido; perfil ausente/vazio → 400; escrita atômica
+  sob lock de sessão).
+* [x] `resume_matcher.py`, `resume_tailor.py`, `pdi_generator.py`: assinatura passa
+  a aceitar `focus="vaga"`; helper `_focus_{match,tailor,pdi}_step` prepende uma
+  linha focus-aware ao `next_steps` (aditivo — não mexe no score nem nos
+  serializadores; round-trip intacto).
+* [x] Routers `resume_match`/`resume_tailoring`/`pdi`: `focus` opcional no corpo;
+  leem o perfil best-effort; `resolve_focus`; passam `focus` ao agente.
+* [x] `test_focus.py` (novo, 13): `upsert_focus_line` (add/replace/inválido),
+  `resolve_focus` (precedência), `PUT /focus` (200/422/400) e variação do
+  `next_steps` por foco em match/tailor/PDI + rota de match com foco no corpo.
+
+### Validação
+
+* [x] `import main` OK (35 rotas; +1 `PUT /api/reconciliation/focus`).
+* [x] `pytest` em **150 passed** (era 135; +15), sem regressões.
+* [x] Frontend: `npm run lint` limpo, `npm run build` OK, `npm run test` em
+  **25 passed** (ScoutReport/ChatMessage sem regressão).
+
+## Foco da candidatura: loop fechado no frontend — 2026-06-24
+
+Complemento da sessão da Parte 2. O seletor "Escolher o foco da candidatura"
+(`ResumeMatchReport.tsx`) agora **persiste** a escolha no perfil via
+`PUT /api/reconciliation/focus` (best-effort) ao clicar — então match/tailoring/
+PDI passam a honrar o foco nas execuções seguintes (via `resolve_focus`). Antes,
+o foco só ia para a reconciliação por requisição e não chegava aos outros agentes.
+
+* [x] `handleFocusChange` em `ReconciliationStep` chama `PUT /focus` ao escolher
+  (falha silenciosa: a reconciliação ainda envia o foco por requisição).
+* [x] `main-flow.test.tsx`: novo teste garante que escolher o foco dispara o
+  `PUT /api/reconciliation/focus` com `{focus}` correto.
+* [x] Validado: `npm run lint` limpo, `npm run build` OK, `npm run test` em
+  **26 passed** (+1).

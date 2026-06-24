@@ -84,6 +84,16 @@ FALLBACK_MESSAGES: dict[str, str] = {
     "firecrawl_timeout": "Nao conseguimos buscar vagas reais dentro do tempo limite. Exibindo oportunidades simuladas.",
 }
 
+# Mensagens de busca DEGRADADA: a busca específica (com nível/filtro) falhou por
+# erro/timeout do Firecrawl, mas a busca ampla recuperou vagas REAIS. Diferente
+# do fallback simulado — aqui as vagas existem, só não vieram da busca pedida.
+# Sem isso, a falha parcial era engolida silenciosamente (search_status virava
+# "real_success").
+DEGRADED_MESSAGES: dict[str, str] = {
+    "firecrawl_error": "A busca específica falhou no Firecrawl; estas vagas vêm de uma busca mais ampla e podem estar menos alinhadas ao seu filtro.",
+    "firecrawl_timeout": "A busca específica excedeu o tempo limite; estas vagas vêm de uma busca mais ampla e podem estar menos alinhadas ao seu filtro.",
+}
+
 _SEARCH_CACHE: dict[str, tuple[float, list[dict[str, str]]]] = {}
 
 
@@ -380,6 +390,9 @@ class ScoutAgent(BaseAgent):
         max_results = self._firecrawl_max_results()
         search_results, fallback_reason, cache_hit = await self._run_firecrawl_search(query, tbs)
         search_status = "real_success" if search_results else "real_empty"
+        # Motivo da 1ª query (específica), preservado antes de tentar a ampla.
+        primary_reason = fallback_reason
+        degraded_reason = ""
 
         if not search_results:
             # Tenta query mais ampla
@@ -389,7 +402,13 @@ class ScoutAgent(BaseAgent):
             if broad_results:
                 search_results = broad_results
                 fallback_reason = ""
-                search_status = "real_success"
+                # A busca específica falhou (erro/timeout) e só a ampla retornou:
+                # vagas reais, porém em modo degradado. Não silenciar a falha.
+                if primary_reason in ("firecrawl_error", "firecrawl_timeout"):
+                    degraded_reason = primary_reason
+                    search_status = "real_degraded"
+                else:
+                    search_status = "real_success"
             elif "firecrawl_error" in {fallback_reason, broad_fallback_reason}:
                 fallback_reason = "firecrawl_error"
                 search_status = "external_error"
@@ -482,19 +501,22 @@ dica_curriculo: [1 frase sobre o que destacar no currículo para esta vaga]"""
         jobs_output = sorted(jobs_output, key=lambda item: int(item["score_aderencia"]), reverse=True)
         recurring = self._recurring_requirements(jobs_output)
 
-        # Formata saída final
-        response_state = "parcial" if simulated_mode else "sucesso"
+        # Formata saída final. Degradada (real, via busca ampla) também é "parcial".
+        response_state = "parcial" if (simulated_mode or degraded_reason) else "sucesso"
         yield f"\n## RESPOSTA: SCOUT\n### estado\n{response_state}\n\n"
         source_label = "oportunidades simuladas" if simulated_mode else "vagas encontradas"
         yield (
             f"### resumo\nAnalisei {len(jobs_output)} {source_label} para **{area}** em **{location}**. "
             "Abaixo estão os matches com score de aderência, lacunas, requisitos recorrentes e prioridade de candidatura.\n\n"
         )
+        busca_degradada = bool(degraded_reason)
         yield "### dados\n\n"
         yield f"status_busca: {search_status}\n"
         yield f"fallback_simulado: {str(simulated_mode).lower()}\n"
         yield f"fallback_reason: {fallback_reason if simulated_mode else ''}\n"
         yield f"fallback_message: {FALLBACK_MESSAGES.get(fallback_reason, '') if simulated_mode else ''}\n"
+        yield f"busca_degradada: {str(busca_degradada).lower()}\n"
+        yield f"aviso_degradacao: {DEGRADED_MESSAGES.get(degraded_reason, '') if busca_degradada else ''}\n"
         yield f"cache_hit: {str(cache_hit).lower()}\n"
         yield f"max_resultados: {max_results}\n\n"
         yield "requisitos_mais_recorrentes:\n"

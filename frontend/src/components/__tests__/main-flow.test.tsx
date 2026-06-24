@@ -417,6 +417,40 @@ describe('fluxo principal do frontend', () => {
     expectTextNow('sugestoes aguardando relatorio de match')
   })
 
+  it('persiste o foco da candidatura via PUT ao escolher', async () => {
+    const fetchMock = vi.fn((_url: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'PUT') {
+        return Promise.resolve(response({ focus: 'curriculo' }))
+      }
+      // GET /reconciliation/latest no mount → sem reconciliacao salva ainda.
+      return Promise.resolve(
+        response({ detail: 'Nenhuma reconciliacao foi gerada ainda.' }, { ok: false, status: 404 }),
+      )
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+      <ResumeMatchReport
+        report={matchReportFixture}
+        loading={false}
+        error=""
+        onCompare={() => {}}
+      />,
+    )
+
+    expectTextNow('escolher o foco da candidatura')
+    fireEvent.click(screen.getByRole('button', { name: 'Currículo' }))
+
+    await waitFor(() => {
+      const putCall = fetchMock.mock.calls.find(
+        ([, init]) => (init as RequestInit | undefined)?.method === 'PUT',
+      )
+      expect(putCall).toBeTruthy()
+      expect(String(putCall![0])).toContain('/api/reconciliation/focus')
+      expect(JSON.parse(String((putCall![1] as RequestInit).body))).toEqual({ focus: 'curriculo' })
+    })
+  })
+
   it('cobre sugestoes seguras com loading, erro e sucesso', async () => {
     const tailoringRequest = deferred<MockResponse>()
     vi.stubGlobal('fetch', vi.fn().mockReturnValueOnce(tailoringRequest.promise))

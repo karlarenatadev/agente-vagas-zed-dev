@@ -171,6 +171,27 @@ function ReconciliationStep() {
     }
   }
 
+  const persistFocus = async (value: ApplicationFocus) => {
+    try {
+      await apiRequest('/api/reconciliation/focus', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ focus: value }),
+      })
+    } catch (requestError) {
+      // Best-effort: persistir o foco no perfil faz match/tailoring/PDI honrarem
+      // a escolha (via resolve_focus). Se falhar, a reconciliação ainda envia o
+      // foco por requisição — não bloqueia a escolha do usuário.
+      console.error('Não foi possível persistir o foco da candidatura:', requestError)
+    }
+  }
+
+  const handleFocusChange = (value: ApplicationFocus) => {
+    if (value === focus) return
+    setFocus(value)
+    void persistFocus(value)
+  }
+
   return (
     <section className="reconciliation-step">
       <div className="reconciliation-callout">
@@ -193,7 +214,7 @@ function ReconciliationStep() {
                 type="button"
                 key={value}
                 className={focus === value ? 'selected' : ''}
-                onClick={() => setFocus(value)}
+                onClick={() => handleFocusChange(value)}
                 disabled={loading}
                 aria-pressed={focus === value}
               >

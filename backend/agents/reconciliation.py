@@ -279,6 +279,33 @@ def normalize_focus(value: str | None) -> str | None:
     return raw if raw in FOCUS_OPTIONS else None
 
 
+# Rótulo canônico da linha de foco no user-profile.md.
+FOCUS_PROFILE_KEY = "Foco da candidatura"
+
+
+def upsert_focus_line(profile_content: str, focus: str) -> str:
+    """Insere ou atualiza a linha ``Foco da candidatura: {focus}`` no perfil.
+
+    Mantém as demais linhas intactas. ``focus`` é normalizado (perfil/curriculo/
+    vaga); levanta ``ValueError`` se inválido. Garante um newline final.
+    """
+    normalized = normalize_focus(focus)
+    if normalized is None:
+        raise ValueError("Foco deve ser perfil, curriculo ou vaga.")
+
+    new_line = f"{FOCUS_PROFILE_KEY}: {normalized}"
+    lines = profile_content.splitlines()
+    for index, line in enumerate(lines):
+        key, sep, _ = line.partition(":")
+        if sep and key.strip().casefold() == FOCUS_PROFILE_KEY.casefold():
+            lines[index] = new_line
+            break
+    else:
+        lines.append(new_line)
+
+    return "\n".join(lines) + "\n"
+
+
 # ── Recomendações conforme o foco ────────────────────────────────────────────
 
 

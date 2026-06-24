@@ -464,10 +464,27 @@ def match_report_from_markdown(content: str) -> dict[str, Any] | None:
     }
 
 
+def _focus_match_step(focus: str, missing_requirements: list[str], strong_evidence: list[str]) -> str:
+    """Próximo passo do match calibrado pelo foco da candidatura."""
+    if focus == "curriculo":
+        destaques = ", ".join(strong_evidence[:3]) or "suas evidências já comprovadas"
+        return (
+            f"Como o foco é o currículo, destaque {destaques} e trate os requisitos "
+            "ausentes da vaga como diferenciais opcionais, não como prioridade."
+        )
+    if focus == "perfil":
+        return (
+            "Como o foco é o seu perfil declarado, alinhe currículo e vaga ao seu "
+            "objetivo de carreira; use as lacunas da vaga apenas como referência."
+        )
+    lacunas = ", ".join(missing_requirements[:3]) or "os requisitos obrigatórios"
+    return f"Como o foco é a vaga, priorize fechar {lacunas} antes de se candidatar."
+
+
 class ResumeMatcher:
     """Compara os dois artefatos Markdown sem inventar dados."""
 
-    def match(self, job_content: str, resume_content: str) -> dict[str, Any]:
+    def match(self, job_content: str, resume_content: str, focus: str = "vaga") -> dict[str, Any]:
         job = _parse_markdown(job_content)
         resume = _parse_markdown(resume_content)
 
@@ -593,6 +610,7 @@ class ResumeMatcher:
             "safe_resume_suggestions": suggestions,
             "do_not_claim": do_not_claim,
             "next_steps": [
+                _focus_match_step(focus, missing_requirements, all_strong),
                 "Confirmar se as evidências parciais representam experiências ou apenas estudos.",
                 "Revisar o currículo usando somente resultados, projetos e responsabilidades reais.",
                 "Usar este relatório como entrada futura para sugestões de adaptação do currículo.",

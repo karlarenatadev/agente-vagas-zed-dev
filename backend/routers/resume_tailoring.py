@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from session import SessionPaths, get_session_lock, get_session_paths, write_text_atomic_async
-from routers.common import read_required
+from routers.common import read_required, resolve_focus
 from agents.resume_tailor import (
     ResumeTailor,
     tailoring_from_markdown,
@@ -26,6 +26,9 @@ class ResumeTailoringRequest(BaseModel):
     use_latest_resume_analysis: bool = True
     use_latest_job_analysis: bool = True
     use_latest_match_report: bool = True
+    # Foco da candidatura (perfil/curriculo/vaga). Ausente → lê do perfil; se
+    # ainda faltar, assume "vaga". Valor inválido cai no fallback (sem erro).
+    focus: str | None = None
 
 
 class ResumeTailoringResponse(BaseModel):
@@ -121,7 +124,14 @@ async def generate_resume_tailoring(
             detail="O relatório de aderência está vazio ou inválido. Execute a comparação novamente.",
         )
 
-    result = tailor.generate(resume_content, job_content, match_content)
+    # Foco da candidatura: corpo da requisição > perfil > "vaga".
+    try:
+        profile_content = paths.PROFILE_FILE.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        profile_content = None
+    focus = resolve_focus(profile_content, request.focus)
+
+    result = tailor.generate(resume_content, job_content, match_content, focus=focus)
     async with get_session_lock(paths.session_id):
         await write_text_atomic_async(
             paths.RESUME_TAILORING_SUGGESTIONS_FILE,

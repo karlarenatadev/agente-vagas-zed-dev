@@ -266,3 +266,73 @@ async def test_run_firecrawl_sem_resultados_emite_fallback_empty(monkeypatch, sc
     assert "status_busca: real_empty" in output
     assert "fallback_reason: firecrawl_empty" in output
     assert "fallback_message: Nenhuma vaga real encontrada" in output
+
+
+@pytest.mark.asyncio
+async def test_run_sinaliza_busca_degradada_quando_query_especifica_falha(scout, monkeypatch):
+    """Busca específica falha (erro) e só a ampla recupera vagas REAIS.
+
+    Antes esse caso virava 'real_success' silenciosamente; agora o Scout expõe
+    busca_degradada/aviso_degradacao sem cair em modo simulado.
+    """
+    chamadas = {"n": 0}
+
+    async def fake_search(query, tbs=""):
+        chamadas["n"] += 1
+        if chamadas["n"] == 1:
+            # 1ª query (específica, com nível): erro no Firecrawl.
+            return [], "firecrawl_error", False
+        # 2ª query (ampla): recupera uma vaga real.
+        return (
+            [{"url": "https://exemplo.com/vaga", "titulo": "Analista de Dados", "descricao": "Python e SQL"}],
+            "",
+            False,
+        )
+
+    async def fake_scrape(url):
+        return ""
+
+    async def fake_llm(system_prompt, user_prompt):
+        return ""
+
+    monkeypatch.setattr(scout, "_run_firecrawl_search", fake_search)
+    monkeypatch.setattr(scout, "_run_firecrawl_scrape", fake_scrape)
+    monkeypatch.setattr(scout, "call_llm", fake_llm)
+
+    output = await _collect(scout, {"profile": PROFILE})
+
+    assert "status_busca: real_degraded" in output
+    assert "busca_degradada: true" in output
+    # Não é simulação: as vagas são reais.
+    assert "fallback_simulado: false" in output
+    assert "source: real" in output
+    # O aviso de degradação não fica vazio.
+    assert "aviso_degradacao: A busca" in output
+
+
+@pytest.mark.asyncio
+async def test_run_sucesso_limpo_nao_marca_degradada(scout, monkeypatch):
+    """1ª query já retorna vagas reais → sem degradação e sem simulação."""
+
+    async def fake_search(query, tbs=""):
+        return (
+            [{"url": "https://exemplo.com/vaga", "titulo": "Analista", "descricao": "Python"}],
+            "",
+            False,
+        )
+
+    async def fake_scrape(url):
+        return ""
+
+    async def fake_llm(system_prompt, user_prompt):
+        return ""
+
+    monkeypatch.setattr(scout, "_run_firecrawl_search", fake_search)
+    monkeypatch.setattr(scout, "_run_firecrawl_scrape", fake_scrape)
+    monkeypatch.setattr(scout, "call_llm", fake_llm)
+
+    output = await _collect(scout, {"profile": PROFILE})
+
+    assert "status_busca: real_success" in output
+    assert "busca_degradada: false" in output
+    assert "fallback_simulado: false" in output
