@@ -376,10 +376,27 @@ async def websocket_chat(websocket: WebSocket) -> None:
     )
 
     maestro = MaestroAgent(paths)
+    wants_replay = websocket.query_params.get("replay") == "1"
 
     try:
         should_skip_welcome = restored and session.get("mode") != "init"
-        if should_skip_welcome:
+        if should_skip_welcome and wants_replay:
+            # Primeiro load do cliente (reload): repinta o prompt atual da sessão
+            # restaurada (pergunta do quiz, menu, entrevista) sem replayar o
+            # welcome inteiro e sem alterar estado. Em reconexões transitórias
+            # (sem replay=1) nada é re-emitido — não expõe a reconexão ao usuário
+            # nem duplica o prompt.
+            logger.info(
+                "Replay do prompt atual no primeiro load",
+                extra={
+                    "event": "websocket_replay_prompt",
+                    **_state_log_payload(session, session_id),
+                },
+            )
+            async for token in maestro.replay_current_prompt(dict(session)):
+                await websocket.send_json({"type": "token", "content": token})
+            await websocket.send_json({"type": "done", "content": ""})
+        elif should_skip_welcome:
             logger.info(
                 "Stream inicial ignorado porque estado persistido foi restaurado",
                 extra={

@@ -170,7 +170,16 @@ Agora que o motor esta blindado, o foco passa a ser entrega continua, infraestru
   * [x] Envio silencioso do WebSocket auditado e corrigido: `sendMessage` retorna sucesso/falha e adiciona mensagem amigavel quando a conexao cai antes do envio.
   * [x] Validado com teste de envio WebSocket aberto e tentativa de envio com socket fechado.
   * [ ] Pendente: ampliar testes de estabilidade para reconexao real do WebSocket durante streaming longo.
-* [ ] Recuperacao visual de sessao: fazer o React usar o estado restaurado do WebSocket no primeiro load para repintar quiz/Coach sem expor a reconexao ao usuario.
+* [x] Recuperacao visual de sessao (2026-06-26): no primeiro load do WebSocket o
+  React agora repinta o prompt atual a partir do estado restaurado. Maestro ganhou
+  `replay_current_prompt` (re-emite pergunta do quiz / menu / pergunta do Coach /
+  prompt de vaga) **sem efeito colateral** — não emite `__STATE__`, não grava
+  arquivos e não avança passo. `chat.py` chama o replay só quando o cliente envia
+  `replay=1`; o frontend (`useWebSocket`) envia esse flag apenas na 1ª conexão do
+  tab, então reconexões transitórias não são expostas nem duplicam o prompt.
+  Testes: `test_maestro_replay.py` (quiz/menu/coach/await/fallback, sem `__STATE__`,
+  sem escrita) — backend 177 passando; validado e2e via WebSocket (TestClient):
+  com `replay=1` a pergunta vem antes de qualquer input; sem o flag, só após input.
 
 ### 2. Infraestrutura e Containerizacao (Docker)
 

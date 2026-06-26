@@ -389,6 +389,53 @@ class MaestroAgent(BaseAgent):
             async for token in self._show_menu():
                 yield token
 
+    async def replay_current_prompt(self, context: dict) -> AsyncGenerator[str, None]:
+        """Re-emite o prompt atual da sessão restaurada para repintar a tela.
+
+        Usado no PRIMEIRO load do WebSocket (reload da página), quando o estado
+        foi restaurado mas o histórico de mensagens do navegador se perdeu. Ao
+        contrário de `run()`, NÃO processa mensagem, NÃO avança passos, NÃO grava
+        arquivos e NÃO emite tokens `__STATE__` — o estado já foi restaurado e
+        enviado pelo router. Serve só para o usuário continuar de onde parou sem
+        ver a reconexão.
+        """
+        mode = context.get("mode", "init")
+        self.quiz_step = int(context.get("quiz_step", 0) or 0)
+        self.quiz_answers = context.get("quiz_answers", {}) or {}
+        self.coach_step = int(context.get("coach_step", 0) or 0)
+        self.interview_context = context.get("interview_context", "") or ""
+
+        if mode in {"quiz", "quiz_resume"}:
+            step = min(max(self.quiz_step, 0), len(QUIZ_QUESTIONS) - 1)
+            question = QUIZ_QUESTIONS[step]
+            yield "↻ Retomando seu diagnóstico de onde você parou.\n\n"
+            yield f"**Pergunta {step + 1}/7:** {question['text']}\n"
+
+        elif mode == "menu":
+            yield "↻ Você está na esteira de carreira. Escolha uma opção para continuar:\n"
+            async for token in self._show_menu():
+                yield token
+
+        elif mode == "coach":
+            yield "↻ Retomando sua entrevista simulada.\n\n"
+            question = self._current_interview_question()
+            step_label = min(max(self.coach_step, 1), 5)
+            if question:
+                yield f"**Pergunta {step_label} de 5:**\n{question}\n\n"
+            yield "Envie sua resposta para continuar, ou digite **sair** para voltar ao menu.\n"
+
+        elif mode == "await_job_description":
+            yield (
+                "↻ Cole abaixo a **descrição completa da vaga** que você quer "
+                "analisar (mínimo 40 caracteres), ou digite **menu** para cancelar.\n"
+            )
+
+        else:
+            # scout/curator/agent_running ou desconhecido: em condições normais o
+            # agente já concluiu e o estado volta ao menu. Mostramos o menu.
+            async for token in self._show_menu():
+                yield token
+
     # ─── Init ─────────────────────────────────────────────────────────────────
 
     async def _handle_init(self) -> AsyncGenerator[str, None]:
@@ -1001,6 +1048,18 @@ class MaestroAgent(BaseAgent):
                 content = match.group(3)
                 history.append({"role": role, "step": step, "content": content})
         return history
+
+    def _current_interview_question(self) -> str:
+        """Última pergunta registrada na sessão de entrevista (P{n}).
+
+        Usada para repintar o Coach no replay de sessão, sem refazer a chamada
+        ao LLM nem alterar a entrevista.
+        """
+        session = self._read_file(self.paths.INTERVIEW_FILE)
+        for item in reversed(self._parse_interview_history(session)):
+            if item.get("role") == "assistant":
+                return str(item.get("content", "")).strip()
+        return ""
 
     def _coach_error_response(self, exc: Exception) -> str:
         return (

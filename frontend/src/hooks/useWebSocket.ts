@@ -33,10 +33,14 @@ function generateId(): string {
   return Math.random().toString(36).slice(2, 10)
 }
 
-function getWebSocketUrl(): string {
+function getWebSocketUrl(replay: boolean): string {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const sessionId = encodeURIComponent(getSessionId())
-  return `${protocol}//${window.location.host}/ws/chat?session_id=${sessionId}`
+  // replay=1 só na 1ª conexão do tab (reload): pede ao backend para repintar o
+  // prompt atual da sessão restaurada. Em reconexões transitórias o param fica
+  // de fora, então a reconexão não é exposta nem o prompt é duplicado.
+  const replayParam = replay ? '&replay=1' : ''
+  return `${protocol}//${window.location.host}/ws/chat?session_id=${sessionId}${replayParam}`
 }
 
 function agentFromSession(session: SessionState): AgentName {
@@ -111,7 +115,9 @@ export function useWebSocket() {
 
       setConnectionStatus(hasConnectedRef.current ? 'reconnecting' : 'connecting')
 
-      const socket = new WebSocket(getWebSocketUrl())
+      // Pede replay do prompt atual só na 1ª conexão (reload), nunca em
+      // reconexões transitórias — assim a reconexão não é exposta ao usuário.
+      const socket = new WebSocket(getWebSocketUrl(!hasConnectedRef.current))
       wsRef.current = socket
 
       socket.onopen = () => {
