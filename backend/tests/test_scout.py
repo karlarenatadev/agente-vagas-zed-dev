@@ -10,6 +10,7 @@ import asyncio
 
 import pytest
 
+from agents.base import LLMProviderError
 from agents.scout import ScoutAgent, _SEARCH_CACHE
 from firecrawl_client import FirecrawlProviderError
 
@@ -243,11 +244,18 @@ async def test_run_firecrawl_com_erro_emite_fallback_estruturado(monkeypatch, sc
     async def fake_search(_query: str, _tbs: str = ""):
         return [], "firecrawl_error", False
 
+    async def failing_llm(_system: str, _prompt: str):
+        # LLM indisponivel -> cai no ultimo recurso (simulacao).
+        raise LLMProviderError("sem llm", provider_error="Test")
+
     monkeypatch.setattr(scout, "_run_firecrawl_search", fake_search)
+    monkeypatch.setattr(scout, "call_llm", failing_llm)
 
     output = await _collect(scout, {"profile": PROFILE})
 
     assert "source: simulated" in output
+    assert "fallback_simulado: true" in output
+    assert "fallback_llm: false" in output
     assert "status_busca: external_error" in output
     assert "fallback_reason: firecrawl_error" in output
     assert "fallback_message: Nao conseguimos buscar vagas reais agora" in output
@@ -258,14 +266,170 @@ async def test_run_firecrawl_sem_resultados_emite_fallback_empty(monkeypatch, sc
     async def fake_search(_query: str, _tbs: str = ""):
         return [], "firecrawl_empty", False
 
+    async def failing_llm(_system: str, _prompt: str):
+        raise LLMProviderError("sem llm", provider_error="Test")
+
     monkeypatch.setattr(scout, "_run_firecrawl_search", fake_search)
+    monkeypatch.setattr(scout, "call_llm", failing_llm)
 
     output = await _collect(scout, {"profile": PROFILE})
 
     assert "source: simulated" in output
+    assert "fallback_simulado: true" in output
     assert "status_busca: real_empty" in output
     assert "fallback_reason: firecrawl_empty" in output
     assert "fallback_message: Nenhuma vaga real encontrada" in output
+
+
+@pytest.mark.asyncio
+async def test_run_usa_llm_fallback_quando_firecrawl_vazio(monkeypatch, scout):
+    """Firecrawl vazio + LLM disponivel -> vagas com source 'llm', sem simulacao."""
+
+    async def fake_search(_query: str, _tbs: str = ""):
+        return [], "firecrawl_empty", False
+
+    async def fake_llm(_system: str, _prompt: str):
+        return (
+            "titulo: Engenheiro de Dados Junior\n"
+            "empresa: DataCorp\n"
+            "localizacao: Remoto\n"
+            "salario: R$ 4.000 - R$ 6.000\n"
+            "beneficios: VR, plano de saude\n"
+            "habilidades_requeridas: Python, SQL, ETL\n"
+            "soft_skills_requeridas: Comunicacao, Colaboracao\n"
+            "dica_curriculo: Destaque projetos com Python e SQL.\n"
+            "---\n"
+            "titulo: Analista de Dados\n"
+            "empresa: Insights Co\n"
+            "localizacao: Remoto\n"
+            "salario: Nao informado\n"
+            "beneficios: Nao informado\n"
+            "habilidades_requeridas: SQL, Power BI\n"
+            "soft_skills_requeridas: Organizacao\n"
+            "dica_curriculo: Mostre dashboards de dados.\n"
+        )
+
+    monkeypatch.setattr(scout, "_run_firecrawl_search", fake_search)
+    monkeypatch.setattr(scout, "call_llm", fake_llm)
+
+    output = await _collect(scout, {"profile": PROFILE})
+
+    assert "fallback_llm: true" in output
+    assert "fallback_simulado: false" in output
+    assert "source: llm" in output
+    assert "source: simulated" not in output
+    assert "Sugestoes geradas por IA" in output
+
+
+@pytest.mark.asyncio
+async def test_run_sem_creditos_marca_status_no_credits(monkeypatch, scout):
+    """Firecrawl sem creditos: status no_credits; LLM falha -> simulacao."""
+
+    async def fake_search(_query: str, _tbs: str = ""):
+        return [], "firecrawl_no_credits", False
+
+    async def failing_llm(_system: str, _prompt: str):
+        raise LLMProviderError("sem llm", provider_error="Test")
+
+    monkeypatch.setattr(scout, "_run_firecrawl_search", fake_search)
+    monkeypatch.setattr(scout, "call_llm", failing_llm)
+
+    output = await _collect(scout, {"profile": PROFILE})
+
+    assert "status_busca: no_credits" in output
+    assert "fallback_reason: firecrawl_no_credits" in output
+    assert "fallback_simulado: true" in output
+    assert "source: simulated" in output
+
+
+@pytest.mark.asyncio
+async def test_run_sem_creditos_usa_llm_quando_disponivel(monkeypatch, scout):
+    """Firecrawl sem creditos + LLM disponivel -> vagas do LLM, status no_credits."""
+
+    async def fake_search(_query: str, _tbs: str = ""):
+        return [], "firecrawl_no_credits", False
+
+    async def fake_llm(_system: str, _prompt: str):
+        return (
+            "titulo: Pessoa Desenvolvedora Backend\n"
+            "empresa: Acme\n"
+            "localizacao: Remoto\n"
+            "salario: R$ 9.000\n"
+            "beneficios: VR\n"
+            "habilidades_requeridas: Python, SQL\n"
+            "soft_skills_requeridas: Comunicacao\n"
+            "dica_curriculo: Mostre APIs REST.\n"
+        )
+
+    monkeypatch.setattr(scout, "_run_firecrawl_search", fake_search)
+    monkeypatch.setattr(scout, "call_llm", fake_llm)
+
+    output = await _collect(scout, {"profile": PROFILE})
+
+    assert "status_busca: no_credits" in output
+    assert "fallback_llm: true" in output
+    assert "fallback_simulado: false" in output
+    assert "source: llm" in output
+
+
+def test_split_llm_blocks_com_e_sem_separador(scout):
+    com_sep = "titulo: A\nempresa: X\n---\ntitulo: B\nempresa: Y"
+    assert len(scout._split_llm_blocks(com_sep)) == 2
+
+    sem_sep = "titulo: A\nempresa: X\ntitulo: B\nempresa: Y"
+    assert len(scout._split_llm_blocks(sem_sep)) == 2
+
+    assert scout._split_llm_blocks("") == []
+    assert scout._split_llm_blocks("texto sem nenhuma vaga aqui") == []
+
+
+@pytest.mark.asyncio
+async def test_llm_opportunities_parseia_blocos_e_marca_source_llm(monkeypatch, scout):
+    async def fake_llm(_system: str, _prompt: str):
+        return (
+            "titulo: Dev Python Pleno\n"
+            "empresa: Acme\n"
+            "localizacao: Remoto\n"
+            "salario: R$ 8.000\n"
+            "beneficios: VR\n"
+            "habilidades_requeridas: Python, SQL\n"
+            "soft_skills_requeridas: Comunicacao\n"
+            "dica_curriculo: Mostre APIs.\n"
+        )
+
+    monkeypatch.setattr(scout, "call_llm", fake_llm)
+
+    jobs = await scout._llm_opportunities(
+        {"Funcoes alvo": ""},
+        ["Python"],
+        ["Comunicacao"],
+        "backend",
+        "Remoto",
+        "Pleno",
+        "firecrawl_empty",
+    )
+
+    assert len(jobs) == 1
+    assert jobs[0]["source"] == "llm"
+    assert jobs[0]["titulo"] == "Dev Python Pleno"
+    assert jobs[0]["fallback_message"]
+    assert isinstance(jobs[0]["score_aderencia"], int)
+    # O link nunca pode ser uma URL (evita link alucinado apresentado como real).
+    assert "http" not in str(jobs[0]["link"]).lower()
+
+
+@pytest.mark.asyncio
+async def test_llm_opportunities_retorna_vazio_quando_llm_falha(monkeypatch, scout):
+    async def failing_llm(_system: str, _prompt: str):
+        raise LLMProviderError("indisponivel", provider_error="Test")
+
+    monkeypatch.setattr(scout, "call_llm", failing_llm)
+
+    jobs = await scout._llm_opportunities(
+        {}, [], [], "backend", "Remoto", "", "firecrawl_empty"
+    )
+
+    assert jobs == []
 
 
 @pytest.mark.asyncio

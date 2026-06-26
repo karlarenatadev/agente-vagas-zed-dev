@@ -24,7 +24,7 @@ O sistema é orquestrado pelo **Maestro**, que coordena três agentes especializ
 
 | Agente | Papel | Como funciona |
 |--------|-------|---------------|
-| **Scout** | Busca de vagas | Pesquisa vagas via Firecrawl SDK oficial, extrai requisitos e calcula o match com suas habilidades |
+| **Scout** | Busca de vagas | Pesquisa vagas via Firecrawl SDK oficial, extrai requisitos e calcula o match com suas habilidades. Quando o Firecrawl não retorna nada ou está sem créditos, sugere vagas com o LLM disponível (marcadas como "Sugerida por IA", não verificadas); a simulação determinística fica como último recurso |
 | **Curator** | Trilha de aprendizado | Para cada habilidade que falta, prioriza materiais gratuitos, videos, documentacao oficial e cursos pagos acessiveis; premium entra apenas quando for relevante |
 | **Coach** | Entrevista simulada | Conduz 5 perguntas técnicas e comportamentais com feedback em tempo real e pontuação final; quando há vaga analisada e relatório de aderência, calibra as perguntas pela vaga e pelas lacunas do match |
 
@@ -289,7 +289,9 @@ Docker é necessário apenas em quem **roda/hospeda** os containers.
 
 O estado local (perfil, currículo, match, PDI, sessões) é persistido no volume
 `backend-data`, sobrevivendo a reinícios. Sem `backend/.env`, o backend sobe em
-modo degradado (Scout simula vagas e o LLM cai em fallback).
+modo degradado: sem Firecrawl e sem LLM, o Scout cai direto em vagas simuladas;
+com uma chave de LLM válida, ele tenta sugerir vagas via IA antes de recorrer à
+simulação.
 
 Para explorar sem chaves de API, suba também o mock server e aponte o proxy do
 frontend para ele — defina `BACKEND_UPSTREAM=mock:8000` (em um `.env` na raiz do
@@ -393,7 +395,8 @@ O backend passou por uma etapa de hardening para operar como API de producao:
 |----------|-----------|--------|
 | `OPENAI_API_KEY` | Chave da API OpenAI | — |
 | `FIRECRAWL_API_KEY` | Chave da API Firecrawl | — |
-| `LLM_MODEL` | Modelo OpenAI a usar | `gpt-4o-mini` |
+| `LLM_MODEL` | Modelo LLM a usar | `gpt-4o-mini` |
+| `LLM_BASE_URL` | URL base de um provedor compatível com a API OpenAI (ex.: OpenRouter). Vazio usa o endpoint padrão da OpenAI | — |
 | `DATA_DIR` | Diretório dos arquivos de estado | `../data` |
 | `PERSONAS_DIR` | Diretório das personas | `../personas` |
 | `SKILLS_DIR` | Diretório das skills | `../skills` |

@@ -1,5 +1,33 @@
 # Roadmap — Evolução do Import Vagas
 
+## Fallback do Scout via LLM (MiMo) quando o Firecrawl falha ou fica sem créditos
+
+Sessão executada em 2026-06-26.
+
+Antes, sem resultados do Firecrawl (erro, timeout, vazio ou sem créditos) o
+Scout caía direto em oportunidades simuladas hardcoded. Agora há uma camada
+intermediária: o LLM disponível (ex.: MiMo) gera sugestões de vagas coerentes
+com o perfil; a simulação determinística vira o último recurso.
+
+* [x] `firecrawl_client.py`: `FirecrawlCreditError(FirecrawlProviderError)` +
+  `_is_credit_exhaustion` (status 402 e sinais textuais de crédito/cota, sem
+  confundir com rate-limit 429). Os `except` de search/scrape levantam o erro
+  de crédito quando aplicável, preservando retrocompatibilidade (subclasse).
+* [x] `agents/scout.py`: `_run_firecrawl_search` mapeia `FirecrawlCreditError`
+  para o motivo `firecrawl_no_credits` (status_busca `no_credits`). Novos
+  `_split_llm_blocks` e `_llm_opportunities` (gera até 3 vagas via `call_llm`,
+  `source="llm"`, link textual não-clicável e mensagem de "não verificada";
+  retorna `[]` se o LLM falhar). `run()` tenta o LLM antes da simulação e expõe
+  `fallback_llm` no bloco de dados.
+* [x] Honestidade no front: `ChatMessage.tsx` parseia `fallback_llm`;
+  `ScoutReport.tsx` trata `source: 'llm'` com badge "Sugerida por IA"
+  (`Sparkles`), banner e aviso próprios, card em estilo "muted" e **sem link**
+  (evita URL alucinada apresentada como vaga real validada).
+* [x] Testes: backend **170 passed** (+20 — fallback via LLM usado, status
+  `no_credits`, parser de blocos, `_is_credit_exhaustion`); os 2 testes de
+  fallback antigos passaram a mockar `call_llm` para cair na simulação. Frontend
+  **26 passed**, `eslint` limpo e `vite build` OK.
+
 ## Menu de esteiras: accordion → master/detail (front)
 
 Sessão executada em 2026-06-23.
@@ -156,6 +184,16 @@ Agora que o motor esta blindado, o foco passa a ser entrega continua, infraestru
 * [x] Docker Compose: orquestrar Frontend, Backend e Mock Server com `docker-compose up`.
   `docker-compose.yml` com os três serviços, volume `backend-data` para o estado e
   profile `mock`.
+* [x] Validacao end-to-end da stack Docker (teste executado em 2026-06-26):
+  `docker compose build` gera as duas imagens (backend ~317 MB, frontend ~74,6 MB);
+  `docker compose up -d` sobe a stack, o backend fica `healthy` em ~15s e
+  `GET /health` retorna `200 {"status":"online","agent":"Maestro"}`. O frontend
+  serve a SPA em `:8080` (root + fallback de rota cliente via `try_files`); o proxy
+  reverso `/api` devolve resposta idêntica ao backend direto (`:8000`) e o proxy
+  WebSocket `/ws/chat` completa o upgrade e recebe o state inicial. Encerrado com
+  `docker compose down -v`. Pré-requisito corrigido no ambiente de teste: kernel do
+  WSL2 ausente → `wsl --update` (WSL 2.7.8.0) para o Docker Desktop iniciar o engine
+  Linux.
 
 ### 3. Esteira de Automacao Continua (CI/CD Definitivo)
 
@@ -232,7 +270,18 @@ Sessão executada em 2026-06-16.
   instanciável (Scout/Curator herdam de BaseAgent, que cria o cliente no init).
 * [x] `39 passed` em `python -m pytest`. `run()` de Scout/Curator fica de fora
   (depende de Firecrawl/rede); só a heurística determinística é testada.
-* [ ] Testes do caminho real de LLM (hoje cai em fallback — ver bug do base_url).
+* [x] Testes do caminho real de LLM validados (2026-06-26): identificado e
+  corrigido o **bug do `base_url`** — `config.py` não lia `LLM_BASE_URL` e o
+  `BaseAgent` instanciava `AsyncOpenAI` sem `base_url`, então a chave do
+  OpenRouter (`sk-or-…`) batia em `api.openai.com` (401) e tudo caía em fallback.
+  Correção: `LLM_BASE_URL` em `config.py` +
+  `AsyncOpenAI(base_url=config.LLM_BASE_URL or None)` em `base.py` (vazio preserva
+  o padrão da OpenAI). Validado com **chamada real** ao modelo free do OpenRouter
+  (`call_llm` retornou a resposta esperada; `stream_llm` transmitiu tokens).
+  Também ampliada a captura de erros para `openai.APIError` (classe-base) em
+  `call_llm`/`stream_llm`, para que falha de upstream do provedor no meio do
+  stream vire `LLMProviderError` controlado em vez de vazar como traceback cru.
+  Suíte do backend: **150 passed**.
 
 Achados menores detectados pelos testes — corrigidos:
 

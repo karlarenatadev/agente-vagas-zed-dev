@@ -67,6 +67,7 @@ function parseScoutData(content: string): ScoutData | null {
     resumo,
     status_busca: field('status_busca'),
     fallback_simulado: field('fallback_simulado'),
+    fallback_llm: field('fallback_llm'),
     fallback_reason: field('fallback_reason'),
     fallback_message: field('fallback_message'),
     busca_degradada: field('busca_degradada'),

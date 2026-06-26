@@ -19,7 +19,12 @@ import time
 from typing import AsyncGenerator
 
 from agents.base import BaseAgent, LLMProviderError
-from firecrawl_client import FirecrawlProviderError, firecrawl_scrape, firecrawl_search
+from firecrawl_client import (
+    FirecrawlCreditError,
+    FirecrawlProviderError,
+    firecrawl_scrape,
+    firecrawl_search,
+)
 
 
 SCOUT_SYSTEM_PROMPT = """Você é o Scout, agente especializado em busca de vagas de emprego do sistema Recoloca IA.
@@ -82,7 +87,15 @@ FALLBACK_MESSAGES: dict[str, str] = {
     "firecrawl_error": "Nao conseguimos buscar vagas reais agora. Exibindo oportunidades simuladas.",
     "firecrawl_empty": "Nenhuma vaga real encontrada para esse filtro. Tente termos mais amplos. Exibindo oportunidades simuladas.",
     "firecrawl_timeout": "Nao conseguimos buscar vagas reais dentro do tempo limite. Exibindo oportunidades simuladas.",
+    "firecrawl_no_credits": "Busca externa sem creditos agora. Exibindo oportunidades simuladas.",
 }
+
+# Mensagem para vagas geradas pelo LLM disponivel (ex.: MiMo) quando o Firecrawl
+# nao retorna nada ou esta sem creditos. Sao SUGESTOES, nao vagas verificadas.
+LLM_FALLBACK_MESSAGE = (
+    "Sugestoes geradas por IA porque a busca externa nao retornou resultados ou "
+    "esta sem creditos. Nao sao vagas reais verificadas — confirme antes de se candidatar."
+)
 
 # Mensagens de busca DEGRADADA: a busca específica (com nível/filtro) falhou por
 # erro/timeout do Firecrawl, mas a busca ampla recuperou vagas REAIS. Diferente
@@ -181,6 +194,10 @@ class ScoutAgent(BaseAgent):
             return limited_results, "" if limited_results else "firecrawl_empty", False
         except asyncio.TimeoutError:
             return [], "firecrawl_timeout", False
+        except FirecrawlCreditError:
+            # Subclasse de FirecrawlProviderError: precisa vir antes para
+            # distinguir falta de creditos de um erro generico.
+            return [], "firecrawl_no_credits", False
         except FirecrawlProviderError:
             return [], "firecrawl_error", False
 
@@ -344,6 +361,115 @@ class ScoutAgent(BaseAgent):
             opportunities.append(entry)
         return opportunities
 
+    @staticmethod
+    def _split_llm_blocks(raw: str) -> list[str]:
+        """Quebra a resposta do LLM em blocos, um por vaga.
+
+        Prefere o separador explicito "---"; se ausente, quebra antes de cada
+        "titulo:". So mantem blocos que contenham um titulo.
+        """
+        text = (raw or "").strip()
+        if not text:
+            return []
+        if re.search(r"^\s*-{3,}\s*$", text, re.MULTILINE):
+            parts = re.split(r"^\s*-{3,}\s*$", text, flags=re.MULTILINE)
+        else:
+            parts = re.split(r"\n(?=\s*titulo\s*:)", text, flags=re.IGNORECASE)
+        return [part.strip() for part in parts if "titulo" in part.lower()]
+
+    async def _llm_opportunities(
+        self,
+        profile: dict[str, str],
+        current_skills: list[str],
+        current_soft: list[str],
+        area: str,
+        location: str,
+        level: str,
+        fallback_reason: str,
+    ) -> list[dict[str, str | list[str] | int]]:
+        """Fallback via LLM: usa o modelo disponivel (ex.: MiMo) para sugerir
+        vagas coerentes com o perfil quando o Firecrawl nao retorna nada ou esta
+        sem creditos. Retorna lista vazia se o LLM falhar ou nao for parseavel —
+        nesse caso o chamador cai na simulacao deterministica.
+        """
+        roles_hint = ", ".join(self._target_roles(profile, area)[:3])
+        skills_str = ", ".join(current_skills) or "nao informado"
+        soft_str = ", ".join(current_soft) or "nao informado"
+
+        prompt = f"""A busca externa de vagas esta indisponivel. Gere EXATAMENTE 3 oportunidades de emprego realistas e coerentes com o perfil abaixo, para orientar a estrategia de candidatura.
+
+Estas sao SUGESTOES geradas por voce (IA), NAO vagas reais verificadas. Seja plausivel para o mercado brasileiro.
+
+Perfil:
+- Area: {area}
+- Nivel: {level or "nao informado"}
+- Localizacao: {location or "Remoto"}
+- Funcoes alvo: {roles_hint}
+- Habilidades atuais: {skills_str}
+- Soft skills: {soft_str}
+
+Para CADA oportunidade use EXATAMENTE este formato, separando cada uma com uma linha contendo apenas "---":
+titulo: [cargo, coerente com o nivel]
+empresa: [nome plausivel ou "Empresa de referencia"]
+localizacao: [respeite a preferencia do perfil; use "Remoto" se fizer sentido]
+salario: [faixa realista em R$ para o mercado brasileiro ou "Nao informado"]
+beneficios: [principais beneficios ou "Nao informado"]
+habilidades_requeridas: [3 a 6 habilidades tecnicas separadas por virgula]
+soft_skills_requeridas: [2 a 4 soft skills separadas por virgula]
+dica_curriculo: [1 frase do que destacar no curriculo para esta vaga]
+
+Regras: sem markdown, sem numeracao, sem texto fora do formato."""
+
+        try:
+            raw = await self.call_llm(SCOUT_SYSTEM_PROMPT, prompt)
+        except LLMProviderError:
+            return []
+
+        opportunities: list[dict[str, str | list[str] | int]] = []
+        for block in self._split_llm_blocks(raw):
+            data: dict[str, str] = {}
+            for line in block.splitlines():
+                if ":" in line:
+                    key, _, value = line.partition(":")
+                    data[key.strip().lower()] = value.strip()
+
+            title = data.get("titulo", "").strip()
+            if not title:
+                continue
+
+            req_skills = [s.strip() for s in data.get("habilidades_requeridas", "").split(",") if s.strip()]
+            req_soft = [s.strip() for s in data.get("soft_skills_requeridas", "").split(",") if s.strip()]
+            if not req_skills:
+                req_skills = self._area_skills(area)[:5]
+            if not req_soft:
+                req_soft = COMMON_SOFT_SKILLS[:3]
+
+            entry = self._build_job_entry(
+                title=title,
+                company=data.get("empresa") or "Nao informado",
+                location=data.get("localizacao") or location or "Remoto",
+                salary=data.get("salario") or "Nao informado na descricao",
+                benefits=data.get("beneficios") or "Nao informado na descricao",
+                # Link textual proposital: nunca uma URL, para o frontend nao
+                # apresentar como vaga real clicavel (evita link alucinado).
+                link="Sugestao gerada por IA (nao verificada)",
+                required_skills=req_skills[:6],
+                required_soft=req_soft[:4],
+                current_skills=current_skills,
+                current_soft=current_soft,
+                level=level,
+                area=area,
+                tip=data.get("dica_curriculo", ""),
+                source="llm",
+                fallback_reason=fallback_reason,
+                fallback_message=LLM_FALLBACK_MESSAGE,
+            )
+            opportunities.append(entry)
+            if len(opportunities) >= 3:
+                break
+
+        return opportunities
+
     def _recurring_requirements(self, jobs: list[dict[str, str | list[str] | int]]) -> list[tuple[str, int]]:
         counter: Counter[str] = Counter()
         canonical: dict[str, str] = {}
@@ -409,6 +535,9 @@ class ScoutAgent(BaseAgent):
                     search_status = "real_degraded"
                 else:
                     search_status = "real_success"
+            elif "firecrawl_no_credits" in {fallback_reason, broad_fallback_reason}:
+                fallback_reason = "firecrawl_no_credits"
+                search_status = "no_credits"
             elif "firecrawl_error" in {fallback_reason, broad_fallback_reason}:
                 fallback_reason = "firecrawl_error"
                 search_status = "external_error"
@@ -419,19 +548,31 @@ class ScoutAgent(BaseAgent):
                 fallback_reason = "firecrawl_empty"
                 search_status = "real_empty"
 
+        llm_mode = False
         simulated_mode = False
         if not search_results:
-            simulated_mode = True
-            yield "⚠ Nenhum resultado real retornado pelo Firecrawl. Vou simular oportunidades compatíveis com seu perfil para orientar a estratégia.\n\n"
-            yield f"fallback_reason: {fallback_reason}\n"
-            yield f"fallback_message: {FALLBACK_MESSAGES[fallback_reason]}\n\n"
-            jobs_output = self._simulate_opportunities(profile, current_skills, current_soft, fallback_reason)
+            # 1) Fallback primario: usa o LLM disponivel (ex.: MiMo) como
+            # "ferramenta" para sugerir oportunidades coerentes com o perfil
+            # quando o Firecrawl nao retorna nada ou esta sem creditos.
+            yield "🤖 Busca externa indisponível. Acionando o assistente de IA para sugerir oportunidades compatíveis com seu perfil...\n\n"
+            jobs_output = await self._llm_opportunities(
+                profile, current_skills, current_soft, area, location, level, fallback_reason
+            )
+            if jobs_output:
+                llm_mode = True
+            else:
+                # 2) Ultimo recurso: oportunidades simuladas deterministicas.
+                simulated_mode = True
+                yield "⚠ O assistente de IA não retornou sugestões agora. Exibindo oportunidades simuladas a partir do seu perfil.\n\n"
+                jobs_output = self._simulate_opportunities(profile, current_skills, current_soft, fallback_reason)
         else:
             jobs_output = []
             yield f"✓ {len(search_results)} vagas encontradas. Analisando detalhes...\n\n"
 
-        # Processa até 5 vagas reais quando a busca retorna resultados.
-        for i, job in enumerate(search_results[:max_results] if not simulated_mode else []):
+        # Processa até 5 vagas reais quando a busca retorna resultados. Em modo
+        # de fallback (LLM/simulado) search_results está vazio, então o laço
+        # naturalmente não executa.
+        for i, job in enumerate(search_results[:max_results]):
             url = job.get("url", "")
             title = job.get("titulo", job.get("title", "Título não informado"))
             description = job.get("descricao", job.get("description", ""))
@@ -502,19 +643,32 @@ dica_curriculo: [1 frase sobre o que destacar no currículo para esta vaga]"""
         recurring = self._recurring_requirements(jobs_output)
 
         # Formata saída final. Degradada (real, via busca ampla) também é "parcial".
-        response_state = "parcial" if (simulated_mode or degraded_reason) else "sucesso"
+        response_state = "parcial" if (simulated_mode or llm_mode or degraded_reason) else "sucesso"
         yield f"\n## RESPOSTA: SCOUT\n### estado\n{response_state}\n\n"
-        source_label = "oportunidades simuladas" if simulated_mode else "vagas encontradas"
+        if llm_mode:
+            source_label = "sugestões geradas por IA"
+        elif simulated_mode:
+            source_label = "oportunidades simuladas"
+        else:
+            source_label = "vagas encontradas"
         yield (
             f"### resumo\nAnalisei {len(jobs_output)} {source_label} para **{area}** em **{location}**. "
             "Abaixo estão os matches com score de aderência, lacunas, requisitos recorrentes e prioridade de candidatura.\n\n"
         )
         busca_degradada = bool(degraded_reason)
+        fallback_active = simulated_mode or llm_mode
+        if llm_mode:
+            fallback_message = LLM_FALLBACK_MESSAGE
+        elif simulated_mode:
+            fallback_message = FALLBACK_MESSAGES.get(fallback_reason, "")
+        else:
+            fallback_message = ""
         yield "### dados\n\n"
         yield f"status_busca: {search_status}\n"
         yield f"fallback_simulado: {str(simulated_mode).lower()}\n"
-        yield f"fallback_reason: {fallback_reason if simulated_mode else ''}\n"
-        yield f"fallback_message: {FALLBACK_MESSAGES.get(fallback_reason, '') if simulated_mode else ''}\n"
+        yield f"fallback_llm: {str(llm_mode).lower()}\n"
+        yield f"fallback_reason: {fallback_reason if fallback_active else ''}\n"
+        yield f"fallback_message: {fallback_message}\n"
         yield f"busca_degradada: {str(busca_degradada).lower()}\n"
         yield f"aviso_degradacao: {DEGRADED_MESSAGES.get(degraded_reason, '') if busca_degradada else ''}\n"
         yield f"cache_hit: {str(cache_hit).lower()}\n"

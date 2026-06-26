@@ -1,8 +1,8 @@
-import { AlertTriangle, Award, Briefcase, ExternalLink, Lightbulb, MapPin, Target, Wallet } from 'lucide-react'
+import { AlertTriangle, Award, Briefcase, ExternalLink, Lightbulb, MapPin, Sparkles, Target, Wallet } from 'lucide-react'
 
 interface Job {
   titulo?: string
-  source?: 'real' | 'simulated' | string
+  source?: 'real' | 'simulated' | 'llm' | string
   fallback_reason?: string
   fallback_message?: string
   empresa?: string
@@ -23,6 +23,7 @@ export interface ScoutData {
   resumo: string
   status_busca?: string
   fallback_simulado?: string
+  fallback_llm?: string
   fallback_reason?: string
   fallback_message?: string
   busca_degradada?: string
@@ -43,6 +44,10 @@ function isRealSource(source?: string): boolean {
 
 function isSimulatedSource(source?: string): boolean {
   return source === 'simulated'
+}
+
+function isLlmSource(source?: string): boolean {
+  return source === 'llm'
 }
 
 function normalizeHttpLink(value?: string, source?: string): string | null {
@@ -90,12 +95,19 @@ function priorityClass(priority?: string): string {
 export function ScoutReport({ data }: { data: ScoutData }) {
   const hasSimulatedFallback = data.fallback_simulado === 'true'
     || data.vagas.some(job => isSimulatedSource(job.source))
+  // Fallback via LLM (ex.: MiMo): vagas SUGERIDAS por IA quando a busca externa
+  // não retornou nada ou estava sem créditos. Distinto da simulação hardcoded.
+  const hasLlmFallback = !hasSimulatedFallback
+    && (data.fallback_llm === 'true' || data.vagas.some(job => isLlmSource(job.source)))
   const fallbackMessage = isMeaningful(data.fallback_message)
     ? data.fallback_message
     : 'Nao conseguimos buscar vagas reais agora. Exibindo oportunidades simuladas.'
+  const llmMessage = isMeaningful(data.fallback_message)
+    ? data.fallback_message
+    : 'Sugestões geradas por IA porque a busca externa não retornou resultados ou está sem créditos. Não são vagas reais verificadas — confirme antes de se candidatar.'
   // Busca degradada: vagas REAIS vindas da busca ampla porque a específica
   // falhou (erro/timeout). Distinta da simulação — só mostra se não for simulada.
-  const isDegradedSearch = !hasSimulatedFallback && data.busca_degradada === 'true'
+  const isDegradedSearch = !hasSimulatedFallback && !hasLlmFallback && data.busca_degradada === 'true'
   const degradedMessage = isMeaningful(data.aviso_degradacao)
     ? data.aviso_degradacao
     : 'A busca específica falhou; estas vagas vêm de uma busca mais ampla e podem estar menos alinhadas ao seu filtro.'
@@ -108,6 +120,13 @@ export function ScoutReport({ data }: { data: ScoutData }) {
         <p className="scout-fallback-warning scout-fallback-summary" role="status">
           <AlertTriangle size={14} aria-hidden="true" />
           <span>{fallbackMessage}</span>
+        </p>
+      )}
+
+      {hasLlmFallback && (
+        <p className="scout-fallback-warning scout-fallback-summary" role="status">
+          <Sparkles size={14} aria-hidden="true" />
+          <span>{llmMessage}</span>
         </p>
       )}
 
@@ -141,10 +160,12 @@ export function ScoutReport({ data }: { data: ScoutData }) {
           const soft = splitSkills(job.soft_skills_correspondentes)
           const missing = splitSkills(job.habilidades_faltantes)
           const simulated = isSimulatedSource(job.source)
+          const aiSuggested = isLlmSource(job.source)
+          const notReal = simulated || aiSuggested
           const jobLink = normalizeHttpLink(job.link, job.source)
 
           return (
-            <article className={`scout-card ${simulated ? 'simulated' : ''}`} key={index}>
+            <article className={`scout-card ${notReal ? 'simulated' : ''}`} key={index}>
               <header className="scout-card-head">
                 <div className="scout-card-title">
                   <h4>{job.titulo || 'Vaga sem título'}</h4>
@@ -152,6 +173,12 @@ export function ScoutReport({ data }: { data: ScoutData }) {
                     <span className="scout-source-badge simulated">
                       <AlertTriangle size={12} aria-hidden="true" />
                       Simulada
+                    </span>
+                  )}
+                  {aiSuggested && (
+                    <span className="scout-source-badge simulated">
+                      <Sparkles size={12} aria-hidden="true" />
+                      Sugerida por IA
                     </span>
                   )}
                   {isMeaningful(job.empresa) && (
@@ -170,13 +197,15 @@ export function ScoutReport({ data }: { data: ScoutData }) {
                 )}
               </header>
 
-              {simulated && (
+              {notReal && (
                 <p className="scout-fallback-warning" role="note">
                   <AlertTriangle size={14} aria-hidden="true" />
                   <span>
                     {isMeaningful(job.fallback_message)
                       ? job.fallback_message
-                      : 'Oportunidade simulada. Use apenas como referencia estrategica; nao e uma vaga real validada.'}
+                      : simulated
+                        ? 'Oportunidade simulada. Use apenas como referencia estrategica; nao e uma vaga real validada.'
+                        : 'Sugestão gerada por IA. Use como referência; não é uma vaga real verificada.'}
                   </span>
                 </p>
               )}

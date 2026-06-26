@@ -21,6 +21,42 @@ class FirecrawlProviderError(RuntimeError):
     public_message = "Busca externa temporariamente indisponivel."
 
 
+class FirecrawlCreditError(FirecrawlProviderError):
+    """Falha especifica: a conta Firecrawl esta sem creditos/cota.
+
+    Subclasse de FirecrawlProviderError para que chamadores que so tratam o erro
+    generico continuem funcionando; quem quiser distinguir (ex.: Scout, para
+    cair no fallback de LLM) pode capturar este tipo antes.
+    """
+
+    public_message = "Busca externa sem creditos disponiveis no momento."
+
+
+# Sinais textuais de exaustao de creditos/cota nas mensagens de erro do Firecrawl.
+# Mantido especifico para nao confundir com rate-limit transitorio (429).
+_CREDIT_SIGNALS: tuple[str, ...] = (
+    "insufficient credit",
+    "insufficient_credits",
+    "out of credit",
+    "no credits",
+    "not enough credit",
+    "payment required",
+    "quota exceeded",
+    "credit limit",
+    "upgrade your plan",
+    "402",
+)
+
+
+def _is_credit_exhaustion(exc: Exception) -> bool:
+    """Heuristica: detecta se o erro do Firecrawl e por falta de creditos/cota."""
+    status = getattr(getattr(exc, "response", None), "status_code", None)
+    if status == 402:
+        return True
+    message = str(exc).lower()
+    return any(signal in message for signal in _CREDIT_SIGNALS)
+
+
 def _create_app() -> FirecrawlApp:
     return FirecrawlApp(api_key=config.FIRECRAWL_API_KEY)
 
@@ -115,6 +151,8 @@ async def firecrawl_search(
                 "error_type": type(exc).__name__,
             },
         )
+        if _is_credit_exhaustion(exc):
+            raise FirecrawlCreditError(FirecrawlCreditError.public_message) from exc
         raise FirecrawlProviderError(FirecrawlProviderError.public_message) from exc
     except Exception as exc:
         logger.exception(
@@ -126,6 +164,8 @@ async def firecrawl_search(
                 "error_type": type(exc).__name__,
             },
         )
+        if _is_credit_exhaustion(exc):
+            raise FirecrawlCreditError(FirecrawlCreditError.public_message) from exc
         raise FirecrawlProviderError(FirecrawlProviderError.public_message) from exc
 
 
@@ -157,6 +197,8 @@ async def firecrawl_scrape(
                 "error_type": type(exc).__name__,
             },
         )
+        if _is_credit_exhaustion(exc):
+            raise FirecrawlCreditError(FirecrawlCreditError.public_message) from exc
         raise FirecrawlProviderError(FirecrawlProviderError.public_message) from exc
     except Exception as exc:
         logger.exception(
@@ -168,4 +210,6 @@ async def firecrawl_scrape(
                 "error_type": type(exc).__name__,
             },
         )
+        if _is_credit_exhaustion(exc):
+            raise FirecrawlCreditError(FirecrawlCreditError.public_message) from exc
         raise FirecrawlProviderError(FirecrawlProviderError.public_message) from exc
