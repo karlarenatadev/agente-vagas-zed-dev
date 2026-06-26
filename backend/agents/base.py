@@ -7,7 +7,13 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, AsyncGenerator
 
-from openai import APIConnectionError, APIStatusError, AsyncOpenAI, RateLimitError
+from openai import (
+    APIConnectionError,
+    APIError,
+    APIStatusError,
+    AsyncOpenAI,
+    RateLimitError,
+)
 
 import config
 from logging_config import get_logger
@@ -33,7 +39,13 @@ class BaseAgent(ABC):
     name: str = "BaseAgent"
 
     def __init__(self, paths: SessionPaths | None = None):
-        self.client = AsyncOpenAI(api_key=config.OPENAI_API_KEY)
+        # base_url vazio => None preserva o padrao do SDK (api.openai.com).
+        # Com LLM_BASE_URL definido (ex.: OpenRouter), o cliente passa a usar o
+        # provedor compativel correto, evitando 401 e o consequente fallback.
+        self.client = AsyncOpenAI(
+            api_key=config.OPENAI_API_KEY,
+            base_url=config.LLM_BASE_URL or None,
+        )
         self.model = config.LLM_MODEL
         self.paths = paths or SessionPaths()
         logger.debug(
@@ -137,7 +149,11 @@ class BaseAgent(ABC):
                 if delta:
                     token_count += 1
                     yield delta
-        except (APIConnectionError, RateLimitError, APIStatusError, TimeoutError) as exc:
+        # APIError e a classe-base do SDK: cobre conexao, status (401/429/5xx)
+        # e erros genericos repassados pelo provedor (ex.: upstream do OpenRouter
+        # no meio do stream). Garante que toda falha vire LLMProviderError
+        # controlado em vez de vazar como excecao crua.
+        except (APIError, TimeoutError) as exc:
             logger.exception(
                 "Chamada LLM streaming falhou",
                 extra={
@@ -191,7 +207,11 @@ class BaseAgent(ABC):
                 ],
                 temperature=0.7,
             )
-        except (APIConnectionError, RateLimitError, APIStatusError, TimeoutError) as exc:
+        # APIError e a classe-base do SDK: cobre conexao, status (401/429/5xx)
+        # e erros genericos repassados pelo provedor (ex.: upstream do OpenRouter
+        # no meio do stream). Garante que toda falha vire LLMProviderError
+        # controlado em vez de vazar como excecao crua.
+        except (APIError, TimeoutError) as exc:
             logger.exception(
                 "Chamada LLM falhou",
                 extra={
@@ -225,7 +245,7 @@ class BaseAgent(ABC):
 
     def _llm_public_message(
         self,
-        exc: APIConnectionError | RateLimitError | APIStatusError | TimeoutError,
+        exc: APIError | TimeoutError,
     ) -> str:
         if isinstance(exc, RateLimitError):
             return "Limite temporario do servico de IA atingido. Tente novamente em instantes."

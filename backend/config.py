@@ -27,6 +27,10 @@ FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY", "")
 
 # Modelo LLM
 LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
+# URL base do provedor LLM compativel com a API da OpenAI (ex.: OpenRouter).
+# Vazio => usa o padrao do SDK (https://api.openai.com/v1). Permite apontar para
+# OpenRouter e outros provedores compativeis sem trocar de SDK.
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "")
 
 # Arquivos de dados
 QUIZ_FILE = DATA_DIR / "personality-quiz.md"
