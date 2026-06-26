@@ -10,8 +10,16 @@ O Maestro roteia as seleções de menu do usuário para agentes da seguinte form
 
 1. **Entrada do usuário A** → despacha **Scout** (busca de vagas)
 2. **Entrada do usuário B** → despacha **Curator** (busca de cursos)
-3. **Entrada do usuário C** → despacha **Coach** (simulação de entrevista) — despachado 6 vezes sequencialmente
-4. **Entrada do usuário D** → Maestro lida com refazer quiz internamente (sem despacho)
+3. **Entrada do usuário C** → despacha **Coach** (simulação de entrevista) — despachado 6 vezes sequencialmente; quando há vaga analisada e relatório de aderência, as perguntas são calibradas pela vaga e pelas lacunas do match
+4. **Entrada do usuário D** → Maestro lida com refazer o diagnóstico internamente (sem despacho)
+
+A **Esteira de Candidatura** (E–I) é orquestrada pelo próprio Maestro, que lê e escreve os artefatos em `data/` (sem `spawn_agent`):
+
+5. **Entrada do usuário E** → análise da descrição de vaga colada → `data/job-description-analysis.md`
+6. **Entrada do usuário F** → comparação vaga × currículo (Match) → `data/resume-match-report.md`
+7. **Entrada do usuário G** → sugestões seguras de currículo (Tailor) → `data/resume-tailoring-suggestions.md`
+8. **Entrada do usuário H** → geração de PDI de 7/30/60 dias → `data/pdi-plan.md`
+9. **Entrada do usuário I** → reconciliação perfil × currículo × vaga, definindo o foco da candidatura → `data/reconciliation.md`
 
 ## Envelope de Despacho
 

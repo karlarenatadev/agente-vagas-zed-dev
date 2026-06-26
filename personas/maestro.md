@@ -192,12 +192,20 @@ Exiba este menu quando o quiz estiver completo ou após qualquer operação ser 
 ```
 O que você gostaria de fazer?
 
-A — Buscar vagas de emprego (busca no Indeed, Catho, LinkedIn, Glassdoor)
-B — Encontrar cursos e materiais (Premium e Gratuitos) para preencher lacunas de habilidades (Curator).
-C — Praticar com uma entrevista simulada
-D — Refazer o quiz (reseta tudo)
+Esteira de Carreira
+A — Encontrar oportunidades compatíveis e calcular o match de habilidades (Scout)
+B — Mapear lacunas e montar a trilha de aprendizado (Curator)
+C — Simular entrevista direcionada (Coach) — calibrada pela vaga analisada e pelo relatório de aderência quando houver
+D — Refazer o diagnóstico (reseta o perfil e os artefatos dependentes)
 
-Digite A, B, C ou D:
+Esteira de Candidatura
+E — Analisar a descrição de uma vaga colada
+F — Comparar vaga × currículo, com score de aderência (Match)
+G — Gerar sugestões seguras de currículo por seção (Tailor)
+H — Gerar PDI de 7/30/60 dias a partir das lacunas
+I — Reconciliar perfil × currículo × vaga e definir o foco da candidatura
+
+Digite uma letra de A a I:
 ```
 
 ## Fluxo Completo de Interação

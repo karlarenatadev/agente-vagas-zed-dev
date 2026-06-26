@@ -1,5 +1,94 @@
 # Relatório de andamento do projeto
 
+Data do levantamento: 2026-06-26
+
+## Estado atual (esteira de candidatura conversacional, Docker e foco)
+
+Desde o levantamento de 2026-06-20, o projeto fechou o loop conversacional da
+esteira de candidatura, ganhou containerização e passou a expor e honrar o foco
+da candidatura ponta a ponta. O repositório está na branch `fable`, sincronizada
+com `origin/fable` (idêntica à `main`), árvore de trabalho limpa. O último commit
+é `520a931`, *"feat: expoe busca degradada do Firecrawl e foco da candidatura"*,
+de 2026-06-24.
+
+### Principais entregas do período (2026-06-23 a 2026-06-24)
+
+1. Coach conectado à vaga analisada (`7ec128b`):
+   - O Coach lê `job-description-analysis.md` e `resume-match-report.md` além de
+     Scout/Curator.
+   - O `interview_context` prioriza a vaga analisada (título + empresa); as
+     perguntas técnicas e de cenário são calibradas pelos requisitos da vaga e
+     pelas lacunas do match.
+   - O gate de início foi relaxado: a entrevista começa com Scout **ou** vaga
+     analisada. Cobertura em `test_coach.py`.
+
+2. Roteamento conversacional do Maestro (`21fda2b`):
+   - O menu passou a ter duas esteiras — Carreira (A–D) e Candidatura (E–I).
+   - As opções E–I (analisar vaga, comparar, sugestões, PDI e reconciliação),
+     antes só acessíveis por botão/REST, agora rodam pelo chat.
+   - Cobertura em `test_maestro_routing.py`.
+
+3. Menu em fluxo master/detail no rodapé do chat (`ccc1035`, `68308cf`):
+   - `ChatInput` substituiu o accordion por dois pills de esteira; ao escolher,
+     só as opções daquela esteira aparecem, com botão para voltar.
+
+4. Dockerização (`a18e469`):
+   - `backend/Dockerfile` (`python:3.12-slim`, usuário sem privilégios,
+     `HEALTHCHECK` em `/health`), `frontend/Dockerfile` (build Vite servido por
+     Nginx com proxy reverso de `/api` e `/ws`) e `docker-compose.yml` com os
+     três serviços e volume `backend-data`, além do profile `mock`.
+   - `docker compose up --build` sobe o site em http://localhost:8080.
+
+5. Falha degradada do Firecrawl exposta (`520a931`):
+   - O Scout sinaliza `status_busca: real_degraded` com `busca_degradada` e
+     `aviso_degradacao` quando a query específica falha e só a ampla recupera.
+   - O `ScoutReport` mostra um banner de degradação distinto do banner de
+     simulação total.
+
+6. Foco da candidatura (`520a931`):
+   - `PUT /api/reconciliation/focus` persiste o foco (perfil/currículo/vaga) na
+     linha "Foco da candidatura:" do perfil.
+   - Match, Tailor e PDI leem o foco via `resolve_focus` (precedência: corpo da
+     requisição > perfil > "vaga") e calibram o `next_steps`.
+   - O seletor de foco no `ResumeMatchReport` persiste a escolha ao clicar,
+     fechando o loop no frontend.
+
+### Validações executadas no período
+
+* Backend: suíte em **150 testes passando** (era 73 no levantamento técnico de
+  2026-06-17), incluindo o stress test de 50 escritas concorrentes; aplicação
+  FastAPI importa com **35 rotas** (30 endpoints HTTP + 1 WebSocket + 4 rotas
+  automáticas de documentação).
+* Frontend: `npm run test` em **26 testes passando**, `npm run lint` e
+  `npm run build` sem erros.
+* Observação: os testes do caminho real de LLM e o build/runtime real das
+  imagens Docker ainda não foram executados neste ambiente (sem Docker e sem
+  chave válida disponíveis).
+
+### Estado da entrevista (Coach)
+
+A entrevista deixou de ser puramente genérica. Quando há vaga analisada e
+relatório de aderência, o Coach calibra as perguntas pela vaga e pelas lacunas
+do match. O fluxo de cinco perguntas e o fallback local seguem funcionando
+quando os artefatos estão ausentes. Pendência conhecida: o feedback ainda não é
+calibrado pelo nível de aderência (texto genérico).
+
+### Pendências priorizadas após este levantamento
+
+1. Rodar `docker compose up --build` em uma máquina com Docker para validar o
+   build das imagens e o runtime ponta a ponta.
+2. Validar a busca real do Firecrawl com chave válida: salários, requisitos
+   extraídos e origem dos dados; revalidar a abertura do link de vaga.
+3. Criar testes E2E do fluxo completo de candidatura e testes do caminho real
+   de LLM (hoje tudo cai em fallback).
+4. Recuperação visual de sessão no primeiro load do WebSocket (repintar
+   quiz/Coach sem expor a reconexão).
+5. Itens menores: sugerir cursos pagos no PDI quando fizer sentido; normalizar
+   links no `CuratorReport` (mesmo bug já corrigido no Scout); migração de dados
+   legados `data/*.md` para sessão.
+
+---
+
 Data do levantamento: 2026-06-20
 
 ## Melhorias realizadas após a avaliação técnica

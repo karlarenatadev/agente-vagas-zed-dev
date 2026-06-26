@@ -11,14 +11,18 @@ O backend passou por uma etapa de hardening e agora opera com contratos mais pro
 * [x] Sessoes isoladas por `session_id`, com estado do WebSocket salvo em `data/sessions/{id}/chat_state.json`.
 * [x] Firecrawl migrado de CLI/subprocess para SDK oficial `firecrawl-py`.
 * [x] Upload de curriculos endurecido com limite de tamanho e Magic Numbers.
-* [x] Suite atual: 73 testes passando, incluindo stress test de 50 escritas concorrentes.
+* [x] Suite atual: 150 testes no backend (inclui stress test de 50 escritas concorrentes) e 26 no frontend.
 
-Proximos marcos arquiteturais:
+Proximos marcos arquiteturais (atualizado em 2026-06-26 — em sua maioria entregues):
 
-* [ ] Frontend consumir os contratos padronizados de erro 422/500 com toasts ou banners amigaveis.
+* [x] Frontend consumir os contratos padronizados de erro 422/500 com toasts ou banners amigaveis.
+  Helper `frontend/src/lib/api.ts` (`apiRequest`) normaliza 422/500, corpo vazio, HTML/texto inesperado, falha de rede e timeout; todos os fluxos REST migrados.
 * [ ] Frontend refletir visualmente a recuperacao de estado do WebSocket apos reconexao.
-* [ ] Dockerizar backend e frontend.
-* [ ] Criar GitHub Actions com pipeline bloqueante para testes de contrato e concorrencia.
+  Estado e' restaurado no handshake do WebSocket; falta repintar quiz/Coach no primeiro load sem expor a reconexao ao usuario.
+* [x] Dockerizar backend e frontend.
+  `backend/Dockerfile`, `frontend/Dockerfile` (build Vite servido por Nginx) e `docker-compose.yml` (com profile `mock`) — `docker compose up --build`.
+* [x] Criar GitHub Actions com pipeline bloqueante para testes de contrato e concorrencia.
+  `.github/workflows/backend-ci.yml` roda a suite completa (inclui `test_concurrency.py`) em PRs/pushes para `main`.
 ## Visão Geral 
 
 Este plano detalha a implementação do Maestro, o orquestrador central de um Sistema Multi-Agente baseado em Mixture of Experts (MoE), projetado para auxiliar usuários em sua jornada de desenvolvimento de carreira. O sistema combina busca de empregos, identificação de lacunas de habilidades, recomendações de cursos e simulação de entrevistas. O Maestro é responsável por saudar o usuário, conduzir o quiz de perfil, gerenciar o estado do usuário e apresentar o menu de opções, delegando tarefas a agentes especializados. 
@@ -65,7 +69,7 @@ O Maestro adota uma estética "digital soft dark" de terminal de dados. Suas res
  
 O Maestro utiliza o protocolo definido em `skills/dispatch.md` para interagir com outros agentes. Este protocolo inclui: 
 
- * **Tabela de Roteamento**: Mapeia intenções do usuário para agentes específicos (ex: A -> `import_vagas`, B -> Curator, C -> Coach, D -> Maestro (quiz)). 
+ * **Tabela de Roteamento**: Mapeia intenções do usuário para agentes específicos (ex: A -> `import_vagas` (Scout), B -> Curator, C -> Coach, D -> Maestro (rediagnóstico); e a Esteira de Candidatura E -> análise de vaga, F -> match, G -> tailoring, H -> PDI, I -> reconciliação). 
  * **Formato de Envelope de Despacho**: Estrutura de prompt para `spawn_agent`, contendo persona, tarefa, perfil do usuário, contexto e formato de saída esperado. 
  * **Formato de Envelope de Resposta**: Estrutura esperada para a resposta de um agente despachado (estado, resumo, dados, erros). 
  * **Especificações de Handoff**: Detalhes sobre como passar informações entre agentes. 
@@ -77,23 +81,28 @@ O Maestro utiliza o protocolo definido em `skills/dispatch.md` para interagir co
 
  * O Maestro saúda o usuário com um tom acolhedor e objetivo, seguindo os princípios da CNV e a estética "digital soft dark". 
  * Verifica a existência e o status de conclusão do arquivo `data/personality-quiz.md` usando `find_path`. 
- * **Se o quiz estiver incompleto**: Pergunta ao usuário se deseja continuar de onde parou (se houver dados parciais) ou recomeçar. Guia o usuário pelas 5 perguntas do quiz, uma por vez, e salva as respostas em `data/personality-quiz.md`. 
+ * **Se o quiz estiver incompleto**: Pergunta ao usuário se deseja continuar de onde parou (se houver dados parciais) ou recomeçar. Guia o usuário pelas 7 perguntas do quiz, uma por vez, e salva as respostas em `data/personality-quiz.md`. 
  * **Se o quiz estiver completo**: Carrega o perfil existente de `data/user-profile.md`. 
  * Gera ou atualiza `data/user-profile.md` com base nas respostas do quiz. 
  
- 2. **Apresentação do Menu**: * Exibe o menu de opções ao usuário: 
+ 2. **Apresentação do Menu**: * Exibe o menu de opções ao usuário, organizado em duas esteiras — **Carreira** (A–D) e **Candidatura** (E–I): 
 
- * A — Executar `import_vagas` (Indeed, Catho, LinkedIn, Glassdoor, Infojobs) - *Funcionalidade em construção*. 
- * B — Encontrar cursos e materiais (Premium e Gratuitos) para preencher lacunas de habilidades (Curator). 
- * C — Praticar com uma entrevista simulada. 
- * D — Refazer o quiz (para atualizar seu perfil). 
+ * A — Encontrar oportunidades compatíveis e calcular o match de habilidades (Scout). 
+ * B — Mapear lacunas e montar a trilha de aprendizado (Curator). 
+ * C — Simular entrevista direcionada (Coach) — calibrada pela vaga analisada e pelo relatório de aderência quando houver. 
+ * D — Refazer o diagnóstico para atualizar seu perfil (Maestro).
+ * E — Analisar a descrição de uma vaga colada (Análise).
+ * F — Comparar vaga × currículo com score de aderência (Match).
+ * G — Gerar sugestões seguras de currículo por seção (Tailor).
+ * H — Gerar PDI de 7/30/60 dias a partir das lacunas (PDI).
+ * I — Reconciliar perfil × currículo × vaga e definir o foco da candidatura (Recon). 
  
  3. **Processamento da Seleção do Usuário**: 
  
- * Recebe a seleção do usuário (A, B, C, D). 
+ * Recebe a seleção do usuário (qualquer letra de A a I). 
  * **Se a entrada for válida**: Delega a tarefa ao agente apropriado usando `spawn_agent` com o prompt estruturado de `skills/dispatch.md`. 
  * **Se a entrada for inválida (Regra de Fallback)**: Redireciona educadamente o usuário de volta ao menu principal. 
- * Exemplo: "Desculpe, não entendi sua solicitação. Por favor, escolha uma das opções do menu: A, B, C ou D." 
+ * Exemplo: "Desculpe, não entendi sua solicitação. Por favor, escolha uma das opções do menu: uma letra de A a I." 
  
  4. **Exibição de Resultados**: * Apresenta a resposta do agente despachado ao usuário de forma limpa e organizada.
  

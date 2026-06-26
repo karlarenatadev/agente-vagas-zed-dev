@@ -1270,8 +1270,11 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 * [ ] Adicionar prints futuramente.
 * [x] Atualizar `README.md` com currículo, filtro de data, análise de vaga, match, sugestões, PDI, candidaturas, Career Arcade Pipeline e privacidade de `data/`.
 * [ ] Revisar `README.md` para alinhar versões exibidas de React/TypeScript e completar a documentação de rotas REST.
-* [ ] Atualizar `plano.md`, que ainda descreve escopo e quantidade de perguntas antigos.
-* [ ] Atualizar `docs/project-update-report.md` com os commits, validações e estado da entrevista atuais.
+  Parcial (2026-06-26): badges e seção Tecnologias alinhados a React 19 / TypeScript 6 conforme `package.json`; falta apenas enumerar as rotas REST no README.
+* [x] Atualizar `plano.md`, que ainda descreve escopo e quantidade de perguntas antigos.
+  Feito em 2026-06-26: suíte 73→150 testes, quiz 5→7 perguntas, menu A–D → esteiras A–I e marcos (Docker/CI/erros 422-500) marcados.
+* [x] Atualizar `docs/project-update-report.md` com os commits, validações e estado da entrevista atuais.
+  Feito em 2026-06-26: novo levantamento no topo (commits 7ec128b/21fda2b/a18e469/520a931, 150 backend + 26 frontend, entrevista calibrada pela vaga).
 
 ---
 
@@ -1317,6 +1320,7 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 * [x] Criar testes mínimos automatizados.
   120 testes em `backend/tests/`.
 * [ ] Atualizar documentação (README, plano.md, project-update-report.md).
+  2026-06-26: `plano.md` e `docs/project-update-report.md` atualizados; README com versões React/TS alinhadas — resta enumerar as rotas REST no README.
 
 ---
 
@@ -1486,8 +1490,8 @@ Uma etapa só deve ser considerada pronta quando:
 ### Documentação
 
 * [x] Atualizar `README.md` com funcionalidades, artefatos e privacidade atuais
-* [ ] Atualizar `plano.md` com escopo e perguntas corretos
-* [ ] Atualizar `docs/project-update-report.md` com commits recentes
+* [x] Atualizar `plano.md` com escopo e perguntas corretos (2026-06-26: 7 perguntas, menu A–I, 150 testes)
+* [x] Atualizar `docs/project-update-report.md` com commits recentes (2026-06-26)
 * [ ] Criar diagramas de fluxo de dados
 * [ ] Documentar estrutura dos arquivos Markdown em `data/`
 

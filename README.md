@@ -8,8 +8,8 @@ Encontre vagas alinhadas ao seu perfil, descubra o que aprender e pratique entre
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://typescriptlang.org)
 [![License](https://img.shields.io/badge/Licença-MIT-8B5CF6?style=flat-square)](LICENSE)
 
 </div>
@@ -417,7 +417,7 @@ O backend passou por uma etapa de hardening para operar como API de producao:
 
 **Frontend**:
 
-- [React 18](https://react.dev) + [TypeScript](https://typescriptlang.org)
+- [React 19](https://react.dev) + [TypeScript](https://typescriptlang.org)
 - [Vite](https://vitejs.dev) — build tool
 - [Tailwind CSS](https://tailwindcss.com) — utilitários de estilo
 - [Framer Motion](https://www.framer.com/motion) — animações
