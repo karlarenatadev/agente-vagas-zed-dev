@@ -76,7 +76,8 @@ candidatura" que define qual fonte deve prevalecer.
 * [x] Endpoint PUT/PATCH dedicado para setar o foco (hoje vem do perfil ou do
   body do `POST /analyze`).
   Fechado em 2026-06-24: `PUT /api/reconciliation/focus`.
-* [ ] Integração com o fluxo conversacional do Maestro (opção de menu).
+* [x] Integração com o fluxo conversacional do Maestro (opção de menu).
+  Fechado em 2026-06-23: opção **I** no menu (roteamento conversacional E–I).
 * [x] Leitura do foco pelos agentes match/tailor/PDI para pesar resultados.
   Fechado em 2026-06-24: agentes recebem `focus` e priorizam o `next_steps`.
 * [ ] "Atualizar perfil somente com confirmação do usuário" e os demais
@@ -132,7 +133,8 @@ Agora que o motor esta blindado, o foco passa a ser entrega continua, infraestru
 
 ### 1. Frontend Resiliente (Conectando as pontas do Backend)
 
-* [ ] Tratamento visual de erros: consumir os contratos padronizados 422 e 500 do FastAPI para exibir toasts ou banners amigaveis quando o LLM demorar ou a API externa falhar.
+* [x] Tratamento visual de erros: consumir os contratos padronizados 422 e 500 do FastAPI para exibir toasts ou banners amigaveis quando o LLM demorar ou a API externa falhar.
+  Núcleo concluído via `apiRequest` (sub-itens abaixo); resta só ampliar os testes de reconexão longa do WebSocket.
   * [x] Helper `frontend/src/lib/api.ts` criado para normalizar 422, 500, corpo vazio, HTML/texto inesperado, falha de rede e timeout.
   * [x] Fluxos de curriculo, vaga, match/reconciliacao, sugestoes, PDI e pipeline passaram a usar `apiRequest`.
   * [x] `ProfilePanel` e `ApplicationTracker` auditados e migrados para `apiRequest`, preservando loading, estado vazio, estado anterior e mensagens de erro existentes.
@@ -367,10 +369,12 @@ Sessão executada em 2026-06-14.
 
 ### Itens identificados e NÃO resolvidos (registro)
 
-* [ ] Isolamento multiusuário: agentes leem/escrevem `data/*.md` globais sem
+* [x] Isolamento multiusuário: agentes leem/escrevem `data/*.md` globais sem
   `session_id`; usuários simultâneos sobrescrevem dados uns dos outros
   (refactor arquitetural, fora do escopo desta sessão).
-* [ ] `applications.json`: read-modify-write sem lock (possível corrida).
+  Resolvido em 2026-06-16: `session.py`/`SessionPaths` isola por `session_id` (`test_session.py`).
+* [x] `applications.json`: read-modify-write sem lock (possível corrida).
+  Resolvido em 2026-06-16: `asyncio.Lock` + escrita atômica (`test_applications.py`).
 * [ ] Limpar checagens defensivas de mojibake espalhadas (curator/coach) após
   garantir UTF-8 na origem dos dados.
 
@@ -464,8 +468,10 @@ Pendências críticas confirmadas:
   Implementado em `GET /api/data/resume-analysis`; a pipeline usa a API como fonte principal.
 * [x] **Criar arquivo `resume-analysis.md` durante upload/análise de currículo.**
   Validado com upload TXT real no Chrome em 2026-06-14.
-* [ ] Conectar o Coach à descrição da vaga e ao relatório de aderência.
-* [ ] Criar testes automatizados mínimos para backend e frontend.
+* [x] Conectar o Coach à descrição da vaga e ao relatório de aderência.
+  Fechado em 2026-06-23: Coach lê `job-description-analysis.md` e `resume-match-report.md` (`test_coach.py`).
+* [x] Criar testes automatizados mínimos para backend e frontend.
+  Fechado: 150 testes no backend + 26 no frontend.
 * [x] Executar e registrar `docs/frontend-qa-checklist.md`.
 
 ## Barra de escrita flutuante + cards de opção no chat
@@ -736,10 +742,10 @@ O Maestro é o orquestrador principal do sistema.
 * [x] Identificação de funções alvo.
 * [x] Roteamento para Scout, Curator e Coach.
 * [x] Controle da entrevista simulada.
-* [ ] Tratamento de erros completo.
-  Situação atual: Coach e novas rotas têm tratamento explícito; falhas de
-  Firecrawl no Scout ainda são ocultadas pelo fallback silencioso — precisa
-  expor a falha parcial ao usuário.
+* [x] Tratamento de erros completo.
+  Fechado em 2026-06-24: Coach e rotas tratam erros explicitamente; a falha
+  parcial/degradada do Firecrawl no Scout agora é exposta
+  (`busca_degradada`/`aviso_degradacao` + banner no `ScoutReport`).
 * [x] Manutenção do estado da sessão.
 
 ### O que iremos acrescentar
@@ -1257,13 +1263,20 @@ Fazer o Coach preparar o usuário para uma vaga real, não apenas para uma entre
 
 ### O que iremos acrescentar
 
-* [ ] Atualizar a proposta do produto.
-* [ ] Documentar a esteira de candidatura.
-* [ ] Documentar análise de descrição de vaga.
-* [ ] Documentar comparação vaga x currículo.
-* [ ] Documentar sugestões seguras de currículo.
-* [ ] Documentar PDI personalizado.
-* [ ] Documentar arquivos gerados em `data/`.
+* [x] Atualizar a proposta do produto.
+  Coberto pelo README (seção "O que é").
+* [x] Documentar a esteira de candidatura.
+  Coberto pelo README (Funcionalidades + Fluxo de uso A–I).
+* [x] Documentar análise de descrição de vaga.
+  Coberto pelo README.
+* [x] Documentar comparação vaga x currículo.
+  Coberto pelo README.
+* [x] Documentar sugestões seguras de currículo.
+  Coberto pelo README.
+* [x] Documentar PDI personalizado.
+  Coberto pelo README.
+* [x] Documentar arquivos gerados em `data/`.
+  Coberto pelo README (Estrutura do projeto + nota de privacidade).
 * [ ] Documentar novas rotas REST.
 * [ ] Criar seção de roadmap.
 * [ ] Criar seção de decisões de arquitetura.
@@ -1508,7 +1521,8 @@ Uma etapa só deve ser considerada pronta quando:
 * [x] Migrar busca de vagas do Firecrawl CLI para o SDK oficial
 * [ ] Testar busca real de cursos com Firecrawl
 * [ ] Revalidar o fluxo Scout/backend e a abertura da vaga no navegador
-* [ ] Expor falhas parciais do Firecrawl ao usuário (atualmente silenciosas)
+* [x] Expor falhas parciais do Firecrawl ao usuário (atualmente silenciosas)
+  Fechado em 2026-06-24: simulação total + busca degradada sinalizadas com banner próprio no `ScoutReport`.
 
 ## Próximas features planejadas
 
@@ -1600,7 +1614,8 @@ Revisão que cruzou cada item `[ ]` do checklist contra o código real em
 * [x] Dockerização (backend, frontend e `docker-compose.yml`).
 * [ ] Testes do caminho real de LLM (tudo cai em fallback hoje).
 * [ ] Testes E2E do fluxo completo + validação de schemas dos Markdown.
-* [ ] Atualizar `plano.md` e `project-update-report.md`.
+* [x] Atualizar `plano.md` e `project-update-report.md`.
+  Feito em 2026-06-26.
 
 ## Coach conectado à vaga analisada — 2026-06-23
 
