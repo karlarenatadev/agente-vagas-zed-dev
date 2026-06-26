@@ -2,16 +2,19 @@
 
 Data do levantamento: 2026-06-26
 
-## Estado atual (esteira de candidatura conversacional, Docker e foco)
+## Estado atual (fallback inteligente e recuperação visual de sessão)
 
 Desde o levantamento de 2026-06-20, o projeto fechou o loop conversacional da
-esteira de candidatura, ganhou containerização e passou a expor e honrar o foco
-da candidatura ponta a ponta. O repositório está na branch `fable`, sincronizada
-com `origin/fable` (idêntica à `main`), árvore de trabalho limpa. O último commit
-é `520a931`, *"feat: expoe busca degradada do Firecrawl e foco da candidatura"*,
-de 2026-06-24.
+esteira de candidatura, ganhou containerização, passou a honrar o foco da
+candidatura ponta a ponta e endureceu os fluxos dependentes de LLM, Firecrawl e
+WebSocket. A referência atual é o commit `d14e2d1`, *"feat: recupera o estado
+visual da sessao no primeiro load do WebSocket"*, de 2026-06-26.
 
-### Principais entregas do período (2026-06-23 a 2026-06-24)
+Antes desta atualização documental, o repositório estava na branch `main`,
+sincronizado com `origin/main` (0 à frente, 0 atrás) e com a árvore de trabalho
+limpa.
+
+### Principais entregas do período (2026-06-23 a 2026-06-26)
 
 1. Coach conectado à vaga analisada (`7ec128b`):
    - O Coach lê `job-description-analysis.md` e `resume-match-report.md` além de
@@ -53,17 +56,47 @@ de 2026-06-24.
    - O seletor de foco no `ResumeMatchReport` persiste a escolha ao clicar,
      fechando o loop no frontend.
 
+7. Cliente LLM configurável e erros controlados (`b5fc5b5`):
+   - `LLM_BASE_URL` permite usar OpenAI, OpenRouter, MiMo e outros provedores
+     compatíveis com a API OpenAI sem trocar o SDK.
+   - `call_llm` e `stream_llm` tratam a classe-base `openai.APIError`, convertendo
+     falhas de upstream em `LLMProviderError` sem expor traceback ao usuário.
+   - O caminho real foi validado com chamadas a provedores compatíveis; essa
+     validação não foi repetida neste levantamento local.
+
+8. Fallback do Scout via LLM (`1bf5e6c`):
+   - A cadeia agora é Firecrawl → LLM disponível → simulação determinística.
+   - Falta de créditos do Firecrawl é distinguida de rate limit por
+     `FirecrawlCreditError`, com `status_busca: no_credits`.
+   - O LLM produz até três sugestões coerentes com o perfil. Elas usam
+     `source="llm"`, não possuem link clicável e aparecem no frontend com badge
+     "Sugerida por IA" e aviso de que não são vagas verificadas.
+
+9. Recuperação visual da sessão no WebSocket (`d14e2d1`):
+   - No primeiro load da aba, `useWebSocket` envia `replay=1`; o Maestro repinta
+     a pergunta atual do quiz, menu, Coach ou prompt de descrição de vaga.
+   - O replay não grava arquivos, não avança etapas e não emite `__STATE__`.
+   - Reconexões transitórias omitem o flag, evitando expor a reconexão ou
+     duplicar o prompt.
+
+10. Docker validado ponta a ponta:
+    - Além dos Dockerfiles e do Compose já entregues, foram verificados build das
+      imagens, healthcheck do backend, SPA no Nginx, proxy `/api` e upgrade do
+      WebSocket.
+
 ### Validações executadas no período
 
-* Backend: suíte em **150 testes passando** (era 73 no levantamento técnico de
-  2026-06-17), incluindo o stress test de 50 escritas concorrentes; aplicação
-  FastAPI importa com **35 rotas** (30 endpoints HTTP + 1 WebSocket + 4 rotas
-  automáticas de documentação).
+* Backend: `backend/.venv/Scripts/python.exe -m pytest -q` em **177 testes
+  passando**, incluindo concorrência, fallback do Scout e replay de sessão.
+  Há 1 `PendingDeprecationWarning` do Starlette relacionado a `import multipart`.
 * Frontend: `npm run test` em **26 testes passando**, `npm run lint` e
   `npm run build` sem erros.
-* Observação: os testes do caminho real de LLM e o build/runtime real das
-  imagens Docker ainda não foram executados neste ambiente (sem Docker e sem
-  chave válida disponíveis).
+* Build atual: 2.415 módulos transformados; bundle principal de 376,81 kB e
+  chunk do chat de 174,29 kB. O Vite apenas reportou observação de timing do
+  plugin `rolldown:vite-resolve`.
+* Nota de execução: a primeira tentativa do backend com o Python global falhou
+  por ausência de `pytest`; a suíte foi então executada com sucesso pelo ambiente
+  virtual local em `backend/.venv`.
 
 ### Estado da entrevista (Coach)
 
@@ -75,17 +108,20 @@ calibrado pelo nível de aderência (texto genérico).
 
 ### Pendências priorizadas após este levantamento
 
-1. Rodar `docker compose up --build` em uma máquina com Docker para validar o
-   build das imagens e o runtime ponta a ponta.
-2. Validar a busca real do Firecrawl com chave válida: salários, requisitos
-   extraídos e origem dos dados; revalidar a abertura do link de vaga.
-3. Criar testes E2E do fluxo completo de candidatura e testes do caminho real
-   de LLM (hoje tudo cai em fallback).
-4. Recuperação visual de sessão no primeiro load do WebSocket (repintar
-   quiz/Coach sem expor a reconexão).
-5. Itens menores: sugerir cursos pagos no PDI quando fizer sentido; normalizar
-   links no `CuratorReport` (mesmo bug já corrigido no Scout); migração de dados
-   legados `data/*.md` para sessão.
+1. Validar a busca real do Firecrawl com chave e créditos: salários, requisitos
+   extraídos, origem dos dados e abertura dos links.
+2. Criar testes E2E do fluxo completo de candidatura e validação dos schemas
+   Markdown.
+3. Ampliar os testes de estabilidade para reconexão real do WebSocket durante
+   streaming longo.
+4. Calibrar o feedback do Coach pelo nível de aderência e pelas lacunas do
+   currículo, não apenas as perguntas.
+5. Sugerir cursos pagos no PDI quando fizer sentido, normalizar links no
+   `CuratorReport` e migrar dados legados de `data/*.md` para sessões.
+6. Sincronizar `plano.md`, que ainda apresenta a recuperação visual do primeiro
+   load do WebSocket como pendente.
+7. Acompanhar a depreciação de `multipart` sinalizada pelo Starlette na suíte do
+   backend.
 
 ---
 
