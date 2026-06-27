@@ -75,6 +75,23 @@ AREA_SKILL_MAP: dict[str, list[str]] = {
 
 COMMON_SOFT_SKILLS = ["Comunicação", "Colaboração", "Resolução de problemas", "Organização"]
 
+# Origens válidas de uma vaga. Toda job_entry precisa declarar exatamente uma
+# delas antes de o relatório ser emitido (invariante de proveniência).
+VALID_JOB_SOURCES: frozenset[str] = frozenset({"real", "llm", "simulated"})
+
+
+class ScoutProvenanceError(RuntimeError):
+    """Erro de domínio: uma vaga foi montada sem origem (`source`) válida.
+
+    Bloqueia a emissão do relatório do Scout para impedir que dados sem
+    proveniência definida cheguem ao usuário (Requisito 1.8).
+    """
+
+    public_message = (
+        "Nao foi possivel montar o relatorio de vagas: origem dos dados "
+        "indefinida. Tente novamente em instantes."
+    )
+
 # Filtro de recência escolhido no frontend → valor --tbs do Firecrawl.
 # "all" (ou vazio) não aplica filtro e traz vagas de qualquer data.
 DATE_FILTER_TBS: dict[str, str] = {
@@ -482,6 +499,37 @@ Regras: sem markdown, sem numeracao, sem texto fora do formato."""
                 counter[key] += 1
         return [(canonical[key], count) for key, count in counter.most_common(6)]
 
+    def _assert_job_provenance(self, jobs: list[dict[str, str | list[str] | int]]) -> None:
+        """Valida a invariante de proveniência antes de emitir o relatório.
+
+        - Toda vaga precisa de `source` em {real, llm, simulated} (Req. 1.1, 1.8).
+        - `source == "real"` mantém os campos de fallback vazios (Req. 1.6).
+        - `source` em {llm, simulated} preenche motivo e mensagem (Req. 1.5).
+
+        Levanta ScoutProvenanceError (erro de domínio controlado) caso a
+        invariante seja violada, bloqueando a geração do relatório.
+        """
+        for job in jobs:
+            title = job.get("titulo", "sem titulo")
+            source = job.get("source")
+            if source not in VALID_JOB_SOURCES:
+                raise ScoutProvenanceError(
+                    f"Vaga '{title}' sem origem valida: {source!r}."
+                )
+
+            fallback_reason = job.get("fallback_reason", "")
+            fallback_message = job.get("fallback_message", "")
+            if source == "real":
+                if fallback_reason or fallback_message:
+                    raise ScoutProvenanceError(
+                        f"Vaga real '{title}' nao pode ter campos de fallback preenchidos."
+                    )
+            elif not fallback_reason or not fallback_message:
+                raise ScoutProvenanceError(
+                    f"Vaga '{title}' com origem '{source}' precisa de "
+                    "fallback_reason e fallback_message preenchidos."
+                )
+
     async def run(self, context: dict) -> AsyncGenerator[str, None]:
         """
         Executa busca de vagas.
@@ -626,8 +674,8 @@ dica_curriculo: [1 frase sobre o que destacar no currículo para esta vaga]"""
                 title=title,
                 company=extracted_data.get("empresa", "Não informado"),
                 location=extracted_data.get("localizacao", "Não informado"),
-                salary=extracted_data.get("salario", "Não informado na descrição"),
-                benefits=extracted_data.get("beneficios", "Não informado na descrição"),
+                salary=extracted_data.get("salario") or "Não informado na descrição",
+                benefits=extracted_data.get("beneficios") or "Não informado na descrição",
                 link=url or "Não informado",
                 required_skills=req_skills,
                 required_soft=req_soft,
@@ -641,6 +689,11 @@ dica_curriculo: [1 frase sobre o que destacar no currículo para esta vaga]"""
 
         jobs_output = sorted(jobs_output, key=lambda item: int(item["score_aderencia"]), reverse=True)
         recurring = self._recurring_requirements(jobs_output)
+
+        # Invariante de proveniência: nenhuma vaga pode chegar ao relatório sem
+        # origem (`source`) válida e com campos de fallback coerentes. Bloqueia a
+        # emissão do relatório caso contrário (Req. 1.1, 1.5, 1.6, 1.8).
+        self._assert_job_provenance(jobs_output)
 
         # Formata saída final. Degradada (real, via busca ampla) também é "parcial".
         response_state = "parcial" if (simulated_mode or llm_mode or degraded_reason) else "sucesso"

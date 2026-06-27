@@ -157,6 +157,9 @@ class LearningResource:
     skill: str
     link: str
     score: int
+    # Origem do recurso: "real" para resultados de busca do Firecrawl e
+    # "interna" para recursos vindos da base INTERNAL_RECOMMENDATIONS.
+    origin: str = "real"
 
 
 @dataclass
@@ -493,6 +496,7 @@ class CuratorAgent(BaseAgent):
             skill=skill,
             link=item["url"],
             score=self._score_result(item, skill, recurrence, query_type),
+            origin="real",
         )
 
     def _skill_catalog_key(self, skill: str) -> str:
@@ -521,6 +525,7 @@ class CuratorAgent(BaseAgent):
             skill=skill,
             link=link,
             score=recurrence * 10 + score_bonus,
+            origin="interna",
         )
 
     def _internal_resources_for_skill(self, skill: str, recurrence: int) -> list[LearningResource]:
