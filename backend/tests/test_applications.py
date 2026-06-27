@@ -14,10 +14,17 @@ import config
 from main import app
 
 
+def _default_dir(tmp_path):
+    """Diretório resolvido pela sessão default (sem header X-Session-Id)."""
+    d = tmp_path / "sessions" / "_default"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 @pytest.fixture
 def client(tmp_path, monkeypatch):
-    # A sessão default grava em config.DATA_DIR/applications.json; isolar a
-    # DATA_DIR aponta tudo para a pasta temporária do teste.
+    # A sessão default grava em data/sessions/_default/applications.json; isolar
+    # a DATA_DIR aponta tudo para a pasta temporária do teste.
     monkeypatch.setattr(config, "DATA_DIR", tmp_path)
     return TestClient(app)
 
@@ -40,7 +47,8 @@ def test_lista_vazia_no_inicio(client):
 
 
 def test_arquivo_vazio_eh_lista_vazia_valida(client, tmp_path):
-    arquivo = tmp_path / "applications.json"
+    base = _default_dir(tmp_path)
+    arquivo = base / "applications.json"
     arquivo.write_text("", encoding="utf-8")
 
     resp = client.get("/api/applications/")
@@ -48,11 +56,12 @@ def test_arquivo_vazio_eh_lista_vazia_valida(client, tmp_path):
     assert resp.status_code == 200
     assert resp.json() == []
     assert arquivo.read_text(encoding="utf-8") == ""
-    assert list(tmp_path.glob("applications.corrupt-*.json")) == []
+    assert list(base.glob("applications.corrupt-*.json")) == []
 
 
 def test_json_corrompido_retorna_409_cria_backup_e_preserva_original(client, tmp_path):
-    arquivo = tmp_path / "applications.json"
+    base = _default_dir(tmp_path)
+    arquivo = base / "applications.json"
     conteudo_corrompido = '[{"id": "app-1", "empresa": "Acme"}'
     arquivo.write_text(conteudo_corrompido, encoding="utf-8")
 
@@ -61,13 +70,14 @@ def test_json_corrompido_retorna_409_cria_backup_e_preserva_original(client, tmp
     assert resp.status_code == 409
     assert "corrompido" in resp.json()["detail"]
     assert arquivo.read_text(encoding="utf-8") == conteudo_corrompido
-    backups = list(tmp_path.glob("applications.corrupt-*.json"))
+    backups = list(base.glob("applications.corrupt-*.json"))
     assert len(backups) == 1
     assert backups[0].read_text(encoding="utf-8") == conteudo_corrompido
 
 
 def test_json_corrompido_bloqueia_create_sem_sobrescrever(client, tmp_path):
-    arquivo = tmp_path / "applications.json"
+    base = _default_dir(tmp_path)
+    arquivo = base / "applications.json"
     conteudo_corrompido = '{"id": "objeto-nao-lista"}'
     arquivo.write_text(conteudo_corrompido, encoding="utf-8")
 
@@ -76,7 +86,7 @@ def test_json_corrompido_bloqueia_create_sem_sobrescrever(client, tmp_path):
     assert resp.status_code == 409
     assert "corrompido" in resp.json()["detail"]
     assert arquivo.read_text(encoding="utf-8") == conteudo_corrompido
-    backups = list(tmp_path.glob("applications.corrupt-*.json"))
+    backups = list(base.glob("applications.corrupt-*.json"))
     assert len(backups) == 1
     assert backups[0].read_text(encoding="utf-8") == conteudo_corrompido
 
@@ -152,9 +162,10 @@ def test_sessoes_diferentes_nao_compartilham_dados(client):
 def test_escrita_atomica_nao_deixa_tmp_e_json_valido(client, tmp_path):
     client.post("/api/applications/", json=_nova_candidatura())
 
-    arquivo = tmp_path / "applications.json"
+    base = _default_dir(tmp_path)
+    arquivo = base / "applications.json"
     # O arquivo definitivo existe, é JSON válido...
     conteudo = json.loads(arquivo.read_text(encoding="utf-8"))
     assert isinstance(conteudo, list) and len(conteudo) == 1
     # ...e nenhum arquivo temporário ficou para trás.
-    assert not (tmp_path / "applications.json.tmp").exists()
+    assert not (base / "applications.json.tmp").exists()

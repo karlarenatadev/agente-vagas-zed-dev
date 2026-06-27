@@ -33,6 +33,13 @@ def _client(tmp_path, monkeypatch) -> TestClient:
     return TestClient(app)
 
 
+def _default_dir(tmp_path):
+    """Diretório resolvido pela sessão default (sem header X-Session-Id)."""
+    d = tmp_path / "sessions" / "_default"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 # ── upsert_focus_line (puro) ──────────────────────────────────────────────────
 
 def test_upsert_focus_line_adiciona_quando_ausente():
@@ -76,19 +83,20 @@ def test_resolve_focus_default_vaga():
 
 def test_put_focus_persiste_no_perfil(tmp_path, monkeypatch):
     client = _client(tmp_path, monkeypatch)
-    (tmp_path / "user-profile.md").write_text(PROFILE_COMPLETO, encoding="utf-8")
+    profile_path = _default_dir(tmp_path) / "user-profile.md"
+    profile_path.write_text(PROFILE_COMPLETO, encoding="utf-8")
 
     resp = client.put("/api/reconciliation/focus", json={"focus": "currículo"})
 
     assert resp.status_code == 200
     assert resp.json()["focus"] == "curriculo"
-    saved = (tmp_path / "user-profile.md").read_text(encoding="utf-8")
+    saved = profile_path.read_text(encoding="utf-8")
     assert parse_focus(saved) == "curriculo"
 
 
 def test_put_focus_invalido_retorna_422(tmp_path, monkeypatch):
     client = _client(tmp_path, monkeypatch)
-    (tmp_path / "user-profile.md").write_text(PROFILE_COMPLETO, encoding="utf-8")
+    (_default_dir(tmp_path) / "user-profile.md").write_text(PROFILE_COMPLETO, encoding="utf-8")
 
     resp = client.put("/api/reconciliation/focus", json={"focus": "banana"})
 
@@ -140,8 +148,9 @@ def test_pdi_varia_next_step_por_foco(job_markdown, resume_markdown, match_markd
 
 def test_match_route_aceita_foco_no_corpo(tmp_path, monkeypatch, job_markdown, resume_markdown):
     client = _client(tmp_path, monkeypatch)
-    (tmp_path / "job-description-analysis.md").write_text(job_markdown, encoding="utf-8")
-    (tmp_path / "resume-analysis.md").write_text(resume_markdown, encoding="utf-8")
+    base = _default_dir(tmp_path)
+    (base / "job-description-analysis.md").write_text(job_markdown, encoding="utf-8")
+    (base / "resume-analysis.md").write_text(resume_markdown, encoding="utf-8")
 
     resp = client.post("/api/resume-match/analyze", json={"focus": "curriculo"})
 

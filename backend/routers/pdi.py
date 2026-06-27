@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from session import SessionPaths, get_session_lock, get_session_paths, write_text_atomic_async
-from routers.common import read_required, resolve_focus
+from routers.common import read_optional_text, read_required, resolve_focus
 from agents.pdi_generator import (
     PdiGenerator,
     pdi_from_markdown,
@@ -54,9 +54,8 @@ class PdiResponse(BaseModel):
 async def get_latest_pdi(
     paths: SessionPaths = Depends(get_session_paths),
 ) -> dict[str, Any]:
-    try:
-        content = paths.PDI_PLAN_FILE.read_text(encoding="utf-8")
-    except FileNotFoundError:
+    content = read_optional_text(paths.PDI_PLAN_FILE)
+    if content is None:
         raise HTTPException(status_code=404, detail="Nenhum PDI foi gerado ainda.")
 
     result = pdi_from_markdown(content)

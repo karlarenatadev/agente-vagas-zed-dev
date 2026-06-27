@@ -15,10 +15,17 @@ import config
 from main import app
 
 
+def _default_dir(tmp_path):
+    """Diretório resolvido pela sessão default (sem header X-Session-Id)."""
+    d = tmp_path / "sessions" / "_default"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     # Redireciona a pasta de dados para a pasta temporária do teste. A sessão
-    # default (sem header X-Session-Id) escreve direto em config.DATA_DIR, então
+    # default (sem header X-Session-Id) escreve em data/sessions/_default/, então
     # isolar a DATA_DIR isola tudo. monkeypatch desfaz sozinho ao fim do teste.
     monkeypatch.setattr(config, "DATA_DIR", tmp_path)
     return TestClient(app)
@@ -57,10 +64,11 @@ def test_analyze_persiste_e_latest_le_de_volta(client):
 
 
 def test_analyze_invalida_artefatos_dependentes(client, tmp_path):
+    base = _default_dir(tmp_path)
     dependent_files = [
-        tmp_path / "resume-match-report.md",
-        tmp_path / "resume-tailoring-suggestions.md",
-        tmp_path / "pdi-plan.md",
+        base / "resume-match-report.md",
+        base / "resume-tailoring-suggestions.md",
+        base / "pdi-plan.md",
     ]
     for path in dependent_files:
         path.write_text("artefato antigo", encoding="utf-8")
@@ -68,7 +76,7 @@ def test_analyze_invalida_artefatos_dependentes(client, tmp_path):
     resp = client.post("/api/job-description/analyze", json={"description": VAGA_VALIDA})
 
     assert resp.status_code == 200
-    assert (tmp_path / "job-description-analysis.md").exists()
+    assert (base / "job-description-analysis.md").exists()
     assert all(not path.exists() for path in dependent_files)
 
 

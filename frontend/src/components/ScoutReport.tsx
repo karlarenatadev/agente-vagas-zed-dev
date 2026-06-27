@@ -1,4 +1,5 @@
 import { AlertTriangle, Award, Briefcase, ExternalLink, Lightbulb, MapPin, Sparkles, Target, Wallet } from 'lucide-react'
+import { normalizeHttpLink as normalizeSafeHttpLink } from '../lib/links'
 
 interface Job {
   titulo?: string
@@ -51,16 +52,10 @@ function isLlmSource(source?: string): boolean {
 }
 
 function normalizeHttpLink(value?: string, source?: string): string | null {
+  // Só vagas reais ganham link clicável; a validação de URL http(s) segura é
+  // delegada ao helper compartilhado (mesma proteção do CuratorReport).
   if (!isRealSource(source)) return null
-  if (!isMeaningful(value)) return null
-  const trimmed = value!.trim()
-  if (!/^https?:\/\//i.test(trimmed)) return null
-  try {
-    const url = new URL(trimmed)
-    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : null
-  } catch {
-    return null
-  }
+  return normalizeSafeHttpLink(value)
 }
 
 function splitSkills(value?: string): string[] {

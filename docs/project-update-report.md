@@ -1,5 +1,35 @@
 # Relatório de andamento do projeto
 
+Data do levantamento: 2026-06-27
+
+## Rodadas P0 locais de estabilização (sobre `d14e2d1`, ainda não commitadas)
+
+Sequência de micro-rodadas focadas em robustez/segurança, sem depender de
+ambiente externo (sem Firecrawl real, sem E2E):
+
+1. Validação de artefatos Markdown no consumo: ausente/vazio → HTTP 400;
+   corrompido/binário/não-UTF-8 → HTTP 409 controlado (`read_required` /
+   `read_optional_text`). Cobertura em `test_artifact_corruption.py`.
+2. Confirmação antes de atualizar o perfil: o upload de currículo não grava mais
+   o perfil silenciosamente; preview + `POST /api/resume/apply-profile`
+   (`confirm: true`). Cobertura em `test_resume_profile_confirmation.py`.
+3. Isolamento da sessão default em `data/sessions/_default/`; `data/*.md` soltos
+   na raiz viram legado e não são consumidos (sem apagar nada). Cobertura em
+   `test_session.py` e `test_session_default_isolation.py`.
+4. Matriz de falhas REST + WebSocket (reconexão sem duplicar, replay sem avançar
+   estado, estado corrompido → fallback, JSON inválido → erro controlado).
+   Cobertura em `test_chat_websocket_failures.py`.
+5. Hardening da escrita atômica (retry + backoff exponencial) para o
+   `PermissionError` transitório do Windows no `os.replace`.
+
+Validação: backend **221 testes passando** (`pytest -q`, 0 falhas; 1
+`PendingDeprecationWarning` pré-existente do Starlette). A suíte frontend não foi
+reexecutada nesta rodada — mantém a contagem anterior (26). Mudanças locais,
+ainda não commitadas. As pendências P0 que dependem de ambiente externo
+(Firecrawl real com chave/créditos e E2E completo) seguem em aberto.
+
+---
+
 Data do levantamento: 2026-06-26
 
 ## Estado atual (fallback inteligente e recuperação visual de sessão)

@@ -211,6 +211,8 @@ class CoachAgent(BaseAgent):
                     f"Lacunas criticas do match: {self._join_items(report.get('critical_gaps'), 6)}",
                     f"Requisitos ausentes no curriculo: {self._join_items(report.get('missing_requirements'), 6)}",
                     f"Evidencias fortes do curriculo: {self._join_items(report.get('strong_evidence'), 6)}",
+                    f"Resumo do curriculo: {report.get('resume_summary') or 'nao informado'}",
+                    f"Evidencias parciais do curriculo: {self._join_items(report.get('partial_evidence'), 6)}",
                 ]
             )
 
@@ -243,6 +245,45 @@ class CoachAgent(BaseAgent):
                 value = line.split(":", 1)[1].strip()
                 return value or default
         return default
+
+    def _has_match_context(self, interview_brief: str) -> bool:
+        return self._brief_value(interview_brief, "Score de aderencia") != "nao informado"
+
+    def _calibration_directive(self, interview_brief: str) -> str:
+        if self._has_match_context(interview_brief):
+            score = self._brief_value(interview_brief, "Score de aderencia")
+            gaps = self._brief_value(interview_brief, "Lacunas criticas do match")
+            return (
+                "Calibracao obrigatoria do feedback (existe relatorio de aderencia):\n"
+                f"- Cite o score de aderencia ({score}) e o nivel de prontidao ao avaliar.\n"
+                f"- Conecte os pontos a melhorar as lacunas criticas ({gaps}) e aos requisitos ausentes do match.\n"
+                "- Na resposta melhorada, ancore SOMENTE nas evidencias reais do candidato "
+                "(Evidencias fortes do curriculo, Resumo do curriculo, Habilidades atuais declaradas); "
+                "nunca invente experiencia, empresa, projeto ou metrica.\n"
+                "- Diferencie explicitamente se o problema e tecnico, comportamental ou de evidencia."
+            )
+        return (
+            "Contexto limitado: NAO existe relatorio de aderencia (match). "
+            "Nao finja ter analisado a vaga em profundidade nem cite score ou lacunas inexistentes. "
+            "De feedback estruturado e honesto com base no perfil e no Scout, diferencie se o problema e "
+            "tecnico, comportamental ou de evidencia, e recomende rodar 'Comparar Vaga x Curriculo' (match) "
+            "para um feedback calibrado por score e lacunas."
+        )
+
+    def _plan_directive(self, interview_brief: str) -> str:
+        if self._has_match_context(interview_brief):
+            gaps = self._brief_value(interview_brief, "Lacunas criticas do match")
+            missing = self._brief_value(interview_brief, "Requisitos ausentes no curriculo")
+            score = self._brief_value(interview_brief, "Score de aderencia")
+            return (
+                f"O plano de preparacao deve priorizar as lacunas criticas ({gaps}) e os requisitos ausentes "
+                f"({missing}), com acoes praticas e mensuraveis, relacionando cada acao a uma lacuna especifica "
+                f"e contextualizando pelo score atual ({score})."
+            )
+        return (
+            "Sem relatorio de aderencia, baseie o plano nas habilidades faltantes do Scout e recomende rodar o "
+            "match (Comparar Vaga x Curriculo) para priorizar por score e lacunas. Nao invente lacunas."
+        )
 
     def _question_for_step(self, step: int, interview_brief: str) -> str:
         area = self._brief_value(interview_brief, "Area de interesse")
@@ -395,6 +436,20 @@ LLM indisponivel durante avaliacao/pergunta ({type(error).__name__}). Usei avali
 
     def _fallback_final_evaluation(self, interview_brief: str, history_text: str, error: Exception) -> str:
         answered = len(re.findall(r"\n?R\d+:", history_text))
+        score = self._brief_value(interview_brief, "Score de aderencia")
+        gaps = self._brief_value(interview_brief, "Lacunas criticas do match")
+        if score != "nao informado":
+            desempenho = (
+                f"Com base no relatorio de aderencia (score {score}), priorize transformar as lacunas criticas "
+                f"({gaps}) em evidencias concretas no curriculo e nas respostas."
+            )
+            plano_2 = f"Atacar as lacunas criticas do match ({gaps}) com um projeto pratico mensuravel."
+        else:
+            desempenho = (
+                "Sem relatorio de aderencia, as respostas dao uma boa base; rode 'Comparar Vaga x Curriculo' "
+                "para priorizar a preparacao por score e lacunas."
+            )
+            plano_2 = "Rodar o match (Comparar Vaga x Curriculo) e priorizar as habilidades faltantes do Scout."
         return f"""## RESPOSTA: COACH
 ### estado
 sucesso
@@ -414,7 +469,7 @@ Ajuste: Reescreva as respostas usando STAR para comportamentais e problema-soluc
 6/10
 
 ### resumo_desempenho
-Boa base para treino, mas ainda ha oportunidade de tornar as respostas mais concretas e conectadas as vagas mapeadas.
+{desempenho}
 
 ### pontos_fortes
 1. Conclusao da simulacao.
@@ -431,7 +486,7 @@ Boa base para treino, mas ainda ha oportunidade de tornar as respostas mais conc
 
 ### plano_preparacao
 1. Reescrever as respostas comportamentais em STAR.
-2. Preparar 2 exemplos tecnicos ligados as lacunas do Scout.
+2. {plano_2}
 3. Revisar a trilha do Curator e escolher um projeto pratico para demonstrar evolucao.
 
 ### proximos_passos
@@ -561,6 +616,8 @@ Requisitos:
 5. Se R{prev_step} estiver vazia, vaga ou disser que nao sabe, oriente com estrutura STAR para comportamental ou uma estrutura de raciocinio tecnico para tecnica.
 6. Nao invente exemplos, metricas ou experiencia do candidato.
 
+{self._calibration_directive(interview_brief)}
+
 Retorne exatamente:
 ## RESPOSTA: COACH
 ### estado
@@ -623,6 +680,9 @@ Requisitos:
 3. Entregue resumo de desempenho, pontos fortes, pontos de melhoria, plano de preparacao e proximos passos.
 4. Seja especifico e acionavel.
 5. Nao invente experiencia, metricas ou resultados do candidato.
+
+{self._calibration_directive(interview_brief)}
+{self._plan_directive(interview_brief)}
 
 Retorne exatamente:
 ## RESPOSTA: COACH

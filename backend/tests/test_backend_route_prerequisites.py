@@ -1,7 +1,8 @@
 """Testes HTTP mínimos dos fluxos críticos do backend.
 
-Todos os artefatos são sintéticos e gravados em `tmp_path`; nenhum teste lê ou
-escreve no diretório `data/` real e nenhum caminho depende de OpenAI/Firecrawl.
+Todos os artefatos são sintéticos e gravados na pasta da sessão default
+(`tmp_path/sessions/_default/`); nenhum teste lê ou escreve no diretório `data/`
+real e nenhum caminho depende de OpenAI/Firecrawl.
 """
 
 from fastapi.testclient import TestClient
@@ -11,6 +12,13 @@ from agents.pdi_generator import PdiGenerator, pdi_from_markdown
 from agents.resume_matcher import ResumeMatcher, match_report_to_markdown
 from agents.resume_tailor import ResumeTailor, tailoring_to_markdown
 from main import app
+
+
+def _default_dir(tmp_path):
+    """Diretório resolvido pela sessão default (sem header X-Session-Id)."""
+    d = tmp_path / "sessions" / "_default"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
 
 
 def _client(tmp_path, monkeypatch) -> TestClient:
@@ -25,7 +33,7 @@ def _write(path, content: str) -> None:
 def _write_match_report(tmp_path, job_markdown: str, resume_markdown: str) -> str:
     report = ResumeMatcher().match(job_markdown, resume_markdown)
     markdown = match_report_to_markdown(report)
-    _write(tmp_path / "resume-match-report.md", markdown)
+    _write(_default_dir(tmp_path) / "resume-match-report.md", markdown)
     return markdown
 
 
@@ -37,7 +45,7 @@ def _write_tailoring(
 ) -> str:
     result = ResumeTailor().generate(resume_markdown, job_markdown, match_markdown)
     markdown = tailoring_to_markdown(result)
-    _write(tmp_path / "resume-tailoring-suggestions.md", markdown)
+    _write(_default_dir(tmp_path) / "resume-tailoring-suggestions.md", markdown)
     return markdown
 
 
@@ -58,7 +66,7 @@ def test_resume_upload_txt_persiste_analise_em_tmp_path(tmp_path, monkeypatch):
     body = response.json()
     assert body["success"] is True
     assert "Python" in body["analysis"]["technical_skills"]
-    assert (tmp_path / "resume-analysis.md").exists()
+    assert (_default_dir(tmp_path) / "resume-analysis.md").exists()
 
     latest = client.get("/api/resume/latest")
     assert latest.status_code == 200
@@ -67,10 +75,11 @@ def test_resume_upload_txt_persiste_analise_em_tmp_path(tmp_path, monkeypatch):
 
 def test_resume_upload_invalida_artefatos_dependentes(tmp_path, monkeypatch):
     client = _client(tmp_path, monkeypatch)
+    base = _default_dir(tmp_path)
     dependent_files = [
-        tmp_path / "resume-match-report.md",
-        tmp_path / "resume-tailoring-suggestions.md",
-        tmp_path / "pdi-plan.md",
+        base / "resume-match-report.md",
+        base / "resume-tailoring-suggestions.md",
+        base / "pdi-plan.md",
     ]
     for path in dependent_files:
         _write(path, "artefato antigo")
@@ -87,7 +96,7 @@ def test_resume_upload_invalida_artefatos_dependentes(tmp_path, monkeypatch):
     )
 
     assert response.status_code == 200
-    assert (tmp_path / "resume-analysis.md").exists()
+    assert (base / "resume-analysis.md").exists()
     assert all(not path.exists() for path in dependent_files)
 
 
@@ -130,7 +139,7 @@ def test_resume_upload_recusa_arquivo_acima_do_limite(tmp_path, monkeypatch):
 
 def test_match_sem_curriculo_retorna_400(tmp_path, monkeypatch, job_markdown):
     client = _client(tmp_path, monkeypatch)
-    _write(tmp_path / "job-description-analysis.md", job_markdown)
+    _write(_default_dir(tmp_path) / "job-description-analysis.md", job_markdown)
 
     response = client.post("/api/resume-match/analyze", json={})
 
@@ -140,8 +149,9 @@ def test_match_sem_curriculo_retorna_400(tmp_path, monkeypatch, job_markdown):
 
 def test_match_sem_vaga_valida_retorna_400(tmp_path, monkeypatch, resume_markdown):
     client = _client(tmp_path, monkeypatch)
-    _write(tmp_path / "job-description-analysis.md", "conteudo invalido")
-    _write(tmp_path / "resume-analysis.md", resume_markdown)
+    base = _default_dir(tmp_path)
+    _write(base / "job-description-analysis.md", "conteudo invalido")
+    _write(base / "resume-analysis.md", resume_markdown)
 
     response = client.post("/api/resume-match/analyze", json={})
 
@@ -156,15 +166,16 @@ def test_match_com_artefatos_validos_persiste_relatorio(
     resume_markdown,
 ):
     client = _client(tmp_path, monkeypatch)
-    _write(tmp_path / "job-description-analysis.md", job_markdown)
-    _write(tmp_path / "resume-analysis.md", resume_markdown)
+    base = _default_dir(tmp_path)
+    _write(base / "job-description-analysis.md", job_markdown)
+    _write(base / "resume-analysis.md", resume_markdown)
 
     response = client.post("/api/resume-match/analyze", json={})
 
     assert response.status_code == 200
     body = response.json()
     assert isinstance(body["overall_score"], int)
-    assert (tmp_path / "resume-match-report.md").exists()
+    assert (base / "resume-match-report.md").exists()
 
 
 def test_sugestoes_sem_relatorio_de_match_retorna_400(
@@ -174,8 +185,9 @@ def test_sugestoes_sem_relatorio_de_match_retorna_400(
     resume_markdown,
 ):
     client = _client(tmp_path, monkeypatch)
-    _write(tmp_path / "job-description-analysis.md", job_markdown)
-    _write(tmp_path / "resume-analysis.md", resume_markdown)
+    base = _default_dir(tmp_path)
+    _write(base / "job-description-analysis.md", job_markdown)
+    _write(base / "resume-analysis.md", resume_markdown)
 
     response = client.post("/api/resume-tailoring/generate", json={})
 
@@ -190,8 +202,9 @@ def test_sugestoes_com_artefatos_validos_persistem_markdown(
     resume_markdown,
 ):
     client = _client(tmp_path, monkeypatch)
-    _write(tmp_path / "job-description-analysis.md", job_markdown)
-    _write(tmp_path / "resume-analysis.md", resume_markdown)
+    base = _default_dir(tmp_path)
+    _write(base / "job-description-analysis.md", job_markdown)
+    _write(base / "resume-analysis.md", resume_markdown)
     _write_match_report(tmp_path, job_markdown, resume_markdown)
 
     response = client.post("/api/resume-tailoring/generate", json={})
@@ -199,7 +212,7 @@ def test_sugestoes_com_artefatos_validos_persistem_markdown(
     assert response.status_code == 200
     body = response.json()
     assert body["summary_suggestions"]
-    assert (tmp_path / "resume-tailoring-suggestions.md").exists()
+    assert (base / "resume-tailoring-suggestions.md").exists()
 
 
 def test_pdi_sem_sugestoes_retorna_400(
@@ -209,14 +222,33 @@ def test_pdi_sem_sugestoes_retorna_400(
     resume_markdown,
 ):
     client = _client(tmp_path, monkeypatch)
-    _write(tmp_path / "job-description-analysis.md", job_markdown)
-    _write(tmp_path / "resume-analysis.md", resume_markdown)
+    base = _default_dir(tmp_path)
+    _write(base / "job-description-analysis.md", job_markdown)
+    _write(base / "resume-analysis.md", resume_markdown)
     _write_match_report(tmp_path, job_markdown, resume_markdown)
 
     response = client.post("/api/pdi/generate", json={})
 
     assert response.status_code == 400
     assert "sugest" in response.json()["detail"].casefold()
+
+
+def test_pdi_sem_relatorio_de_match_retorna_400(
+    tmp_path,
+    monkeypatch,
+    job_markdown,
+    resume_markdown,
+):
+    client = _client(tmp_path, monkeypatch)
+    base = _default_dir(tmp_path)
+    _write(base / "job-description-analysis.md", job_markdown)
+    _write(base / "resume-analysis.md", resume_markdown)
+
+    response = client.post("/api/pdi/generate", json={})
+
+    assert response.status_code == 400
+    detail = response.json()["detail"].casefold()
+    assert "compar" in detail or "ader" in detail
 
 
 def test_pdi_com_artefatos_validos_persiste_e_le_latest(
@@ -226,8 +258,9 @@ def test_pdi_com_artefatos_validos_persiste_e_le_latest(
     resume_markdown,
 ):
     client = _client(tmp_path, monkeypatch)
-    _write(tmp_path / "job-description-analysis.md", job_markdown)
-    _write(tmp_path / "resume-analysis.md", resume_markdown)
+    base = _default_dir(tmp_path)
+    _write(base / "job-description-analysis.md", job_markdown)
+    _write(base / "resume-analysis.md", resume_markdown)
     match_markdown = _write_match_report(tmp_path, job_markdown, resume_markdown)
     _write_tailoring(tmp_path, resume_markdown, job_markdown, match_markdown)
 
@@ -236,7 +269,7 @@ def test_pdi_com_artefatos_validos_persiste_e_le_latest(
     assert response.status_code == 200
     body = response.json()
     assert body["main_goal"]
-    persisted = (tmp_path / "pdi-plan.md").read_text(encoding="utf-8")
+    persisted = (base / "pdi-plan.md").read_text(encoding="utf-8")
     assert pdi_from_markdown(persisted) is not None
 
     latest = client.get("/api/pdi/latest")

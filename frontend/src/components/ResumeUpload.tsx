@@ -4,8 +4,9 @@ import { AlertCircle, CheckCircle2, FileText, Loader2, UploadCloud } from 'lucid
 import { useScrollToResult } from '../hooks/useScrollToResult'
 import { apiRequest } from '../lib/api'
 import { getFriendlyErrorMessage } from '../lib/errorMessages'
-import type { ResumeAnalysis, ResumeUploadResponse } from '../types'
+import type { ProfileSuggestion, ResumeAnalysis, ResumeUploadResponse } from '../types'
 import { GeneratedResultNotice } from './ui/GeneratedResultNotice'
+import { ProfileSuggestionConfirm } from './ProfileSuggestionConfirm'
 
 interface Props {
   onContinueQuiz: () => void
@@ -62,6 +63,7 @@ export function ResumeUpload({ onContinueQuiz }: Props) {
   const [status, setStatus] = useState<UploadStatus>('idle')
   const [message, setMessage] = useState('')
   const [analysis, setAnalysis] = useState<ResumeAnalysis | null>(null)
+  const [suggestions, setSuggestions] = useState<ProfileSuggestion[]>([])
   const {
     reveal,
     targetRef,
@@ -87,6 +89,7 @@ export function ResumeUpload({ onContinueQuiz }: Props) {
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     setAnalysis(null)
+    setSuggestions([])
 
     if (!file) {
       setSelectedFile(null)
@@ -131,6 +134,7 @@ export function ResumeUpload({ onContinueQuiz }: Props) {
       }
 
       setAnalysis(data.analysis)
+      setSuggestions(data.profile_suggestions ?? [])
       setMessage(data.message)
       setStatus('success')
       reveal()
@@ -151,6 +155,7 @@ export function ResumeUpload({ onContinueQuiz }: Props) {
   const resetSelection = () => {
     setSelectedFile(null)
     setAnalysis(null)
+    setSuggestions([])
     setStatus('idle')
     setMessage('')
     if (inputRef.current) inputRef.current.value = ''
@@ -229,6 +234,7 @@ export function ResumeUpload({ onContinueQuiz }: Props) {
             Encontrei possíveis áreas, habilidades e funções alvo. Agora confirme essas informações
             no quiz para melhorar as recomendações.
           </p>
+          <ProfileSuggestionConfirm suggestions={suggestions} />
         </div>
       )}
 

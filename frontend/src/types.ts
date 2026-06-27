@@ -68,11 +68,28 @@ export interface ResumeAnalysis {
   fields_to_confirm: string[]
 }
 
+export interface ProfileSuggestion {
+  field: string
+  source: string
+  current_value: string
+  suggested_value: string
+  applicable: boolean
+  conflict: boolean
+}
+
+export interface ApplyProfileResponse {
+  success: boolean
+  updated_fields: string[]
+  profile: Record<string, string>
+}
+
 export interface ResumeUploadResponse {
   success: boolean
   message: string
   analysis?: ResumeAnalysis
   profile_updated?: boolean
+  profile_confirmation_required?: boolean
+  profile_suggestions?: ProfileSuggestion[]
 }
 
 export interface JobDescriptionAnalysis {

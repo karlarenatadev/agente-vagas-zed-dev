@@ -8,8 +8,11 @@ sobrescrevem perfil, currículo, vaga, match, PDI etc. uns dos outros.
 RESUME_ANALYSIS_FILE, ...), então migrar o código é quase mecânico:
 trocar `config.PROFILE_FILE` por `paths.PROFILE_FILE`.
 
-Sem um ID válido, cai numa sessão default que usa a própria pasta `data/`
-(comportamento legado), preservando compatibilidade com chamadas sem header.
+Sem um ID válido (chamada sem header ``X-Session-Id``), cai numa sessão default
+isolada em ``data/sessions/_default/`` — não na raiz de ``data/``. Os arquivos
+Markdown soltos em ``data/*.md`` são considerados LEGADO e NÃO são consumidos:
+para reaproveitá-los é preciso regerá-los dentro da sessão (ou movê-los
+manualmente para ``data/sessions/_default/``). Nenhum arquivo legado é apagado.
 """
 
 from __future__ import annotations
@@ -35,11 +38,14 @@ logger = get_logger(__name__)
 _SAFE_RE = re.compile(r"[^a-zA-Z0-9_-]")
 _MAX_LEN = 64
 
-# ID reservado para a sessão default (sem isolamento, usa data/ direto).
+# ID reservado para a sessão default (sem header X-Session-Id). Mesmo a default
+# fica isolada em data/sessions/_default/ — a raiz de data/ não é mais usada
+# como diretório de sessão.
 DEFAULT_SESSION = "_default"
 _session_locks: dict[str, asyncio.Lock] = {}
-_ATOMIC_REPLACE_ATTEMPTS = 5
+_ATOMIC_REPLACE_ATTEMPTS = 10
 _ATOMIC_REPLACE_RETRY_SECONDS = 0.02
+_ATOMIC_REPLACE_MAX_BACKOFF_SECONDS = 0.5
 
 
 def sanitize_session_id(raw: str | None) -> str:
@@ -83,9 +89,16 @@ def _atomic_write_text_sync(path: Path, content: str) -> None:
                 os.replace(tmp_path, path)
                 break
             except PermissionError:
+                # Lock transitório (ex.: antivírus/indexador/sync segurando o
+                # destino no Windows). Backoff exponencial com teto amplia a
+                # janela de retry sem mudar a semântica de escrita atômica.
                 if attempt == _ATOMIC_REPLACE_ATTEMPTS - 1:
                     raise
-                time.sleep(_ATOMIC_REPLACE_RETRY_SECONDS)
+                backoff = min(
+                    _ATOMIC_REPLACE_RETRY_SECONDS * (2 ** attempt),
+                    _ATOMIC_REPLACE_MAX_BACKOFF_SECONDS,
+                )
+                time.sleep(backoff)
     except OSError:
         logger.exception(
             "Falha na escrita atomica de arquivo",
@@ -161,12 +174,10 @@ class SessionPaths:
     def __init__(self, session_id: str | None = None, base_dir: Path | None = None):
         base = Path(base_dir) if base_dir is not None else config.DATA_DIR
         self.session_id = sanitize_session_id(session_id)
-        # A sessão default escreve direto em data/ (legado); sessões reais
-        # ficam isoladas em data/sessions/{id}/.
-        if self.session_id == DEFAULT_SESSION:
-            self.dir = base
-        else:
-            self.dir = base / "sessions" / self.session_id
+        # TODAS as sessões ficam isoladas sob data/sessions/{id}/ — inclusive a
+        # default (data/sessions/_default/). A raiz de data/ guarda apenas
+        # legado/README e NÃO é consumida como diretório de sessão.
+        self.dir = base / "sessions" / self.session_id
 
     # ── Artefatos (espelham config.*) ──────────────────────────────────────
     @property
@@ -229,6 +240,6 @@ def get_session_paths(x_session_id: str | None = Header(default=None)) -> Sessio
     """Dependency FastAPI: monta o SessionPaths a partir do header X-Session-Id.
 
     Use com `Depends(get_session_paths)` nas rotas. Sem o header, cai na sessão
-    default (pasta data/), preservando o comportamento anterior.
+    default isolada em `data/sessions/_default/` (a raiz de `data/` não é usada).
     """
     return SessionPaths(x_session_id)

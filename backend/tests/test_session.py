@@ -29,10 +29,10 @@ def test_sanitize_limita_tamanho():
     assert len(sanitize_session_id("x" * 500)) <= 64
 
 
-def test_default_usa_data_dir_direto(tmp_path):
+def test_default_fica_isolada_em_sessions_default(tmp_path):
     paths = SessionPaths(None, base_dir=tmp_path)
-    assert paths.dir == tmp_path
-    assert paths.PROFILE_FILE == tmp_path / "user-profile.md"
+    assert paths.dir == tmp_path / "sessions" / "_default"
+    assert paths.PROFILE_FILE == tmp_path / "sessions" / "_default" / "user-profile.md"
 
 
 def test_sessao_real_fica_isolada_em_subpasta(tmp_path):

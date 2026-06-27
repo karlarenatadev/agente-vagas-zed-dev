@@ -5,10 +5,12 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 import config
+from routers.common import read_required
 from session import (
     SessionPaths,
     get_session_lock,
@@ -693,16 +695,13 @@ def _is_empty(value: str | None) -> bool:
     }
 
 
-async def _merge_profile_suggestions(analysis: dict[str, Any], paths: SessionPaths) -> bool:
-    try:
-        existing = paths.PROFILE_FILE.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        existing = ""
+def _profile_suggestions(analysis: dict[str, Any]) -> dict[str, str]:
+    """Mapeia a análise do currículo para sugestões de campos do perfil.
 
-    profile = _parse_profile(existing)
-    updated = False
-
-    suggestions = {
+    Função pura: não lê nem grava nada. Campos sem evidência confiável saem
+    como string vazia (e são ignorados pelos chamadores).
+    """
+    return {
         "Área de interesse": (
             analysis["probable_areas"][0] if analysis["probable_areas"] else ""
         ),
@@ -716,34 +715,34 @@ async def _merge_profile_suggestions(analysis: dict[str, Any], paths: SessionPat
         "Funções alvo": ", ".join(analysis["suggested_target_roles"]),
     }
 
-    for field, suggestion in suggestions.items():
-        if suggestion and _is_empty(profile.get(field)):
-            profile[field] = suggestion
-            updated = True
 
-    required_fields = [
-        "Área de interesse",
-        "Nível de experiência",
-        "Preferências de trabalho",
-        "Localização",
-        "Soft skills",
-        "Objetivo de carreira",
-        "Habilidades atuais",
-    ]
+def _profile_suggestions_preview(
+    analysis: dict[str, Any],
+    existing_profile: str,
+) -> list[dict[str, Any]]:
+    """Monta um preview NÃO destrutivo das sugestões (não grava o perfil).
 
-    profile["Concluído"] = (
-        "true"
-        if all(not _is_empty(profile.get(field)) for field in required_fields)
-        else "false"
-    )
-
-    if updated or not existing:
-        await write_text_atomic_async(
-            paths.PROFILE_FILE,
-            _profile_to_markdown(profile),
+    Cada item traz o valor atual, o sugerido, se é aplicável (campo vazio) e se
+    há conflito (campo preenchido com valor diferente do sugerido).
+    """
+    profile = _parse_profile(existing_profile)
+    preview: list[dict[str, Any]] = []
+    for field, suggested in _profile_suggestions(analysis).items():
+        if not suggested:
+            continue
+        current = profile.get(field, "")
+        preview.append(
+            {
+                "field": field,
+                "source": "curriculo",
+                "current_value": current,
+                "suggested_value": suggested,
+                "applicable": _is_empty(current),
+                "conflict": (not _is_empty(current))
+                and current.strip() != suggested.strip(),
+            }
         )
-
-    return updated
+    return preview
 
 
 @router.get("/latest")
@@ -812,12 +811,88 @@ async def upload_resume(
             paths.RESUME_ANALYSIS_FILE,
             _analysis_to_markdown(analysis),
         )
-        profile_updated = await _merge_profile_suggestions(analysis, paths)
         _invalidate_downstream_artifacts(paths)
+
+        try:
+            existing_profile = paths.PROFILE_FILE.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            existing_profile = ""
+
+    suggestions_preview = _profile_suggestions_preview(analysis, existing_profile)
 
     return {
         "success": True,
         "message": "Currículo analisado com sucesso.",
         "analysis": analysis,
-        "profile_updated": profile_updated,
+        "profile_updated": False,
+        "profile_confirmation_required": any(
+            item["applicable"] for item in suggestions_preview
+        ),
+        "profile_suggestions": suggestions_preview,
     }
+
+
+class ApplyProfileRequest(BaseModel):
+    confirm: bool = False
+    fields: list[str] | None = None
+
+
+@router.post("/apply-profile")
+async def apply_profile_from_resume(
+    body: ApplyProfileRequest | None = None,
+    paths: SessionPaths = Depends(get_session_paths),
+):
+    request = body or ApplyProfileRequest()
+    if not request.confirm:
+        raise HTTPException(
+            status_code=400,
+            detail="Confirmação explícita necessária para atualizar o perfil com dados do currículo.",
+        )
+    content = read_required(
+        paths.RESUME_ANALYSIS_FILE,
+        "Envie e analise um currículo primeiro.",
+        "A análise do currículo está vazia ou inválida. Envie o currículo novamente.",
+    )
+    analysis = _analysis_from_markdown(content)
+    if analysis is None:
+        raise HTTPException(
+            status_code=409,
+            detail="A análise do currículo está inválida ou corrompida. Envie o currículo novamente.",
+        )
+    suggestions = _profile_suggestions(analysis)
+    approved = (
+        request.fields
+        if request.fields is not None
+        else [field for field, value in suggestions.items() if value]
+    )
+    async with get_session_lock(paths.session_id):
+        try:
+            existing = paths.PROFILE_FILE.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            existing = ""
+        profile = _parse_profile(existing)
+        updated_fields: list[str] = []
+        for field in approved:
+            suggested = suggestions.get(field, "")
+            if suggested and profile.get(field, "") != suggested:
+                profile[field] = suggested
+                updated_fields.append(field)
+        required_fields = [
+            "Área de interesse",
+            "Nível de experiência",
+            "Preferências de trabalho",
+            "Localização",
+            "Soft skills",
+            "Objetivo de carreira",
+            "Habilidades atuais",
+        ]
+        profile["Concluído"] = (
+            "true"
+            if all(not _is_empty(profile.get(field)) for field in required_fields)
+            else "false"
+        )
+        await write_text_atomic_async(
+            paths.PROFILE_FILE,
+            _profile_to_markdown(profile),
+        )
+    return {"success": True, "updated_fields": updated_fields, "profile": profile}

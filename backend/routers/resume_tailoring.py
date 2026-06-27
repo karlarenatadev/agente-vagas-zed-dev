@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from session import SessionPaths, get_session_lock, get_session_paths, write_text_atomic_async
-from routers.common import read_required, resolve_focus
+from routers.common import read_optional_text, read_required, resolve_focus
 from agents.resume_tailor import (
     ResumeTailor,
     tailoring_from_markdown,
@@ -53,11 +53,8 @@ class ResumeTailoringResponse(BaseModel):
 async def get_latest_resume_tailoring(
     paths: SessionPaths = Depends(get_session_paths),
 ) -> dict[str, Any]:
-    try:
-        content = paths.RESUME_TAILORING_SUGGESTIONS_FILE.read_text(
-            encoding="utf-8"
-        )
-    except FileNotFoundError:
+    content = read_optional_text(paths.RESUME_TAILORING_SUGGESTIONS_FILE)
+    if content is None:
         raise HTTPException(
             status_code=404,
             detail="Nenhuma sugestão de currículo foi gerada ainda.",

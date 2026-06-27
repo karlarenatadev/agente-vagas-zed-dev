@@ -1,4 +1,5 @@
 import { BookOpen, ExternalLink, FileCode2, GraduationCap, Lightbulb, Rocket, Target, Zap } from 'lucide-react'
+import { normalizeHttpLink } from '../lib/links'
 
 interface Resource {
   kind: 'free' | 'paid' | 'reference' | 'quick'
@@ -89,6 +90,11 @@ export function CuratorReport({ data }: { data: CuratorData }) {
                   <div className="curator-resources">
                     {skill.resources.map((res, i) => {
                       const Icon = RESOURCE_ICON[res.kind]
+                      // Mesma proteção do ScoutReport: só vira link clicável se
+                      // for uma URL http(s) bem formada. Bloqueia javascript:,
+                      // data:, caminhos relativos e texto livre vindos do agente.
+                      const safeLink = normalizeHttpLink(res.link)
+                      const linkBlocked = !safeLink && isMeaningful(res.link)
                       return (
                         <div className={`curator-resource ${res.kind}`} key={i}>
                           <span className="curator-resource-icon"><Icon size={14} aria-hidden="true" /></span>
@@ -97,11 +103,13 @@ export function CuratorReport({ data }: { data: CuratorData }) {
                             <strong>{res.name}</strong>
                             {isMeaningful(res.platform) && <em>{res.platform}</em>}
                           </span>
-                          {isMeaningful(res.link) && (
-                            <a className="curator-resource-link" href={res.link} target="_blank" rel="noopener noreferrer" aria-label={`Abrir ${res.name}`}>
+                          {safeLink ? (
+                            <a className="curator-resource-link" href={safeLink} target="_blank" rel="noopener noreferrer" aria-label={`Abrir ${res.name}`}>
                               <ExternalLink size={13} aria-hidden="true" />
                             </a>
-                          )}
+                          ) : linkBlocked ? (
+                            <span className="curator-resource-nolink" title="Link não verificado ou inseguro">Link não disponível</span>
+                          ) : null}
                         </div>
                       )
                     })}

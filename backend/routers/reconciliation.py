@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 
 from session import SessionPaths, get_session_lock, get_session_paths, write_text_atomic_async
-from routers.common import read_required
+from routers.common import read_optional_text, read_required
 from agents.reconciliation import (
     Reconciler,
     normalize_focus,
@@ -74,19 +74,15 @@ class ReconciliationResponse(BaseModel):
 
 def _read_match_if_present(paths: SessionPaths) -> str | None:
     """Lê o relatório de aderência se existir; retorna None caso contrário."""
-    try:
-        return paths.RESUME_MATCH_REPORT_FILE.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        return None
+    return read_optional_text(paths.RESUME_MATCH_REPORT_FILE)
 
 
 @router.get("/latest", response_model=ReconciliationResponse)
 async def get_latest_reconciliation(
     paths: SessionPaths = Depends(get_session_paths),
 ) -> dict[str, Any]:
-    try:
-        content = paths.RECONCILIATION_FILE.read_text(encoding="utf-8")
-    except FileNotFoundError:
+    content = read_optional_text(paths.RECONCILIATION_FILE)
+    if content is None:
         raise HTTPException(
             status_code=404,
             detail="Nenhuma reconciliação foi gerada ainda.",

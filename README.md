@@ -197,6 +197,9 @@ import-vagas/
 > **Privacidade:** os arquivos `data/*.md`, `data/applications.json` e `data/sessions/` são estado local por pessoa/sessão e
 > podem conter dados sensíveis (currículo, perfil). Eles são ignorados pelo Git —
 > apenas `data/README.md` é versionado.
+> A raiz de `data/` guarda apenas legado, `README.md` e exemplos `*.example.md`; o estado
+> de runtime fica em `data/sessions/{id}/` (a sessão default, sem `X-Session-Id`, em
+> `data/sessions/_default/`). Markdown solto em `data/*.md` é legado e não é consumido automaticamente.
 > A pasta `data/` armazena artefatos locais gerados pela aplicação, incluindo currículo,
 > vaga, match, sugestões e PDI. Não versione esses arquivos. Variáveis reais devem ficar
 > somente em `.env` local ou GitHub Secrets. Este projeto ainda não deve ser usado com
@@ -382,10 +385,13 @@ O backend passou por uma etapa de hardening para operar como API de producao:
 - **Logging estruturado** em JSON via `logging_config.py`, com `session_id` em eventos de WebSocket, agentes e chamadas externas.
 - **Contratos de erro seguros** no FastAPI para validacao 422 e falhas internas 500, sem expor stack trace ao frontend.
 - **Persistencia atomica** com locks por sessao e `write_text_atomic_async`, evitando corrupcao em escritas concorrentes.
+- **Candidaturas protegidas contra corrupção**: `applications.json` inválido ou corrompido
+  retorna HTTP 409, gera backup do arquivo e preserva o original, sem sobrescrever
+  candidaturas em silêncio.
 - **Estado do WebSocket recuperavel** em `data/sessions/{session_id}/chat_state.json`.
 - **Firecrawl SDK oficial** (`firecrawl-py`) no lugar de CLI/subprocess, executado fora do Event Loop com `asyncio.to_thread`.
 - **Upload de curriculos endurecido** com limite de tamanho, validacao de `Content-Type` e Magic Numbers para PDF/DOCX.
-- **Suite automatizada** com 150 testes passando, incluindo stress test de 50 escritas simultaneas.
+- **Suite automatizada** com 221 testes no backend (`pytest -q`), incluindo stress test de 50 escritas simultaneas.
 
 ---
 

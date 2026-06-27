@@ -1,10 +1,12 @@
 # Checklist consolidado — Import Vagas
 
-Última consolidação: 2026-06-26
+Última consolidação: 2026-06-27
 
 Referência do código analisado: `d14e2d1`
 
-Validação atual: backend **177 passed**; frontend **26 passed**; lint e build sem erros.
+Validação atual: backend **221 passed** (`pytest -q`, rodadas P0 locais sobre `d14e2d1`, ainda não commitadas); frontend **48 passed** (`npm run test -- --run`, reexecutada na rodada de UI de confirmação de perfil); lint e build sem erros.
+
+> Verificação de rodada — privacidade de `data/` e `applications.json`: confirmado que a pasta `data/` já está protegida no `.gitignore` (apenas `data/README.md` versionado, sem dados sensíveis) e que `applications.json` já trata JSON inválido/corrompido com HTTP 409, cria backup do arquivo corrompido, preserva o original e usa escrita atômica. Coberto por `backend/tests/test_applications.py`. Nenhuma mudança de comportamento foi necessária nesta rodada. Também foi removido um import morto em `ScoutReport.tsx` (`normalizeSafeHttpLink`, nunca usado) que quebrava o `tsc -b`; o `npm run build` voltou a passar.
 
 Este arquivo substitui o histórico acumulado de checklists. Itens repetidos foram
 unificados, entregas antigas foram agrupadas por domínio e as pendências foram
@@ -14,29 +16,50 @@ ordenadas por impacto.
 
 ## P0 — Críticas para produção
 
-* [ ] Validar o Firecrawl em condições reais, com chave e créditos:
+* [ ] **Bloqueado (ambiente externo — depende de chave/créditos do Firecrawl).** Validar o Firecrawl em condições reais, com chave e créditos:
   * executar busca completa de vagas pelo Scout;
   * executar busca real de cursos pelo Curator;
   * validar salários e requisitos extraídos;
   * registrar e exibir a origem dos dados;
   * confirmar a abertura de links reais de vagas no navegador.
-* [ ] Criar testes E2E automatizados para a esteira completa:
+* [ ] **Pendente (sem estrutura E2E e sem ambiente validado).** Criar testes E2E automatizados para a esteira completa:
   currículo → vaga → match → sugestões → PDI → entrevista → candidatura.
-* [ ] Validar schemas dos artefatos Markdown antes de consumi-los e cobrir via
-  HTTP os casos de arquivos ausentes, inválidos ou corrompidos, especialmente
-  match, sugestões e PDI.
-* [ ] Executar uma matriz completa de falhas com backend disponível e
-  indisponível:
-  * match sem vaga válida;
-  * sugestões sem relatório de match;
-  * interrupção física do backend;
-  * reconexão real do WebSocket durante streaming longo;
-  * retomada após perda e restauração da conexão.
-* [ ] Migrar dados legados de `data/*.md` para uma sessão isolada ou definir uma
-  política explícita de descarte. Hoje esses arquivos podem ser lidos pela sessão
-  default.
-* [ ] Exigir confirmação do usuário antes de atualizar o perfil com dados do
-  currículo, da vaga ou da reconciliação.
+* [ ] **Parcial.** Validação de artefatos Markdown endurecida no consumo:
+  ausente/vazio → HTTP 400; corrompido/binário/não-UTF-8 → HTTP 409 controlado
+  (sem traceback, sem sobrescrita do arquivo), via helper reutilizável
+  (`read_required` / `read_optional_text`) aplicado a match, sugestões, PDI e
+  reconciliação (`/analyze` e `/latest`). A validação estrutural por tipo já
+  existia (`validate_*` / `*_from_markdown`). Coberto por
+  `backend/tests/test_artifact_corruption.py`. Pendente: validação de schema
+  mais profunda e a matriz completa de falhas E2E.
+* [ ] **Parcial.** Matriz de falhas coberta por testes automatizados:
+  pré-requisitos REST ausentes (match sem vaga/currículo, sugestões sem match,
+  PDI sem match/sugestões → HTTP 400 controlado) e artefatos corrompidos (→ 409)
+  já cobertos; WebSocket agora coberto em
+  `backend/tests/test_chat_websocket_failures.py` (state inicial + welcome
+  conclui sem travar; JSON inválido → erro controlado; estado corrompido →
+  fallback para sessão inicial; reconexão sem `replay` não reemite welcome;
+  `replay=1` reemite o prompt sem avançar/duplicar estado; desconexão persiste
+  estado sem estourar). Pendente (exige rede/processo real, não unitário):
+  interrupção física do backend e reconexão real sob streaming longo — validar
+  manualmente.
+* [x] **Concluído (descarte lógico).** A sessão default agora usa
+  `data/sessions/_default/`; artefatos de runtime ficam em
+  `data/sessions/{session_id}/`. `data/*.md` soltos na raiz são tratados como
+  legado e NÃO são consumidos automaticamente (exigem regeração na sessão);
+  nenhum arquivo legado é apagado e `data/README.md` é preservado. Coberto por
+  `backend/tests/test_session.py` e `backend/tests/test_session_default_isolation.py`.
+* [x] **Confirmação de perfil (backend) concluída.** O upload de currículo não
+  atualiza mais o perfil silenciosamente: retorna um preview não destrutivo
+  (`profile_suggestions`, com `current_value`/`suggested_value`/`conflict`) e
+  exige `POST /api/resume/apply-profile` com `confirm: true` para gravar apenas
+  os campos aprovados. Análise de vaga e `reconciliation/analyze` não escrevem o
+  perfil; `reconciliation/focus` segue como ação explícita do usuário. Coberto
+  por `backend/tests/test_resume_profile_confirmation.py`. UI de confirmação
+  implementada no frontend (`ProfileSuggestionConfirm`), exibida após a análise
+  do currículo, com seleção por campo, estados de loading/sucesso/erro e opção
+  de ignorar; coberta por
+  `frontend/src/components/ProfileSuggestionConfirm.test.tsx`.
 
 ## P1 — Alta prioridade funcional
 
@@ -45,8 +68,14 @@ ordenadas por impacto.
   é genérico.
 * [ ] Fazer o Coach sugerir respostas mais estratégicas com base em experiências
   comprovadas no currículo e gerar um plano de melhoria após a entrevista.
-* [ ] Normalizar e validar os links do `CuratorReport` antes de renderizar
-  “Abrir recurso”, aplicando a mesma proteção usada no `ScoutReport`.
+* [x] **Concluído.** Helper compartilhado `frontend/src/lib/links.ts`
+  (`normalizeHttpLink`) valida URLs http(s) e bloqueia
+  `javascript:`/`data:`/`file:`/`mailto:`/`ftp:`/sem-esquema/vazio.
+  `ScoutReport` (com gate de origem) e `CuratorReport` usam o MESMO helper; o
+  Curator mostra “Link não disponível” para link inseguro/inválido e nunca
+  renderiza `<a href>` inseguro. Cobertura: `frontend/src/lib/links.test.ts`,
+  `frontend/src/components/CuratorReport.test.tsx`,
+  `frontend/src/components/ScoutReport.test.tsx`.
 * [ ] Criar teste automatizado para o pré-preenchimento do quiz a partir da
   análise do currículo.
 * [ ] Melhorar as mensagens de conflito entre perfil, currículo e vaga,
@@ -77,7 +106,7 @@ ordenadas por impacto.
 
 * [ ] Enumerar no `README.md` as rotas REST atuais.
 * [ ] Sincronizar `plano.md` com a recuperação visual de sessão já concluída e
-  com a contagem atual de 177 testes backend.
+  com a contagem atual de 221 testes backend.
 * [ ] Documentar decisões arquiteturais relevantes:
   isolamento por sessão, escrita atômica, fallback de provedores e foco da
   candidatura.
@@ -88,6 +117,30 @@ ordenadas por impacto.
   estável para publicação.
 
 # 2. Entregas concluídas
+
+## Atualizacao de Roadmap Tecnico (2026-06-17)
+
+O backend passou por uma etapa de hardening e agora opera com contratos mais proximos de producao:
+
+* [x] Logging estruturado centralizado em `backend/logging_config.py`.
+* [x] Tratamento global de excecoes no FastAPI para respostas JSON seguras.
+* [x] Falhas de LLM e provedores externos encapsuladas em erros de dominio controlados.
+* [x] Persistencia local protegida por locks, escrita atomica e I/O delegado para thread quando necessario.
+* [x] Sessoes isoladas por `session_id`, com estado do WebSocket salvo em `data/sessions/{id}/chat_state.json`.
+* [x] Firecrawl migrado de CLI/subprocess para SDK oficial `firecrawl-py`.
+* [x] Upload de curriculos endurecido com limite de tamanho e Magic Numbers.
+* [x] Suite atual: 221 testes no backend (inclui stress test de 50 escritas concorrentes) e 26 no frontend.
+
+Proximos marcos arquiteturais (atualizado em 2026-06-26 — em sua maioria entregues):
+
+* [x] Frontend consumir os contratos padronizados de erro 422/500 com toasts ou banners amigaveis.
+  Helper `frontend/src/lib/api.ts` (`apiRequest`) normaliza 422/500, corpo vazio, HTML/texto inesperado, falha de rede e timeout; todos os fluxos REST migrados.
+* [ ] Frontend refletir visualmente a recuperacao de estado do WebSocket apos reconexao.
+  Estado e' restaurado no handshake do WebSocket; falta repintar quiz/Coach no primeiro load sem expor a reconexao ao usuario.
+* [x] Dockerizar backend e frontend.
+  `backend/Dockerfile`, `frontend/Dockerfile` (build Vite servido por Nginx) e `docker-compose.yml` (com profile `mock`) — `docker compose up --build`.
+* [x] Criar GitHub Actions com pipeline bloqueante para testes de contrato e concorrencia.
+  `.github/workflows/backend-ci.yml` roda a suite completa (inclui `test_concurrency.py`) em PRs/pushes para `main`.
 
 ## 2.1 Arquitetura, backend e resiliência
 
@@ -226,12 +279,12 @@ ordenadas por impacto.
 
 ## 2.9 Testes e validações concluídas
 
-* [x] Suíte backend com **177 testes passando**.
+* [x] Suíte backend com **221 testes passando**.
 * [x] Stress test com 50 escritas concorrentes sem perda.
 * [x] Cobertura de agentes, sessão, isolamento, rotas, validação de
   pré-requisitos, candidaturas, reconciliação, foco, Firecrawl e replay.
 * [x] Caminhos `call_llm` e `stream_llm` validados com provedor compatível.
-* [x] Frontend com **26 testes passando**.
+* [x] Frontend com **48 testes passando**.
 * [x] `npm run lint` sem erros.
 * [x] `npm run build` sem erros.
 * [x] Fluxo manual currículo → vaga → match → sugestões → PDI validado com
