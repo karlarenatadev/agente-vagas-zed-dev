@@ -4,7 +4,7 @@
 
 Referência do código analisado: `d14e2d1`
 
-Validação atual: backend **221 passed** (`pytest -q`, rodadas P0 locais sobre `d14e2d1`, ainda não commitadas); frontend **48 passed** (`npm run test -- --run`, reexecutada na rodada de UI de confirmação de perfil); lint e build sem erros.
+Validação atual: backend **229 passed** (`pytest -q`, rodadas P0 locais sobre `d14e2d1`, ainda não commitadas); frontend **48 passed** (`npm run test -- --run`, reexecutada na rodada de UI de confirmação de perfil); lint e build sem erros.
 
 > Verificação de rodada — privacidade de `data/` e `applications.json`: confirmado que a pasta `data/` já está protegida no `.gitignore` (apenas `data/README.md` versionado, sem dados sensíveis) e que `applications.json` já trata JSON inválido/corrompido com HTTP 409, cria backup do arquivo corrompido, preserva o original e usa escrita atômica. Coberto por `backend/tests/test_applications.py`. Nenhuma mudança de comportamento foi necessária nesta rodada. Também foi removido um import morto em `ScoutReport.tsx` (`normalizeSafeHttpLink`, nunca usado) que quebrava o `tsc -b`; o `npm run build` voltou a passar.
 
@@ -63,11 +63,8 @@ ordenadas por impacto.
 
 ## P1 — Alta prioridade funcional
 
-* [ ] Calibrar o feedback do Coach pelo score de aderência, requisitos da vaga e
-  lacunas do currículo. As perguntas já usam esse contexto, mas o feedback ainda
-  é genérico.
-* [ ] Fazer o Coach sugerir respostas mais estratégicas com base em experiências
-  comprovadas no currículo e gerar um plano de melhoria após a entrevista.
+* [x] **Concluído.** Feedback calibrado: os prompts de avaliação e a avaliação final passam a citar score/nível de prontidão, conectar os pontos a melhorar às lacunas críticas e requisitos ausentes do match, e diferenciar problema técnico/comportamental/evidência; a resposta melhorada é ancorada apenas em evidências reais do currículo (sem inventar). Coberto por `backend/tests/test_coach.py`.
+* [x] **Concluído.** Resposta melhorada ancorada em evidências reais e plano de preparação final priorizado pelas lacunas críticas/requisitos ausentes (com fallback local contextual quando o LLM falha). Quando não há match, o Coach não finge personalização e recomenda rodar o match. Coberto por `backend/tests/test_coach.py`.
 * [x] **Concluído.** Helper compartilhado `frontend/src/lib/links.ts`
   (`normalizeHttpLink`) valida URLs http(s) e bloqueia
   `javascript:`/`data:`/`file:`/`mailto:`/`ftp:`/sem-esquema/vazio.
@@ -279,7 +276,7 @@ Proximos marcos arquiteturais (atualizado em 2026-06-26 — em sua maioria entre
 
 ## 2.9 Testes e validações concluídas
 
-* [x] Suíte backend com **221 testes passando**.
+* [x] Suíte backend com **229 testes passando**.
 * [x] Stress test com 50 escritas concorrentes sem perda.
 * [x] Cobertura de agentes, sessão, isolamento, rotas, validação de
   pré-requisitos, candidaturas, reconciliação, foco, Firecrawl e replay.
