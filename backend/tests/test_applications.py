@@ -169,3 +169,142 @@ def test_escrita_atomica_nao_deixa_tmp_e_json_valido(client, tmp_path):
     assert isinstance(conteudo, list) and len(conteudo) == 1
     # ...e nenhum arquivo temporário ficou para trás.
     assert not (base / "applications.json.tmp").exists()
+
+
+@pytest.mark.parametrize(
+    "link",
+    [
+        "javascript:alert(1)",
+        "data:text/html,<script>alert(1)</script>",
+        "ftp://exemplo.com/vaga",
+        "exemplo.com/vaga",
+    ],
+)
+def test_rejeita_link_inseguro_sem_persistir(client, tmp_path, link):
+    resp = client.post("/api/applications/", json=_nova_candidatura(link=link))
+
+    assert resp.status_code == 422
+    assert not (_default_dir(tmp_path) / "applications.json").exists()
+
+
+@pytest.mark.parametrize(
+    "link",
+    [
+        "http://exemplo.com/vaga",
+        "https://exemplo.com/vaga",
+        "",
+    ],
+)
+def test_aceita_link_http_https_ou_vazio(client, link):
+    resp = client.post("/api/applications/", json=_nova_candidatura(link=link))
+
+    assert resp.status_code == 200
+    assert resp.json()["link"] == link
+
+
+def test_rejeita_status_desconhecido_na_criacao_sem_persistir(client, tmp_path):
+    resp = client.post(
+        "/api/applications/",
+        json=_nova_candidatura(status="arquivada"),
+    )
+
+    assert resp.status_code == 422
+    assert not (_default_dir(tmp_path) / "applications.json").exists()
+
+
+def test_rejeita_status_desconhecido_no_update_sem_alterar_arquivo(
+    client,
+    tmp_path,
+):
+    criada = client.post("/api/applications/", json=_nova_candidatura()).json()
+    arquivo = _default_dir(tmp_path) / "applications.json"
+    conteudo_original = arquivo.read_text(encoding="utf-8")
+
+    resp = client.patch(
+        f"/api/applications/{criada['id']}",
+        json={"status": "arquivada"},
+    )
+
+    assert resp.status_code == 422
+    assert arquivo.read_text(encoding="utf-8") == conteudo_original
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("titulo", "x" * 201),
+        ("empresa", "x" * 201),
+        ("localizacao", "x" * 201),
+        ("link", "x" * 2049),
+        ("salario", "x" * 121),
+        ("habilidades_correspondentes", "x" * 2001),
+        ("habilidades_faltantes", "x" * 2001),
+        ("contagem_correspondencia", "x" * 121),
+        ("notas", "x" * 5001),
+    ],
+)
+def test_rejeita_texto_excessivo_na_criacao_sem_persistir(
+    client,
+    tmp_path,
+    field,
+    value,
+):
+    resp = client.post(
+        "/api/applications/",
+        json=_nova_candidatura(**{field: value}),
+    )
+
+    assert resp.status_code == 422
+    assert not (_default_dir(tmp_path) / "applications.json").exists()
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("notas", "x" * 5001),
+        ("data_aplicacao", "x" * 65),
+    ],
+)
+def test_rejeita_texto_excessivo_no_update_sem_alterar_arquivo(
+    client,
+    tmp_path,
+    field,
+    value,
+):
+    criada = client.post("/api/applications/", json=_nova_candidatura()).json()
+    arquivo = _default_dir(tmp_path) / "applications.json"
+    conteudo_original = arquivo.read_text(encoding="utf-8")
+
+    resp = client.patch(
+        f"/api/applications/{criada['id']}",
+        json={field: value},
+    )
+
+    assert resp.status_code == 422
+    assert arquivo.read_text(encoding="utf-8") == conteudo_original
+
+
+def test_listagem_preserva_registro_legado_invalido_sem_reescrever(
+    client,
+    tmp_path,
+):
+    arquivo = _default_dir(tmp_path) / "applications.json"
+    legado = [
+        {
+            "id": "legado-1",
+            "titulo": "Vaga legada",
+            "empresa": "Acme",
+            "localizacao": "Remoto",
+            "link": "javascript:alert(1)",
+            "status": "arquivada",
+            "data_salva": "data-invalida",
+        }
+    ]
+    conteudo_original = json.dumps(legado, ensure_ascii=False)
+    arquivo.write_text(conteudo_original, encoding="utf-8")
+
+    resp = client.get("/api/applications/")
+
+    assert resp.status_code == 200
+    assert resp.json()[0]["status"] == "arquivada"
+    assert arquivo.read_text(encoding="utf-8") == conteudo_original

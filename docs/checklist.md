@@ -1,300 +1,457 @@
-# Checklist consolidado — Import Vagas
+# Checklist técnico consolidado — Recoloca IA
 
-Última consolidação: 2026-06-27
+Última avaliação: 2026-06-27
 
-Referência do código analisado: `d14e2d1`
+Branch e referência analisadas: `main` em `75c7fa1`
 
-Validação atual: backend **229 passed** (`pytest -q`, rodadas P0 locais sobre `d14e2d1`, ainda não commitadas); frontend **48 passed** (`npm run test -- --run`, reexecutada na rodada de UI de confirmação de perfil); lint e build sem erros.
+Escopo revisto: backend FastAPI, frontend React, WebSocket, agentes, persistência
+Markdown/JSON, integração Firecrawl, Docker, workflows de CI e documentação.
 
-> Verificação de rodada — privacidade de `data/` e `applications.json`: confirmado que a pasta `data/` já está protegida no `.gitignore` (apenas `data/README.md` versionado, sem dados sensíveis) e que `applications.json` já trata JSON inválido/corrompido com HTTP 409, cria backup do arquivo corrompido, preserva o original e usa escrita atômica. Coberto por `backend/tests/test_applications.py`. Nenhuma mudança de comportamento foi necessária nesta rodada. Também foi removido um import morto em `ScoutReport.tsx` (`normalizeSafeHttpLink`, nunca usado) que quebrava o `tsc -b`; o `npm run build` voltou a passar.
+## 1. Diagnóstico executivo
 
-Este arquivo substitui o histórico acumulado de checklists. Itens repetidos foram
-unificados, entregas antigas foram agrupadas por domínio e as pendências foram
-ordenadas por impacto.
+O projeto está em um estágio de **MVP local funcional e bem testado**, com boa
+separação de agentes, isolamento lógico por sessão, escrita atômica e tratamento
+de vários cenários de falha.
 
-# 1. Pendências priorizadas
+O projeto **ainda não está pronto para exposição pública com dados reais**. Os
+principais bloqueadores são:
 
-## P0 — Críticas para produção
+1. ausência de autenticação e autorização sobre dados pessoais;
+2. artefatos derivados podem permanecer válidos visualmente após a alteração das
+   entradas que os originaram;
+3. ausência de limites, rate limiting, expiração e descarte completo por sessão;
+4. ausência de E2E automatizado e validação real do Firecrawl;
+5. proteções de CI ainda incompletas para testes frontend.
 
-* [ ] **Bloqueado (ambiente externo — depende de chave/créditos do Firecrawl).** Validar o Firecrawl em condições reais, com chave e créditos:
-  * executar busca completa de vagas pelo Scout;
-  * executar busca real de cursos pelo Curator;
-  * validar salários e requisitos extraídos;
-  * registrar e exibir a origem dos dados;
-  * confirmar a abertura de links reais de vagas no navegador.
-* [ ] **Pendente (sem estrutura E2E e sem ambiente validado).** Criar testes E2E automatizados para a esteira completa:
-  currículo → vaga → match → sugestões → PDI → entrevista → candidatura.
-* [ ] **Parcial.** Validação de artefatos Markdown endurecida no consumo:
-  ausente/vazio → HTTP 400; corrompido/binário/não-UTF-8 → HTTP 409 controlado
-  (sem traceback, sem sobrescrita do arquivo), via helper reutilizável
-  (`read_required` / `read_optional_text`) aplicado a match, sugestões, PDI e
-  reconciliação (`/analyze` e `/latest`). A validação estrutural por tipo já
-  existia (`validate_*` / `*_from_markdown`). Coberto por
-  `backend/tests/test_artifact_corruption.py`. Pendente: validação de schema
-  mais profunda e a matriz completa de falhas E2E.
-* [ ] **Parcial.** Matriz de falhas coberta por testes automatizados:
-  pré-requisitos REST ausentes (match sem vaga/currículo, sugestões sem match,
-  PDI sem match/sugestões → HTTP 400 controlado) e artefatos corrompidos (→ 409)
-  já cobertos; WebSocket agora coberto em
-  `backend/tests/test_chat_websocket_failures.py` (state inicial + welcome
-  conclui sem travar; JSON inválido → erro controlado; estado corrompido →
-  fallback para sessão inicial; reconexão sem `replay` não reemite welcome;
-  `replay=1` reemite o prompt sem avançar/duplicar estado; desconexão persiste
-  estado sem estourar). Pendente (exige rede/processo real, não unitário):
-  interrupção física do backend e reconexão real sob streaming longo — validar
-  manualmente.
-* [x] **Concluído (descarte lógico).** A sessão default agora usa
-  `data/sessions/_default/`; artefatos de runtime ficam em
-  `data/sessions/{session_id}/`. `data/*.md` soltos na raiz são tratados como
-  legado e NÃO são consumidos automaticamente (exigem regeração na sessão);
-  nenhum arquivo legado é apagado e `data/README.md` é preservado. Coberto por
-  `backend/tests/test_session.py` e `backend/tests/test_session_default_isolation.py`.
-* [x] **Confirmação de perfil (backend) concluída.** O upload de currículo não
-  atualiza mais o perfil silenciosamente: retorna um preview não destrutivo
-  (`profile_suggestions`, com `current_value`/`suggested_value`/`conflict`) e
-  exige `POST /api/resume/apply-profile` com `confirm: true` para gravar apenas
-  os campos aprovados. Análise de vaga e `reconciliation/analyze` não escrevem o
-  perfil; `reconciliation/focus` segue como ação explícita do usuário. Coberto
-  por `backend/tests/test_resume_profile_confirmation.py`. UI de confirmação
-  implementada no frontend (`ProfileSuggestionConfirm`), exibida após a análise
-  do currículo, com seleção por campo, estados de loading/sucesso/erro e opção
-  de ignorar; coberta por
-  `frontend/src/components/ProfileSuggestionConfirm.test.tsx`.
+Decisão de release: manter como aplicação local/controlada até concluir os itens
+P0. Para publicação, o cabeçalho `X-Session-Id` não pode ser tratado como
+mecanismo de identidade ou autorização.
 
-## P1 — Alta prioridade funcional
+## 2. Validação reproduzida nesta avaliação
 
-* [x] **Concluído.** Feedback calibrado: os prompts de avaliação e a avaliação final passam a citar score/nível de prontidão, conectar os pontos a melhorar às lacunas críticas e requisitos ausentes do match, e diferenciar problema técnico/comportamental/evidência; a resposta melhorada é ancorada apenas em evidências reais do currículo (sem inventar). Coberto por `backend/tests/test_coach.py`.
-* [x] **Concluído.** Resposta melhorada ancorada em evidências reais e plano de preparação final priorizado pelas lacunas críticas/requisitos ausentes (com fallback local contextual quando o LLM falha). Quando não há match, o Coach não finge personalização e recomenda rodar o match. Coberto por `backend/tests/test_coach.py`.
-* [x] **Concluído.** Helper compartilhado `frontend/src/lib/links.ts`
-  (`normalizeHttpLink`) valida URLs http(s) e bloqueia
-  `javascript:`/`data:`/`file:`/`mailto:`/`ftp:`/sem-esquema/vazio.
-  `ScoutReport` (com gate de origem) e `CuratorReport` usam o MESMO helper; o
-  Curator mostra “Link não disponível” para link inseguro/inválido e nunca
-  renderiza `<a href>` inseguro. Cobertura: `frontend/src/lib/links.test.ts`,
-  `frontend/src/components/CuratorReport.test.tsx`,
-  `frontend/src/components/ScoutReport.test.tsx`.
-* [ ] Criar teste automatizado para o pré-preenchimento do quiz a partir da
-  análise do currículo.
-* [ ] Melhorar as mensagens de conflito entre perfil, currículo e vaga,
-  explicando qual fonte prevalece e por quê.
-* [ ] Permitir cursos pagos no PDI somente quando agregarem valor e identificá-los
-  claramente como opção complementar.
-* [ ] Revalidar o auto-scroll para mensagens de erro e revisar os estados
-  loading, vazio, erro e sucesso dos componentes restantes.
+1. Backend
+   - Estado: aprovado.
+   - Comando: `backend/.venv/Scripts/python.exe -m pytest backend/tests -q`.
+   - Resultado: **250 passed**, 1 warning, em 47,48 s.
+   - Warning: `PendingDeprecationWarning` do Starlette para `import multipart`.
 
-## P2 — Qualidade técnica e manutenção
+2. Frontend
+   - Estado: aprovado.
+   - Comando: `npm run test -- --run`.
+   - Resultado: **6 arquivos e 56 testes passando**.
+   - Comando: `npm run lint`.
+   - Resultado: sem erros.
+   - Comando: `npm run build`.
+   - Resultado: sem erros.
+   - Bundle principal: **379,67 kB**; gzip: **119,68 kB**.
+   - Chunk do chat: **174,28 kB**; gzip: **52,40 kB**.
 
-* [ ] Eliminar checagens defensivas de mojibake espalhadas pelo Curator e Coach
-  depois de garantir UTF-8 na origem e na persistência.
-* [ ] Acompanhar o `PendingDeprecationWarning` emitido pelo Starlette por
-  `import multipart` e migrar para `python_multipart` quando a cadeia de
-  dependências permitir.
-* [ ] Concluir o lazy loading dos módulos principais ainda carregados no bundle
-  inicial.
-* [ ] Revisar o tamanho do build atual:
-  * bundle principal: 376,81 kB;
-  * chunk do chat: 174,29 kB.
-* [ ] Otimizar imports e tree-shaking.
-* [ ] Eliminar duplicações de tipos TypeScript.
-* [ ] Revisar CSS, nomes de arquivos e responsabilidades dos componentes para
-  manter consistência visual e estrutural.
+3. Dependências Python
+   - Estado: aprovado.
+   - Comando: `python -m pip check`.
+   - Resultado: nenhuma dependência quebrada.
 
-## P3 — Documentação e acabamento
+4. Cobertura
+   - Estado: não mensurada.
+   - Erro: o ambiente virtual atual não tem `pytest-cov` instalado, embora a
+     dependência esteja declarada em `backend/requirements-dev.txt`; o pytest
+     rejeitou `--cov`.
+   - Risco: não existe limiar de cobertura bloqueante no CI.
 
-* [ ] Enumerar no `README.md` as rotas REST atuais.
-* [ ] Sincronizar `plano.md` com a recuperação visual de sessão já concluída e
-  com a contagem atual de 221 testes backend.
-* [ ] Documentar decisões arquiteturais relevantes:
-  isolamento por sessão, escrita atômica, fallback de provedores e foco da
-  candidatura.
-* [ ] Criar um diagrama do fluxo de dados entre frontend, rotas, agentes e
-  artefatos Markdown.
-* [ ] Documentar os schemas atuais dos arquivos em `data/`.
-* [ ] Adicionar capturas de tela atualizadas quando houver uma versão visual
-  estável para publicação.
+5. Docker
+   - Estado: não reproduzido nesta máquina.
+   - Erro: executável `docker` indisponível no ambiente atual.
+   - Observação: Dockerfiles, `.dockerignore`, Nginx e Compose foram revisados
+     estaticamente; o `.dockerignore` raiz exclui `backend/.env`, `data/` e logs.
 
-# 2. Entregas concluídas
+6. Firecrawl e LLM reais
+   - Estado: bloqueado por ambiente externo.
+   - `OPENAI_API_KEY`, `FIRECRAWL_API_KEY` e `LLM_BASE_URL` não estão configurados
+     com valores utilizáveis neste ambiente.
+   - O roteiro está em `docs/firecrawl-validacao-manual.md`.
 
-## Atualizacao de Roadmap Tecnico (2026-06-17)
+7. Repositório e privacidade atual
+   - O worktree contém as entregas M0-01/M0-02 ainda não commitadas, sem
+     artefatos de runtime staged ou rastreados.
+   - Apenas `data/README.md` está rastreado em `data/`.
+   - `backend/.env` está ignorado pelo Git.
+   - Não foi encontrado `TODO`, `FIXME`, `XXX` ou `HACK` no código rastreado.
 
-O backend passou por uma etapa de hardening e agora opera com contratos mais proximos de producao:
+8. Data Guard
+   - Estado: aprovado.
+   - Comando: `python -m unittest discover -s scripts/tests -p "test_*.py" -v`.
+   - Resultado: **8 testes passando**.
+   - Comando: `python scripts/validate_data_guard.py`.
+   - Resultado: **153 arquivos rastreados/staged verificados**, sem violação.
+   - Verificação adicional: **14 arquivos novos/modificados** da rodada
+     inspecionados pelo mesmo scanner, sem violação.
 
-* [x] Logging estruturado centralizado em `backend/logging_config.py`.
-* [x] Tratamento global de excecoes no FastAPI para respostas JSON seguras.
-* [x] Falhas de LLM e provedores externos encapsuladas em erros de dominio controlados.
-* [x] Persistencia local protegida por locks, escrita atomica e I/O delegado para thread quando necessario.
-* [x] Sessoes isoladas por `session_id`, com estado do WebSocket salvo em `data/sessions/{id}/chat_state.json`.
-* [x] Firecrawl migrado de CLI/subprocess para SDK oficial `firecrawl-py`.
-* [x] Upload de curriculos endurecido com limite de tamanho e Magic Numbers.
-* [x] Suite atual: 221 testes no backend (inclui stress test de 50 escritas concorrentes) e 26 no frontend.
+## 3. Critério de criticidade
 
-Proximos marcos arquiteturais (atualizado em 2026-06-26 — em sua maioria entregues):
+1. P0 — bloqueia publicação ou pode expor dados, permitir abuso, quebrar a
+   integridade da jornada ou apresentar resultado obsoleto como atual.
+2. P1 — lacuna funcional relevante ou ausência de teste/contrato que reduz
+   significativamente a confiabilidade do MVP.
+3. P2 — qualidade, desempenho, observabilidade e manutenção.
+4. P3 — documentação e acabamento sem impacto imediato na execução.
 
-* [x] Frontend consumir os contratos padronizados de erro 422/500 com toasts ou banners amigaveis.
-  Helper `frontend/src/lib/api.ts` (`apiRequest`) normaliza 422/500, corpo vazio, HTML/texto inesperado, falha de rede e timeout; todos os fluxos REST migrados.
-* [ ] Frontend refletir visualmente a recuperacao de estado do WebSocket apos reconexao.
-  Estado e' restaurado no handshake do WebSocket; falta repintar quiz/Coach no primeiro load sem expor a reconexao ao usuario.
-* [x] Dockerizar backend e frontend.
-  `backend/Dockerfile`, `frontend/Dockerfile` (build Vite servido por Nginx) e `docker-compose.yml` (com profile `mock`) — `docker compose up --build`.
-* [x] Criar GitHub Actions com pipeline bloqueante para testes de contrato e concorrencia.
-  `.github/workflows/backend-ci.yml` roda a suite completa (inclui `test_concurrency.py`) em PRs/pushes para `main`.
+## 4. Pendências priorizadas
 
-## 2.1 Arquitetura, backend e resiliência
+### P0 — Bloqueadores de produção
 
-* [x] Backend FastAPI estruturado com rotas REST, WebSocket e agentes
-  especializados.
-* [x] Logging JSON centralizado em `backend/logging_config.py`, com eventos de
-  WebSocket, agentes, LLM e integrações associados ao `session_id`.
-* [x] Exceções de domínio e respostas seguras para erros 422, 500, LLM e
-  Firecrawl, sem exposição de traceback ao usuário.
-* [x] Chamadas bloqueantes de disco e SDK externo movidas para
-  `asyncio.to_thread`.
-* [x] Persistência protegida por locks, escrita temporária e `os.replace`.
-* [x] Operações read-modify-write de candidaturas protegidas contra concorrência.
-* [x] Isolamento multiusuário por `session_id` em `data/sessions/{id}/`.
-* [x] Rotas REST recebem `SessionPaths`; WebSocket e agentes usam os mesmos
-  caminhos isolados.
-* [x] Upload de currículo protegido por limite de tamanho, `Content-Type`, Magic
-  Numbers e resposta 413 para arquivo excessivo.
-* [x] Firecrawl migrado do CLI/subprocess para o SDK oficial `firecrawl-py`.
-* [x] `LLM_BASE_URL` permite provedores compatíveis com a API OpenAI.
-* [x] `openai.APIError` é convertido em `LLMProviderError` controlado em chamadas
-  normais e streaming.
+#### P0-01 — Implementar identidade, autenticação e autorização
 
-## 2.2 Estado e WebSocket
+- [ ] Estado: não iniciado.
+- Evidência:
+  - todas as rotas REST confiam em `X-Session-Id` fornecido pelo cliente;
+  - o WebSocket recebe `session_id` pela query string;
+  - não existe autenticação, vínculo de propriedade ou autorização;
+  - chamadas sem ID compartilham `data/sessions/_default/`;
+  - IDs inválidos são transformados em vez de rejeitados, permitindo colisões
+    como IDs diferentes que resultam no mesmo nome sanitizado;
+  - o WebSocket aceita a conexão antes de validar identidade ou origem.
+- Risco: conhecimento ou colisão de um ID permite leitura e mutação dos
+  artefatos daquela sessão; a sessão default pode misturar clientes sem header.
+- Critérios de aceite:
+  - identidade emitida e validada no servidor;
+  - autorização aplicada a todas as rotas REST e ao WebSocket;
+  - sessão default desabilitada em ambiente público;
+  - IDs inválidos rejeitados, sem normalização que produza colisão;
+  - validação de `Origin` no WebSocket;
+  - testes negativos provando que uma identidade não acessa outra;
+  - modo local anônimo, se mantido, explicitamente separado por configuração.
 
-* [x] Estado do chat persistido atomicamente em
-  `data/sessions/{session_id}/chat_state.json`.
-* [x] Quiz, modo atual, passo do Coach e contexto recente são restaurados no
-  handshake.
-* [x] Envio de mensagem com socket fechado retorna falha e libera loading e
-  streaming.
-* [x] Reconexão automática implementada sem duplicar respostas.
-* [x] Recuperação visual no primeiro load concluída no commit `d14e2d1`:
-  `replay=1` repinta quiz, menu, Coach ou prompt de vaga sem gravar arquivos,
-  avançar etapa ou emitir `__STATE__`.
-* [x] Reconexões transitórias permanecem silenciosas porque não enviam
-  `replay=1`.
+#### P0-02 — Corrigir linhagem e invalidação de artefatos derivados
 
-## 2.3 Maestro e jornada conversacional
+- [ ] Estado: falha funcional confirmada por inspeção.
+- Evidência:
+  - reanalisar currículo ou vaga remove match, tailoring e PDI, mas preserva
+    `reconciliation.md` e entrevista;
+  - recalcular match não invalida reconciliação, tailoring, PDI ou entrevista;
+  - aplicar sugestões ao perfil e alterar o foco não invalida relatórios
+    dependentes;
+  - `ApplicationPipeline` considera uma etapa concluída principalmente pela
+    existência/conteúdo do arquivo, sem provar que ele deriva das entradas atuais.
+- Risco: a interface pode apresentar score, foco, sugestões ou PDI antigos como
+  atuais depois que perfil, currículo, vaga ou match mudaram.
+- Critérios de aceite:
+  - definir a matriz de dependência:
+    - perfil → vagas, cursos, match, reconciliação, tailoring, PDI e entrevista;
+    - currículo → match, reconciliação, tailoring, PDI e entrevista;
+    - vaga → match, reconciliação, tailoring, PDI e entrevista;
+    - match/foco → reconciliação, tailoring, PDI e entrevista;
+    - tailoring → PDI;
+  - centralizar a invalidação em um único serviço;
+  - registrar versão, timestamp e hash das entradas em cada artefato derivado;
+  - impedir leitura/exibição de artefato cujo hash de origem não corresponda;
+  - cobrir cada transição com testes de rota e de pipeline frontend.
 
-* [x] Quiz de sete perguntas com retomada, validação e consolidação do perfil.
-* [x] Diagnóstico pode aproveitar área, nível e habilidades encontrados no
-  currículo e perguntar apenas os campos ausentes.
-* [x] Menu dividido em duas esteiras:
-  * Carreira: A–D;
-  * Candidatura: E–I.
-* [x] Roteamento conversacional implementado para busca de vagas, cursos,
-  entrevista, novo diagnóstico, análise de vaga, match, tailoring, PDI e
-  reconciliação.
-* [x] Fluxo master/detail do menu implementado no rodapé do chat.
-* [x] Reset do diagnóstico limpa perfil e artefatos dependentes.
-* [x] Pré-requisitos dos fluxos são validados antes do despacho ou da execução.
+#### P0-03 — Limitar abuso de recursos e definir ciclo de vida dos dados
 
-## 2.4 Scout e Curator
+- [ ] Estado: não iniciado.
+- Evidência:
+  - não há rate limiting para REST, upload, LLM, Firecrawl ou WebSocket;
+  - mensagens WebSocket não têm schema nem limite explícito de tamanho;
+  - payload JSON que não seja objeto, ou `content` que não seja string, pode
+    gerar exceção fora dos casos controlados;
+  - listas de campos aprovados e outros inputs ainda não têm limites globais;
+    candidaturas já receberam limites na M0-01;
+  - qualquer cliente pode criar IDs de sessão e diretórios indefinidamente;
+  - `_session_locks` cresce por ID e não remove locks inativos;
+  - não há TTL, quota por sessão, coleta de sessões antigas ou exclusão completa
+    dos dados pelo usuário.
+- Critérios de aceite:
+  - schema estrito e tamanho máximo para mensagens WebSocket;
+  - limites de texto/listas em todos os modelos Pydantic;
+  - rate limit e quota por identidade/sessão;
+  - timeout e cancelamento propagados para operações externas;
+  - política de retenção, limpeza de locks e diretórios expirados;
+  - ação explícita para exportar e apagar todos os dados da pessoa;
+  - testes de payload excessivo, flood, sessão expirada e descarte.
 
-* [x] Scout calcula aderência, habilidades correspondentes, lacunas, soft skills,
-  requisitos recorrentes e prioridade de candidatura.
-* [x] Filtro de data das vagas integrado entre frontend, WebSocket, Maestro e
-  Scout.
-* [x] Busca degradada do Firecrawl é sinalizada quando a consulta específica
-  falha e a busca ampla recupera vagas reais.
-* [x] Falta de créditos é diferenciada de rate limit por
-  `FirecrawlCreditError`.
-* [x] Cadeia de fallback do Scout implementada:
-  Firecrawl → LLM → simulação determinística.
-* [x] Sugestões do LLM usam `source="llm"`, não têm link clicável e aparecem
-  como “Sugerida por IA” e “não verificada”.
-* [x] Curator normaliza lacunas, classifica nível, duração, plataforma e preço e
-  organiza uma trilha priorizada.
-* [x] Base interna de cursos e recomendações oficiais mantém o fluxo disponível
-  quando a busca externa falha.
+#### P0-04 — Fechar a validação de links no tracker de candidaturas
 
-## 2.5 Currículo e esteira de candidatura
+- [x] Estado: concluído em 2026-06-27 pela tarefa M0-01.
+- Implementação:
+  - backend usa enum fechado para os sete status aceitos;
+  - criação aceita apenas link `http`, `https` ou vazio;
+  - `javascript:`, `data:`, URL sem esquema e status desconhecido retornam 422
+    antes de qualquer persistência;
+  - título, empresa, localização, link, salário, habilidades, contagem, notas e
+    data de aplicação possuem limites explícitos;
+  - update inválido não altera o arquivo existente;
+  - registros legados não são apagados ou reescritos automaticamente;
+  - frontend normaliza registros legados, sinaliza status/data inválidos e usa
+    `normalizeHttpLink`, sem renderizar `<a>` para link inseguro.
+- Evidência:
+  - `backend/tests/test_applications.py`: 32 testes direcionados;
+  - `frontend/src/components/ApplicationTracker.test.tsx`: 8 testes novos;
+  - suíte completa: backend 250; frontend 56; lint e build aprovados.
 
-* [x] Upload e análise de currículo em PDF, DOCX e TXT.
-* [x] Geração e leitura de `resume-analysis.md`.
-* [x] Análise estruturada de descrição de vaga e persistência em
-  `job-description-analysis.md`.
-* [x] Match entre vaga e currículo com score de 0 a 100, aliases normalizados,
-  lacunas e próximos passos.
-* [x] Geração e leitura de `resume-match-report.md`.
-* [x] Sugestões seguras por seção do currículo, sem inventar experiências.
-* [x] Geração e exibição de PDI de 7, 30 e 60 dias.
-* [x] Pipeline de candidaturas com criação, edição, exclusão e estatísticas.
-* [x] Reconciliação dos pares perfil↔currículo, perfil↔vaga e currículo↔vaga.
-* [x] Score de consistência e recomendações por foco implementados.
-* [x] Foco da candidatura configurável como perfil, currículo ou vaga.
-* [x] Foco persistido via `PUT /api/reconciliation/focus` e consumido por match,
-  tailoring e PDI.
+#### P0-05 — Tornar a proteção de dados do CI baseada em allowlist
 
-## 2.6 Coach
+- [x] Estado: concluído em 2026-06-27 pela tarefa M0-02.
+- Implementação:
+  - `scripts/validate_data_guard.py` verifica índice Git e conteúdo atual de
+    arquivos rastreados;
+  - allowlist de `data/` restrita a `data/README.md` e
+    `data/*.example.md` sanitizado;
+  - qualquer caminho sob `data/sessions/` é bloqueado, inclusive com `git add -f`;
+  - `.env`, variações perigosas, chaves privadas, API/access keys, tokens, JWT e
+    credenciais atribuídas em texto claro são bloqueados;
+  - placeholders, referências a variáveis e `.env.example` sanitizado são
+    permitidos para reduzir falsos positivos;
+  - cada erro informa o arquivo e, para segredo, a linha responsável;
+  - o workflow executa os testes do guard e o mesmo comando disponível localmente.
+- Evidência:
+  - 8 testes `unittest` com repositórios Git temporários;
+  - execução local aprovada sobre 153 arquivos rastreados/staged;
+  - 14 arquivos novos/modificados da rodada verificados separadamente;
+  - `data/README.md` segue como único arquivo atualmente rastreado em `data/`;
+  - arquivos locais existentes em `data/` foram preservados.
 
-* [x] Entrevista simulada estruturada em cinco perguntas com feedback por etapa.
-* [x] Contexto prioriza vaga analisada, relatório de aderência, resultados do
-  Scout e funções alvo.
-* [x] Perguntas técnicas usam requisitos e lacunas do match.
-* [x] Perguntas comportamentais usam responsabilidades da vaga.
-* [x] Fallback local mantém a entrevista disponível quando o LLM falha.
-* [x] Sessão de entrevista é persistida e pode ser retomada.
+#### P0-06 — Criar E2E automatizado do caminho crítico e de recuperação
 
-## 2.7 Frontend, UX e acessibilidade
+- [ ] Estado: não iniciado.
+- Escopo mínimo:
+  - currículo → confirmação de perfil → vaga → match → foco/reconciliação →
+    tailoring → PDI → entrevista → candidatura;
+  - reload durante quiz e entrevista;
+  - queda física do backend durante streaming e reconexão;
+  - falha 400/409/422/500, timeout e resposta vazia;
+  - invalidação visual após alterar perfil, currículo, vaga e match;
+  - isolamento entre dois contextos de navegador.
+- Critérios de aceite:
+  - suíte Playwright ou equivalente executada contra processos reais;
+  - dados isolados em diretório temporário;
+  - artefatos, estado visual e ausência de vazamento entre sessões verificados;
+  - execução bloqueante no CI.
 
-* [x] Frontend React 19, TypeScript 6 e Vite com tema dark tech e Career Arcade
-  Pipeline.
-* [x] Helper `apiRequest` centraliza timeout, falha de rede, corpo vazio,
-  HTML/texto inesperado e erros 400, 413, 422 e 500.
-* [x] Fluxos REST principais migrados para `apiRequest`.
-* [x] Estados anteriores são preservados quando uma leitura ou mutação falha.
-* [x] Componentes de perfil, currículo, vaga, match, sugestões, PDI, Scout,
-  Curator e candidaturas integrados à interface.
-* [x] Pipeline visual implementada para desktop, notebook, tablet e mobile.
-* [x] Responsividade validada em oito resoluções, sem overflow horizontal.
-* [x] Sidebar, barra de escrita, barra de progresso recolhida e ordem das
-  mensagens estabilizadas.
-* [x] QA visual e funcional executado em Chrome e Edge.
-* [x] Controles touch com área mínima, foco de teclado visível, modais com
-  `Escape`, estados com texto e ícone e suporte a redução de movimento.
-* [x] Fallback de cópia implementado para ambientes com Clipboard API restrita.
+#### P0-07 — Validar Firecrawl com chave e créditos reais
 
-## 2.8 Privacidade, infraestrutura e entrega
+- [ ] Estado: bloqueado por credenciais/créditos externos.
+- Já concluído no código:
+  - origem formalizada para vagas: `real`, `llm` ou `simulated`;
+  - origem formalizada para cursos: `real` ou `interna`;
+  - estados de sucesso, vazio, degradado, sem créditos, erro e timeout;
+  - normalização de salário, benefícios e requisitos;
+  - links do Scout/Curator protegidos por validação `http(s)`;
+  - roteiro manual versionado e testes determinísticos.
+- Falta executar:
+  - Scout real com resultados e busca vazia;
+  - Curator real e complemento interno;
+  - salários, benefícios e requisitos em amostra real;
+  - links reais no navegador;
+  - cenários sem crédito, erro, timeout e busca degradada;
+  - preencher o registro de execução em
+    `docs/firecrawl-validacao-manual.md`.
 
-* [x] Arquivos de runtime e dados pessoais em `data/` ignorados pelo Git.
-* [x] `data/README.md` documenta o caráter local e sensível dos artefatos.
-* [x] Somente documentação e exemplos sanitizados permanecem versionáveis em
-  `data/`.
-* [x] Backend Docker em imagem Python leve, com usuário sem privilégios e
-  healthcheck.
-* [x] Frontend Docker com build Vite e Nginx.
-* [x] Nginx configurado para SPA, proxy `/api` e upgrade `/ws`.
-* [x] `docker-compose.yml` orquestra frontend, backend, volume de dados e mock
-  opcional.
-* [x] Stack Docker validada ponta a ponta: build, healthcheck, SPA, API e
-  WebSocket.
-* [x] GitHub Actions executa a suíte backend em push e pull request para `main`.
-* [x] Testes de concorrência e contrato fazem parte da pipeline bloqueante.
+### P1 — Alta prioridade funcional e de confiabilidade
 
-## 2.9 Testes e validações concluídas
+#### P1-01 — Completar a criação de candidaturas na interface
 
-* [x] Suíte backend com **229 testes passando**.
-* [x] Stress test com 50 escritas concorrentes sem perda.
-* [x] Cobertura de agentes, sessão, isolamento, rotas, validação de
-  pré-requisitos, candidaturas, reconciliação, foco, Firecrawl e replay.
-* [x] Caminhos `call_llm` e `stream_llm` validados com provedor compatível.
-* [x] Frontend com **48 testes passando**.
-* [x] `npm run lint` sem erros.
-* [x] `npm run build` sem erros.
-* [x] Fluxo manual currículo → vaga → match → sugestões → PDI validado com
-  backend real.
-* [x] Quiz, candidaturas, upload, análise, cópia, responsividade e acessibilidade
-  validados em navegador.
+- [ ] Estado: backend pronto, frontend ausente.
+- Evidência: existe `POST /api/applications/`, mas não há chamada POST para essa
+  rota no frontend e o `ScoutReport` não oferece ação de salvar.
+- Critérios de aceite:
+  - botão “Salvar candidatura” apenas para vaga real;
+  - feedback de salvamento, duplicidade e erro;
+  - atualização imediata do tracker;
+  - teste integrado Scout → salvar → tracker.
 
-## 2.10 Documentação concluída
+#### P1-02 — Endurecer schemas e leitura de todos os artefatos
 
-* [x] README documenta proposta, instalação, execução local, Docker, arquitetura,
-  funcionalidades, fluxo de uso, artefatos e privacidade.
-* [x] `data/README.md` documenta a finalidade e a sensibilidade dos dados locais.
-* [x] `docs/frontend-qa-checklist.md` registra a validação visual.
-* [x] `docs/project-update-report.md` consolidado até o commit `d14e2d1`.
-* [x] Este checklist foi reorganizado em pendências priorizadas e entregas
-  concluídas, sem duplicações de histórico.
+- [ ] Estado: parcial.
+- Já coberto:
+  - match, tailoring, PDI e reconciliação tratam ausente/vazio e parte dos casos
+    corrompidos por `read_required`/`read_optional_text`;
+  - validações estruturais específicas existem para os principais relatórios.
+- Lacunas:
+  - `profile`, `data_files`, `job-description/latest` e `resume/latest` não usam
+    o mesmo contrato de corrupção;
+  - alguns artefatos inválidos retornam 404, outros 400/409;
+  - o Markdown não tem versão de schema nem migração;
+  - leituras raw de `data_files` não validam estrutura.
+- Critérios de aceite:
+  - schema versionado por tipo de artefato;
+  - parser único com erro consistente: ausente, vazio, incompatível e corrompido;
+  - nenhum artefato inválido tratado como “não encontrado”;
+  - matriz de testes cobrindo todas as rotas de leitura e geração.
+
+#### P1-03 — Corrigir e ampliar o CI
+
+- [ ] Estado: parcial.
+- Evidência:
+  - frontend CI usa `npm install`, roda lint/build, mas não roda Vitest;
+  - backend CI cobre apenas `main`; outros workflows cobrem `main` e `develop`;
+  - `pytest-cov` está declarado, mas nenhuma meta de cobertura é aplicada;
+  - não há E2E no CI.
+- Critérios de aceite:
+  - usar `npm ci`;
+  - executar os 56+ testes frontend;
+  - unificar branches e eventos;
+  - medir cobertura backend/frontend com limiar inicial realista e crescente;
+  - publicar relatórios de falha e duração.
+
+#### P1-04 — Cobrir fluxos frontend hoje sem teste dedicado
+
+- [ ] Testar `useWebSocket`: streaming, erro, queda, reconexão, replay e cleanup.
+- [ ] Testar `apiRequest`: timeout, rede, 400, 409, 413, 422, 500, HTML e vazio.
+- [ ] Testar `ApplicationTracker`: links, status, notas, exclusão e estado inválido.
+- [ ] Testar pré-preenchimento do quiz a partir da análise do currículo.
+- [ ] Testar auto-scroll em sucesso e erro.
+- [ ] Testar loading, vazio, erro e sucesso dos componentes restantes.
+
+#### P1-05 — Explicar conflitos e precedência de fontes
+
+- [ ] Estado: comportamento existe, comunicação insuficiente.
+- Critérios de aceite:
+  - explicar quando prevalece perfil, currículo ou vaga;
+  - mostrar efeito da escolha sobre match, tailoring, PDI e entrevista;
+  - pedir confirmação antes de trocar foco;
+  - rejeitar foco inválido de forma consistente, em vez de fallback silencioso
+    em algumas rotas;
+  - recalcular ou invalidar derivados após a confirmação.
+
+#### P1-06 — Refinar o PDI e cursos pagos
+
+- [ ] Permitir opção paga somente quando houver ganho explícito sobre alternativas
+  gratuitas.
+- [ ] Identificar claramente preço/origem e manter alternativa gratuita.
+- [ ] Não promover curso interno como resultado real do Firecrawl.
+- [ ] Cobrir a regra com testes do Curator e do PDI.
+
+#### P1-07 — Definir suporte de concorrência do deploy
+
+- [ ] Estado: seguro apenas no processo atual.
+- Evidência: locks são mantidos em memória e não coordenam múltiplos processos ou
+  réplicas.
+- Critérios de aceite:
+  - declarar e impor execução com um worker, ou
+  - migrar coordenação/persistência para mecanismo multiprocesso;
+  - testar concorrência entre processos antes de escalar horizontalmente.
+
+### P2 — Qualidade técnica e manutenção
+
+- [ ] Instalar e validar o ambiente de desenvolvimento a partir de
+  `requirements-dev.txt`; evitar ambiente local divergente.
+- [ ] Remover pacotes `extraneous` de `frontend/node_modules` com instalação
+  limpa e reproduzível.
+- [ ] Concluir lazy loading; o bundle principal cresceu de 376,81 kB para
+  379,68 kB e o chat de 174,29 kB para 174,47 kB.
+- [ ] Definir orçamento de bundle no CI e revisar imports/tree-shaking.
+- [ ] Mover leituras e `unlink` síncronos restantes para helpers assíncronos ou
+  thread, especialmente em rotas `async`.
+- [ ] Eliminar checagens defensivas de mojibake após garantir UTF-8 na entrada e
+  persistência.
+- [ ] Acompanhar o warning `python_multipart` da cadeia Starlette/FastAPI.
+- [ ] Eliminar duplicações de tipos TypeScript e validar respostas REST em
+  runtime antes de fazer cast.
+- [ ] Revisar responsabilidades de componentes e o CSS monolítico.
+- [ ] Remover locks inativos e definir limite/rotação para backups de corrupção.
+- [ ] Adicionar readiness check separado de liveness, incluindo diretório de
+  dados gravável e estado dos provedores sem expor segredos.
+- [ ] Tornar CORS, hosts confiáveis e headers de segurança configuráveis por
+  ambiente; documentar terminação TLS no proxy de produção.
+- [ ] Avaliar varredura de dependências no CI; segredos já são cobertos pelo
+  Data Guard da M0-02.
+
+### P3 — Documentação e acabamento
+
+- [ ] Reescrever `plano.md`: ele descreve apenas a persona/MoE original e não a
+  arquitetura FastAPI + React + WebSocket + sessões atual.
+- [x] README atualizado para 250 testes backend e 56 testes frontend após M0-01.
+- [ ] Enumerar no README as rotas REST e o contrato do WebSocket.
+- [ ] Corrigir a afirmação de criação de candidaturas na UI enquanto P1-01 não
+  estiver concluído.
+- [ ] Consolidar ou marcar `docs/avaliacao-20-06.md` e as seções históricas de
+  `docs/project-update-report.md` como snapshots, pois contêm achados já
+  resolvidos e contagens antigas.
+- [ ] Criar ADRs para isolamento por sessão, escrita atômica, fallback de
+  provedores, foco da candidatura e linhagem de artefatos.
+- [ ] Criar diagrama do fluxo frontend → rotas → agentes → artefatos.
+- [ ] Documentar schemas, versões e dependências de todos os arquivos em `data/`.
+- [ ] Adicionar capturas de tela apenas após estabilização visual.
+
+## 5. Entregas confirmadas no código
+
+### Backend e resiliência
+
+- [x] FastAPI com rotas REST, WebSocket e agentes especializados.
+- [x] Logging JSON e tratamento global seguro de 422/500.
+- [x] Erros de LLM e Firecrawl convertidos em falhas de domínio.
+- [x] Escrita atômica, locks por sessão e stress test de 50 escritas.
+- [x] Isolamento de caminhos em `data/sessions/{session_id}/`.
+- [x] Tentativas de path traversal não escapam do diretório base.
+- [x] `applications.json` corrompido gera 409, backup e preservação do original.
+- [x] Upload limitado a 5 MB, com extensão, Content-Type e Magic Number.
+- [x] Confirmação explícita antes de aplicar sugestões do currículo ao perfil.
+- [x] Candidaturas validam enum de status, links `http(s)` e limites de texto
+  antes de persistir.
+
+### Jornada e agentes
+
+- [x] Quiz de sete perguntas com retomada e perfil consolidado.
+- [x] Menu e roteamento A–I.
+- [x] Scout com match, filtro de data, proveniência e fallback em camadas.
+- [x] Curator com trilha, proveniência e base interna identificada.
+- [x] Coach com cinco perguntas, feedback contextual e retomada.
+- [x] Análise de vaga, match, reconciliação, tailoring e PDI.
+- [x] Foco de candidatura persistido e consumido pelas etapas derivadas.
+
+### Frontend
+
+- [x] React 19, TypeScript 6 e Vite.
+- [x] Helper central de API com timeout e mensagens amigáveis.
+- [x] Recuperação visual no primeiro load via `replay=1`.
+- [x] Reconexão transitória sem duplicar o prompt.
+- [x] Confirmação seletiva das sugestões de perfil.
+- [x] Links do Scout e Curator restritos a `http(s)`.
+- [x] Tracker normaliza links e registros legados sem renderizar URL insegura.
+- [x] Responsividade, navegação por teclado, redução de movimento e fallback de
+  cópia documentados na rodada de QA.
+
+### Infraestrutura e testes
+
+- [x] Dockerfiles para backend/frontend, Nginx e Compose com mock opcional.
+- [x] `.dockerignore` impede inclusão de `.env`, dados e logs na imagem backend.
+- [x] GitHub Actions para backend, frontend, documentação e proteção de dados.
+- [x] Data Guard baseado em allowlist, reutilizável localmente e no CI.
+- [x] Backend: 250 testes passando nesta avaliação.
+- [x] Frontend: 56 testes, lint e build passando nesta avaliação.
+
+## 6. Ordem recomendada de execução
+
+1. Segurança e integridade imediatas
+   - P0-01 identidade/autorização;
+   - P0-02 linhagem/invalidação;
+   - P0-03 limites/retenção;
+
+2. Gate de release
+   - P0-06 E2E;
+   - P0-07 Firecrawl real;
+   - P1-03 CI com testes frontend e cobertura.
+
+3. Fechamento funcional
+   - P1-01 salvar candidatura;
+   - P1-02 schemas;
+   - P1-04 cobertura frontend;
+   - P1-05 precedência;
+   - P1-06 PDI;
+   - P1-07 concorrência de deploy.
+
+4. Sustentação
+   - itens P2;
+   - sincronização documental P3.
+
+## 7. Definição de pronto para publicação
+
+- [ ] Todos os P0 concluídos ou formalmente removidos do escopo público.
+- [ ] Nenhum dado de uma identidade acessível por outra.
+- [ ] Nenhum artefato obsoleto exibido como atual.
+- [ ] Limites, rate limiting, retenção e exclusão de dados operacionais.
+- [ ] E2E crítico e CI completos passando.
+- [ ] Firecrawl real validado e evidenciado.
+- [ ] Backup, restauração e observabilidade testados.
+- [ ] Política de privacidade e operação com dados pessoais revisadas antes de
+  receber currículos reais em ambiente público.

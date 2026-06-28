@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { ApplicationPipeline } from '../ApplicationPipeline'
 import { ApplicationTracker } from '../ApplicationTracker'
@@ -107,6 +107,10 @@ class MockWebSocket {
     this.readyState = MockWebSocket.OPEN
     this.onopen?.(new Event('open'))
   }
+
+  message(data: unknown) {
+    this.onmessage?.(new MessageEvent('message', { data: JSON.stringify(data) }))
+  }
 }
 
 function installMockWebSocket() {
@@ -128,6 +132,8 @@ function WebSocketHarness() {
   return (
     <div>
       <button type="button" onClick={() => sendMessage('Oi Maestro')}>Enviar WS</button>
+      <button type="button" onClick={() => sendMessage('   ')}>Enviar vazio</button>
+      <button type="button" onClick={() => sendMessage('Buscar vagas', '7d')}>Enviar com filtro</button>
       <div>
         {messages.map(message => (
           <p key={message.id}>{message.role}: {message.content}</p>
@@ -168,6 +174,49 @@ describe('fluxo principal do frontend', () => {
     expect(sockets[0].sent).toEqual([])
     await expectTextEventually('nao foi possivel enviar agora')
     expectTextNow('aguarde reconectar')
+  })
+
+  it('nao envia conteudo vazio e envia somente filtro suportado', async () => {
+    const sockets = installMockWebSocket()
+
+    render(<WebSocketHarness />)
+
+    await waitFor(() => expect(sockets.length).toBe(1))
+    sockets[0].open()
+
+    fireEvent.click(screen.getByRole('button', { name: /Enviar vazio/i }))
+    expect(sockets[0].sent).toEqual([])
+    expectTextNow('digite uma mensagem')
+
+    fireEvent.click(screen.getByRole('button', { name: /Enviar com filtro/i }))
+    expect(sockets[0].sent).toEqual([
+      JSON.stringify({
+        type: 'message',
+        content: 'Buscar vagas',
+        date_filter: '7d',
+      }),
+    ])
+  })
+
+  it('mostra erro controlado do backend sem reenviar ou duplicar a mensagem', async () => {
+    const sockets = installMockWebSocket()
+
+    render(<WebSocketHarness />)
+
+    await waitFor(() => expect(sockets.length).toBe(1))
+    sockets[0].open()
+    fireEvent.click(screen.getByRole('button', { name: /^Enviar WS$/i }))
+
+    await act(async () => {
+      sockets[0].message({
+        type: 'error',
+        content: 'Mensagem invalida. Revise o conteudo enviado.',
+      })
+    })
+
+    expect(sockets[0].sent).toHaveLength(1)
+    expect(screen.getAllByText('user: Oi Maestro')).toHaveLength(1)
+    expectTextNow('mensagem invalida')
   })
 
   it('normaliza erros de API com detail em lista, texto inesperado e corpo vazio', async () => {

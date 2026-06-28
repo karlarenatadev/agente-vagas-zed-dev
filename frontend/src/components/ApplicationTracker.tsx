@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, ExternalLink, ChevronDown } from 'lucide-react'
 import { apiRequest } from '../lib/api'
 import { getFriendlyErrorMessage } from '../lib/errorMessages'
+import { normalizeHttpLink } from '../lib/links'
 import type { JobApplication, ApplicationStatus } from '../types'
 import { FeedbackState } from './ui/FeedbackState'
 
@@ -25,8 +26,68 @@ const STATUS_ORDER: ApplicationStatus[] = [
   'salva', 'aplicada', 'em_processo', 'entrevista', 'oferta', 'recusada', 'desistiu',
 ]
 
-function StatusBadge({ status, onClick }: { status: ApplicationStatus; onClick?: () => void }) {
-  const cfg = STATUS_CONFIG[status]
+interface DisplayApplication extends JobApplication {
+  legacyStatusInvalid?: boolean
+}
+
+function isApplicationStatus(value: unknown): value is ApplicationStatus {
+  return typeof value === 'string' && STATUS_ORDER.includes(value as ApplicationStatus)
+}
+
+function textValue(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value : fallback
+}
+
+function optionalTextValue(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined
+}
+
+function normalizeApplication(value: unknown, index: number): DisplayApplication | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+
+  const record = value as Record<string, unknown>
+  const rawStatus = record.status
+  const statusIsValid = isApplicationStatus(rawStatus)
+  return {
+    id: textValue(record.id, `legacy-${index}`),
+    titulo: textValue(record.titulo, 'Candidatura sem título'),
+    empresa: textValue(record.empresa, 'Empresa não informada'),
+    localizacao: textValue(record.localizacao, 'Localização não informada'),
+    link: textValue(record.link),
+    salario: optionalTextValue(record.salario),
+    habilidades_correspondentes: optionalTextValue(record.habilidades_correspondentes),
+    habilidades_faltantes: optionalTextValue(record.habilidades_faltantes),
+    contagem_correspondencia: optionalTextValue(record.contagem_correspondencia),
+    status: statusIsValid ? rawStatus : 'salva',
+    data_salva: textValue(record.data_salva),
+    data_aplicacao: optionalTextValue(record.data_aplicacao),
+    notas: optionalTextValue(record.notas),
+    legacyStatusInvalid: rawStatus !== undefined && !statusIsValid,
+  }
+}
+
+function formatSavedDate(value: string): string {
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return 'Data indisponível'
+  return parsed.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+}
+
+function StatusBadge({
+  status,
+  invalid = false,
+  onClick,
+}: {
+  status: ApplicationStatus
+  invalid?: boolean
+  onClick?: () => void
+}) {
+  const cfg = invalid
+    ? {
+        label: 'Status inválido',
+        color: 'var(--state-danger)',
+        bg: 'rgba(251,113,133,0.1)',
+      }
+    : STATUS_CONFIG[status]
   return (
     <button
       type="button"
@@ -112,7 +173,7 @@ function ApplicationCard({
   onDelete,
   onError,
 }: {
-  app: JobApplication
+  app: DisplayApplication
   onStatusChange: (id: string, status: ApplicationStatus) => void
   onDelete: (id: string) => void
   onError: (message: string) => void
@@ -125,6 +186,8 @@ function ApplicationCard({
   const matchNum = matchParts ? parseInt(matchParts[1]) : 0
   const matchTotal = matchParts ? parseInt(matchParts[2]) : 0
   const matchPct = matchTotal > 0 ? Math.round((matchNum / matchTotal) * 100) : 0
+  const safeLink = normalizeHttpLink(app.link)
+  const hasUntrustedLink = app.link.trim().length > 0 && !safeLink
 
   const saveNotes = async () => {
     try {
@@ -171,9 +234,9 @@ function ApplicationCard({
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
           {/* Link externo */}
-          {app.link && (
+          {safeLink && (
             <a
-              href={app.link}
+              href={safeLink}
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`Abrir vaga ${app.titulo} em nova aba`}
@@ -189,6 +252,14 @@ function ApplicationCard({
             >
               <ExternalLink size={13} />
             </a>
+          )}
+          {hasUntrustedLink && (
+            <span
+              role="note"
+              style={{ color: 'var(--state-danger)', fontSize: '11px' }}
+            >
+              Link indisponível
+            </span>
           )}
           {/* Deletar */}
           <button
@@ -238,11 +309,15 @@ function ApplicationCard({
       {/* Footer: status + data */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
         <div style={{ position: 'relative' }}>
-          <StatusBadge status={app.status as ApplicationStatus} onClick={() => setShowDropdown(v => !v)} />
+          <StatusBadge
+            status={app.status}
+            invalid={app.legacyStatusInvalid}
+            onClick={() => setShowDropdown(v => !v)}
+          />
           <AnimatePresence>
             {showDropdown && (
               <StatusDropdown
-                current={app.status as ApplicationStatus}
+                current={app.status}
                 onSelect={s => onStatusChange(app.id, s)}
                 onClose={() => setShowDropdown(false)}
               />
@@ -251,7 +326,7 @@ function ApplicationCard({
         </div>
 
         <span style={{ fontSize: '11px', color: 'var(--text-ghost)', fontFamily: 'var(--font-mono)' }}>
-          {new Date(app.data_salva).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+          {formatSavedDate(app.data_salva)}
         </span>
       </div>
 
@@ -313,7 +388,7 @@ interface Props {
 }
 
 export function ApplicationTracker({ isOpen, onClose }: Props) {
-  const [applications, setApplications] = useState<JobApplication[]>([])
+  const [applications, setApplications] = useState<DisplayApplication[]>([])
   const [filter, setFilter] = useState<ApplicationStatus | 'todas'>('todas')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -325,7 +400,11 @@ export function ApplicationTracker({ isOpen, onClose }: Props) {
         throw new Error('Resposta inválida da API de candidaturas')
       }
 
-      setApplications(data as JobApplication[])
+      setApplications(
+        data
+          .map(normalizeApplication)
+          .filter((item): item is DisplayApplication => item !== null)
+      )
     } catch (requestError) {
       console.error('Falha ao carregar candidaturas:', requestError)
       setError(getFriendlyErrorMessage(
@@ -370,7 +449,9 @@ export function ApplicationTracker({ isOpen, onClose }: Props) {
         body: JSON.stringify({ status }),
       })
 
-      setApplications(prev => prev.map(a => a.id === id ? { ...a, status } : a))
+      setApplications(prev => prev.map(a =>
+        a.id === id ? { ...a, status, legacyStatusInvalid: false } : a
+      ))
     } catch (requestError) {
       console.error('Falha ao atualizar candidatura:', requestError)
       setError(getFriendlyErrorMessage(

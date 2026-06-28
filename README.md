@@ -205,6 +205,33 @@ import-vagas/
 > somente em `.env` local ou GitHub Secrets. Este projeto ainda não deve ser usado com
 > dados reais sensíveis em produção sem proteção adicional.
 
+### Validar dados e segredos antes do commit
+
+Execute o mesmo Data Guard usado no CI:
+
+```bash
+python scripts/validate_data_guard.py
+```
+
+O guard examina arquivos rastreados/staged e falha com o caminho responsável
+quando encontra:
+
+- conteúdo dentro de `data/sessions/`;
+- arquivo em `data/` fora da allowlist;
+- `.env` ou variação perigosa;
+- chave de API, token, private key ou credencial em texto claro.
+
+Em `data/`, somente `data/README.md` e arquivos `data/*.example.md` sanitizados
+podem ser versionados. Um exemplo deve conter dados fictícios, sem nomes,
+currículos, URLs privadas ou credenciais reais. Use marcadores explícitos como
+`[valor de exemplo]` e confirme o resultado do guard antes do commit.
+
+Para testar o próprio guard:
+
+```bash
+python -m unittest discover -s scripts/tests -p "test_*.py" -v
+```
+
 ---
 
 ## Pré-requisitos
@@ -388,10 +415,15 @@ O backend passou por uma etapa de hardening para operar como API de producao:
 - **Candidaturas protegidas contra corrupção**: `applications.json` inválido ou corrompido
   retorna HTTP 409, gera backup do arquivo e preserva o original, sem sobrescrever
   candidaturas em silêncio.
+- **Contratos seguros de candidatura**: novas gravações aceitam apenas os status
+  previstos e links `http(s)` ou vazios, com limites de texto e erro 422 antes
+  da persistência. O tracker preserva registros legados para correção, mas não
+  renderiza links inseguros nem quebra com status desconhecido.
 - **Estado do WebSocket recuperavel** em `data/sessions/{session_id}/chat_state.json`.
 - **Firecrawl SDK oficial** (`firecrawl-py`) no lugar de CLI/subprocess, executado fora do Event Loop com `asyncio.to_thread`.
 - **Upload de curriculos endurecido** com limite de tamanho, validacao de `Content-Type` e Magic Numbers para PDF/DOCX.
-- **Suite automatizada** com 221 testes no backend (`pytest -q`), incluindo stress test de 50 escritas simultaneas.
+- **Suite automatizada** com 250 testes no backend e 56 no frontend, incluindo
+  stress test de 50 escritas simultaneas e os contratos de candidaturas.
 
 ---
 

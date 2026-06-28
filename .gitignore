@@ -4,6 +4,9 @@ backend/.venv/
 # Environment files. Keep only safe examples versioned.
 .env
 .env.*
+*.env
+*.env.*
+.envrc
 !.env.example
 !**/.env.example
 

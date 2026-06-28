@@ -7,6 +7,7 @@ import type {
   DateFilter,
   LoadingState,
   SessionState,
+  WsDateFilter,
   WsIncoming,
   WsOutgoing,
 } from '../types'
@@ -28,6 +29,7 @@ const INITIAL_LOADING: LoadingState = {
 
 const SEND_INTERRUPTED_MESSAGE =
   'Não foi possível enviar agora porque a conexão foi interrompida. Aguarde reconectar e tente novamente.'
+const EMPTY_MESSAGE = 'Digite uma mensagem antes de enviar.'
 
 function generateId(): string {
   return Math.random().toString(36).slice(2, 10)
@@ -62,6 +64,37 @@ function loadingFromSession(session: SessionState): LoadingState {
   }
 
   return { ...INITIAL_LOADING, [key]: true }
+}
+
+function isSessionState(value: unknown): value is SessionState {
+  if (!value || typeof value !== 'object') return false
+  const state = value as Record<string, unknown>
+  return (
+    typeof state.mode === 'string'
+    && typeof state.quiz_step === 'number'
+    && typeof state.quiz_answers === 'object'
+    && state.quiz_answers !== null
+    && typeof state.coach_step === 'number'
+    && typeof state.interview_context === 'string'
+  )
+}
+
+function isWsIncoming(value: unknown): value is WsIncoming {
+  if (!value || typeof value !== 'object') return false
+  const message = value as Record<string, unknown>
+
+  if (message.type === 'state') {
+    return isSessionState(message.content)
+  }
+
+  return (
+    ['token', 'done', 'error'].includes(String(message.type))
+    && typeof message.content === 'string'
+  )
+}
+
+function isWsDateFilter(value: DateFilter): value is WsDateFilter {
+  return value !== 'all'
 }
 
 export function useWebSocket() {
@@ -160,16 +193,21 @@ export function useWebSocket() {
       socket.onmessage = (event) => {
         if (destroyedRef.current) return
 
-        let data: WsIncoming
+        let parsed: unknown
         try {
-          data = JSON.parse(event.data)
+          parsed = JSON.parse(event.data)
         } catch (error) {
           console.error('Mensagem WebSocket inválida:', error)
           return
         }
+        if (!isWsIncoming(parsed)) {
+          console.error('Mensagem WebSocket fora do contrato.')
+          return
+        }
+        const data = parsed
 
         if (data.type === 'token') {
-          const token = data.content as string
+          const token = data.content
           setIsStreaming(true)
 
           // A mutação do ref fica FORA do updater do setMessages: no modo
@@ -205,7 +243,7 @@ export function useWebSocket() {
         }
 
         else if (data.type === 'state') {
-          const nextSession = data.content as SessionState
+          const nextSession = data.content
           const nextAgent = agentFromSession(nextSession)
 
           activeAgentRef.current = nextAgent
@@ -231,7 +269,10 @@ export function useWebSocket() {
 
         else if (data.type === 'error') {
           console.error('Erro recebido do WebSocket:', data.content)
-          addSystemMessage('Não consegui completar a resposta agora. Verifique a conexão e tente novamente.')
+          addSystemMessage(
+            data.content.trim()
+            || 'Não consegui completar a resposta agora. Verifique a conexão e tente novamente.'
+          )
           streamingIdRef.current = null
           setLoadingState(INITIAL_LOADING)
           setIsStreaming(false)
@@ -258,6 +299,12 @@ export function useWebSocket() {
   }, [addSystemMessage])
 
   function sendMessage(content: string, dateFilter?: DateFilter): boolean {
+    const normalizedContent = typeof content === 'string' ? content.trim() : ''
+    if (!normalizedContent) {
+      addSystemMessage(EMPTY_MESSAGE)
+      return false
+    }
+
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       addSystemMessage(SEND_INTERRUPTED_MESSAGE)
       setLoadingState(INITIAL_LOADING)
@@ -275,17 +322,17 @@ export function useWebSocket() {
       {
         id: generateId(),
         role: 'user',
-        content,
+        content: normalizedContent,
         timestamp: new Date(),
       },
     ])
 
     const payload: WsOutgoing = {
       type: 'message',
-      content,
+      content: normalizedContent,
     }
     // Só envia o filtro quando há recorte de data (todas = sem filtro).
-    if (dateFilter && dateFilter !== 'all') {
+    if (dateFilter && isWsDateFilter(dateFilter)) {
       payload.date_filter = dateFilter
     }
 

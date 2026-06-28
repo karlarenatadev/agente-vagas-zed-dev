@@ -5,10 +5,12 @@ from __future__ import annotations
 import base64
 import binascii
 import json
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel, ConfigDict, ValidationError, field_validator
 
+import config
 from agents.base import LLMProviderError
 from agents.maestro import MaestroAgent
 from logging_config import get_logger
@@ -22,6 +24,51 @@ from session import (
 
 router = APIRouter()
 logger = get_logger(__name__)
+
+
+class IncomingChatMessage(BaseModel):
+    """Contrato estrito para mensagens recebidas do frontend."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    type: Literal["message"]
+    content: str
+    date_filter: Literal["24h", "7d", "1m"] | None = None
+
+    @field_validator("content")
+    @classmethod
+    def validate_content(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("content nao pode ser vazio")
+        return normalized
+
+
+class RecoverableProtocolError(ValueError):
+    """Payload rejeitado sem necessidade de encerrar a conexao."""
+
+
+class MessageTooLargeError(ValueError):
+    """Violacao grave: conteudo excede o limite operacional."""
+
+
+def _parse_incoming_message(raw: str) -> IncomingChatMessage:
+    data = json.loads(raw)
+
+    if (
+        isinstance(data, dict)
+        and isinstance(data.get("content"), str)
+        and len(data["content"]) > config.WS_MAX_MESSAGE_CHARS
+    ):
+        raise MessageTooLargeError
+
+    try:
+        return IncomingChatMessage.model_validate(data)
+    except ValidationError as exc:
+        raise RecoverableProtocolError(
+            "Mensagem invalida. Envie type='message', content textual nao vazio "
+            "e date_filter opcional (24h, 7d ou 1m)."
+        ) from exc
 
 
 def _initial_session() -> dict[str, Any]:
@@ -450,51 +497,49 @@ async def websocket_chat(websocket: WebSocket) -> None:
             session_id,
         )
 
+    close_without_persisting = False
     while True:
         try:
             raw = await websocket.receive_text()
-            data = json.loads(raw)
-            message_type = data.get("type")
+            message = _parse_incoming_message(raw)
             logger.info(
                 "Mensagem recebida do WebSocket",
                 extra={
                     "event": "websocket_message_received",
                     **_state_log_payload(session, session_id),
-                    "message_type": message_type,
+                    "message_type": message.type,
                     "raw_length": len(raw),
-                    "content_length": len(str(data.get("content", ""))),
+                    "content_length": len(message.content),
                 },
             )
 
-            if message_type == "message":
-                user_message = data.get("content", "").strip()
-                context = {
-                    **session,
-                    "message": user_message,
-                    "date_filter": data.get("date_filter", ""),
-                }
+            context = {
+                **session,
+                "message": message.content,
+                "date_filter": message.date_filter or "",
+            }
 
-                logger.info(
-                    "Execucao do Maestro iniciada para mensagem",
-                    extra={
-                        "event": "websocket_agent_run_start",
-                        **_state_log_payload(session, session_id),
-                        "message_length": len(user_message),
-                        "date_filter": data.get("date_filter", ""),
-                    },
-                )
-                async for token in maestro.run(context):
-                    await _send_stream_token(websocket, token, session, paths)
+            logger.info(
+                "Execucao do Maestro iniciada para mensagem",
+                extra={
+                    "event": "websocket_agent_run_start",
+                    **_state_log_payload(session, session_id),
+                    "message_length": len(message.content),
+                    "date_filter": message.date_filter or "",
+                },
+            )
+            async for token in maestro.run(context):
+                await _send_stream_token(websocket, token, session, paths)
 
-                await websocket.send_json({"type": "done", "content": ""})
-                await _persist_session_state(session, paths, "message_processed")
-                logger.info(
-                    "Execucao do Maestro concluida para mensagem",
-                    extra={
-                        "event": "websocket_agent_run_finish",
-                        **_state_log_payload(session, session_id),
-                    },
-                )
+            await websocket.send_json({"type": "done", "content": ""})
+            await _persist_session_state(session, paths, "message_processed")
+            logger.info(
+                "Execucao do Maestro concluida para mensagem",
+                extra={
+                    "event": "websocket_agent_run_finish",
+                    **_state_log_payload(session, session_id),
+                },
+            )
 
         except WebSocketDisconnect:
             logger.info(
@@ -519,6 +564,33 @@ async def websocket_chat(websocket: WebSocket) -> None:
                 session,
                 session_id,
             )
+        except RecoverableProtocolError as exc:
+            logger.warning(
+                "Mensagem WebSocket fora do contrato",
+                extra={
+                    "event": "websocket_invalid_payload",
+                    **_state_log_payload(session, session_id),
+                },
+            )
+            await _send_error_response(websocket, str(exc), session, session_id)
+        except MessageTooLargeError:
+            logger.warning(
+                "Mensagem WebSocket acima do limite",
+                extra={
+                    "event": "websocket_message_too_large",
+                    **_state_log_payload(session, session_id),
+                    "max_message_chars": config.WS_MAX_MESSAGE_CHARS,
+                },
+            )
+            await websocket.close(
+                code=1009,
+                reason=(
+                    "Mensagem excede o limite de "
+                    f"{config.WS_MAX_MESSAGE_CHARS} caracteres."
+                ),
+            )
+            close_without_persisting = True
+            break
         except (LLMProviderError, OSError, RuntimeError, ValueError) as exc:
             logger.exception(
                 "Erro durante processamento de mensagem WebSocket",
@@ -546,4 +618,14 @@ async def websocket_chat(websocket: WebSocket) -> None:
                 )
                 break
 
-    await _release_session_resources(session, paths)
+    if close_without_persisting:
+        logger.info(
+            "Sessao descartada sem persistencia apos violacao de protocolo",
+            extra={
+                "event": "websocket_protocol_violation_released",
+                **_state_log_payload(session, session_id),
+            },
+        )
+        session.clear()
+    else:
+        await _release_session_resources(session, paths)

@@ -25,6 +25,10 @@ logs/
 
 # Segredos: nunca assados na imagem (o compose injeta em runtime)
 **/.env
+**/.env.*
+**/*.env
+**/*.env.*
+**/.envrc
 !**/.env.example
 
 # Docs e artefatos que não vão para a imagem

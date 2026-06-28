@@ -49,6 +49,9 @@ RECONCILIATION_FILE = DATA_DIR / "reconciliation.md"
 # Upload de currículo
 MAX_RESUME_UPLOAD_SIZE = 5 * 1024 * 1024
 
+# WebSocket
+WS_MAX_MESSAGE_CHARS = int(os.getenv("WS_MAX_MESSAGE_CHARS", "4000"))
+
 # Logging estruturado
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 LOG_TO_FILE = os.getenv("LOG_TO_FILE", "false").lower() in {"1", "true", "yes", "on"}

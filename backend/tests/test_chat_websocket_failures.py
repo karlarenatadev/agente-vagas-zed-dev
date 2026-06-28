@@ -20,9 +20,12 @@ Protocolo exercitado:
 import json
 
 from fastapi.testclient import TestClient
+from fastapi.websockets import WebSocketDisconnect
+import pytest
 
 import config
 from main import app
+from routers import chat as chat_router
 
 
 def _drain_until_done(ws):
@@ -148,3 +151,119 @@ def test_desconexao_persiste_estado_e_nao_estoura(tmp_path, monkeypatch):
         # estado no disconnect, sem exceção.
 
     assert (_session_dir(tmp_path, "disc1") / "chat_state.json").exists()
+
+
+@pytest.mark.parametrize(
+    ("case_name", "payload"),
+    [
+        ("lista", []),
+        ("numero", 42),
+        ("nulo", None),
+        ("sem_content", {"type": "message"}),
+        ("content_nulo", {"type": "message", "content": None}),
+        ("content_numero", {"type": "message", "content": 42}),
+        ("content_lista", {"type": "message", "content": ["texto"]}),
+        ("content_objeto", {"type": "message", "content": {"text": "oi"}}),
+        ("content_vazio", {"type": "message", "content": "   "}),
+        ("sem_type", {"content": "oi"}),
+        ("type_invalido", {"type": "command", "content": "oi"}),
+        (
+            "date_filter_invalido",
+            {"type": "message", "content": "oi", "date_filter": "1y"},
+        ),
+    ],
+)
+def test_payload_recuperavel_invalido_nao_executa_agente_nem_altera_estado(
+    case_name,
+    payload,
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    state_file = _session_dir(tmp_path, f"invalido-{case_name}") / "chat_state.json"
+    original_state = _menu_state()
+    state_file.write_text(original_state, encoding="utf-8")
+
+    async def forbidden_run(self, context):
+        raise AssertionError("payload invalido chegou ao Maestro")
+        yield  # pragma: no cover
+
+    monkeypatch.setattr(chat_router.MaestroAgent, "run", forbidden_run)
+
+    with TestClient(app).websocket_connect(
+        f"/ws/chat?session_id=invalido-{case_name}"
+    ) as ws:
+        assert ws.receive_json()["type"] == "state"
+
+        ws.send_text(json.dumps(payload))
+        response = ws.receive_json()
+
+        assert response["type"] == "error"
+        assert "type='message'" in response["content"]
+        assert state_file.read_text(encoding="utf-8") == original_state
+
+        # Um segundo frame invalido comprova que o primeiro erro foi recuperavel.
+        ws.send_text("json invalido")
+        assert ws.receive_json() == {
+            "type": "error",
+            "content": "Mensagem invalida",
+        }
+
+
+def test_mensagem_acima_do_limite_fecha_com_1009_sem_persistir(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(config, "WS_MAX_MESSAGE_CHARS", 8)
+    state_file = _session_dir(tmp_path, "grande1") / "chat_state.json"
+    original_state = _menu_state()
+    state_file.write_text(original_state, encoding="utf-8")
+
+    async def forbidden_run(self, context):
+        raise AssertionError("mensagem excessiva chegou ao Maestro")
+        yield  # pragma: no cover
+
+    monkeypatch.setattr(chat_router.MaestroAgent, "run", forbidden_run)
+
+    with TestClient(app).websocket_connect("/ws/chat?session_id=grande1") as ws:
+        assert ws.receive_json()["type"] == "state"
+        ws.send_json({"type": "message", "content": "123456789"})
+
+        with pytest.raises(WebSocketDisconnect) as closed:
+            ws.receive_json()
+
+        assert closed.value.code == 1009
+
+    assert state_file.read_text(encoding="utf-8") == original_state
+
+
+def test_payload_valido_encaminha_conteudo_normalizado_e_filtro_suportado(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    state_file = _session_dir(tmp_path, "valido1") / "chat_state.json"
+    state_file.write_text(_menu_state(), encoding="utf-8")
+    contexts = []
+
+    async def fake_run(self, context):
+        contexts.append(context)
+        yield "ok"
+
+    monkeypatch.setattr(chat_router.MaestroAgent, "run", fake_run)
+
+    with TestClient(app).websocket_connect("/ws/chat?session_id=valido1") as ws:
+        assert ws.receive_json()["type"] == "state"
+        ws.send_json(
+            {
+                "type": "message",
+                "content": "  buscar vagas  ",
+                "date_filter": "7d",
+            }
+        )
+        assert ws.receive_json() == {"type": "token", "content": "ok"}
+        assert ws.receive_json() == {"type": "done", "content": ""}
+
+    assert contexts[0]["message"] == "buscar vagas"
+    assert contexts[0]["date_filter"] == "7d"

@@ -14,22 +14,13 @@ jobs:
       - name: Checkout do código
         uses: actions/checkout@v4
 
-      - name: Verificar arquivos sensíveis em data/
-        shell: bash
-        run: |
-          echo "Verificando arquivos sensíveis rastreados pelo Git..."
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-          SENSITIVE_FILES=$(git ls-files data | grep -E 'data/(user-profile|resume-analysis|job-description-analysis|resume-match-report|resume-tailoring-suggestions|pdi-plan|interview-session|applications)\.(md|json)$' || true)
+      - name: Testar o Data Guard
+        run: python -m unittest discover -s scripts/tests -p "test_*.py" -v
 
-          if [ -n "$SENSITIVE_FILES" ]; then
-            echo "Arquivos sensíveis rastreados encontrados:"
-            echo "$SENSITIVE_FILES"
-            echo ""
-            echo "Remova esses arquivos do rastreamento com:"
-            echo "git rm --cached -r data"
-            echo ""
-            echo "Mantenha apenas data/.gitkeep, data/README.md ou exemplos sanitizados."
-            exit 1
-          fi
-
-          echo "Nenhum arquivo sensível de runtime encontrado no Git."
+      - name: Validar dados e segredos rastreados
+        run: python scripts/validate_data_guard.py

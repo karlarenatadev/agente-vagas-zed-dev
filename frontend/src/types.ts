@@ -236,16 +236,16 @@ export type PipelineStatus =
 
 export type WsMessageType = 'token' | 'state' | 'done' | 'error'
 
-export interface WsIncoming {
-  type: WsMessageType
-  content: string | SessionState
-}
+export type WsIncoming =
+  | { type: 'token' | 'done' | 'error'; content: string }
+  | { type: 'state'; content: SessionState }
 
 // Filtro de recência das vagas. 'all' não envia filtro ao Firecrawl.
 export type DateFilter = '24h' | '7d' | '1m' | 'all'
+export type WsDateFilter = Exclude<DateFilter, 'all'>
 
 export interface WsOutgoing {
   type: 'message'
   content: string
-  date_filter?: DateFilter
+  date_filter?: WsDateFilter
 }
