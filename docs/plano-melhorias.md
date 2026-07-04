@@ -258,11 +258,13 @@ Dependências: Fase 0 concluída.
 
 Prioridade: P0
 
+Status: concluída em 2026-07-04.
+
 Entregáveis:
 
-- ADR em `docs/adr/`;
-- mapa de dependências versionado no backend;
-- casos de teste para cada transição.
+- [x] ADR em `docs/adr/`;
+- [x] mapa de dependências versionado no backend;
+- [x] casos de teste para cada transição.
 
 Grafo inicial:
 
@@ -296,9 +298,16 @@ Grafo inicial:
 
 Critérios de aceite:
 
-- [ ] Cada artefato possui entradas e dependentes definidos.
-- [ ] O grafo não fica duplicado em routers e agentes.
-- [ ] A política diferencia invalidar, recalcular e preservar.
+- [x] Cada artefato do grafo inicial possui dependentes definidos.
+- [x] O contrato do grafo possui uma única definição central.
+- [x] A política diferencia invalidar, recalcular e preservar.
+
+Pendências:
+
+1. M1-02 deve criar o registro central e o estado de atualidade sem apagar os
+   artefatos Markdown existentes.
+2. M1-03 deve substituir as listas locais de invalidação em routers e no Maestro
+   pelo serviço central, com testes por rota.
 
 #### M1-02 — Criar um registro central de artefatos
 

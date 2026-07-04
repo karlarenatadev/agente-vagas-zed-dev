@@ -19,21 +19,22 @@ A decisão inicial é manter Python/FastAPI no backend. O foco não é trocar li
 * [X] Frontend CI executando Vitest.
 * [X] Data Guard preservado.
 * [X] Docs Check preservado.
-* [X] Backend validado com 264 testes passando.
+* [X] Backend validado com 272 testes passando.
 * [X] Frontend validado com 58 testes passando.
 * [X] Lint e build frontend aprovados.
 * [X] Data Guard aprovado com 8 testes.
 * [X] M0-03 validada com 20 testes WebSocket focalizados.
 * [X] M0-04 concluída com cache npm, branches e `concurrency` padronizados.
-* [ ] Confirmar execução real dos workflows após push/PR.
+* [X] M1-01 concluída com ADR, grafo central e testes unitários de linhagem.
+* [X] Confirmar execução real dos workflows após push/PR.
 
 ## Próxima ação imediata
 
-* [ ] Abrir PR da branch de qualidade.
-* [ ] Confirmar que todos os workflows passam no GitHub Actions.
+* [X] Abrir PR da branch de qualidade.
+* [X] Confirmar que todos os workflows passam no GitHub Actions.
 * [X] Atualizar `docs/checklist.md` com os novos números:
 
-  * backend: 264 testes;
+  * backend: 272 testes;
   * frontend: 58 testes;
   * Data Guard: 8 testes;
   * build/lint: aprovados.
@@ -154,14 +155,15 @@ Se currículo, vaga, perfil ou match mudam, relatórios derivados podem ficar ob
 
 ## Checklist
 
-* [ ] Criar grafo central de dependências.
-* [ ] Definir dependências:
+* [X] Criar grafo central de dependências.
+* [X] Definir dependências:
 
-  * [ ] perfil altera vagas, cursos, match, reconciliação, tailoring, PDI e entrevista;
-  * [ ] currículo altera match, reconciliação, tailoring, PDI e entrevista;
-  * [ ] vaga altera match, reconciliação, tailoring, PDI e entrevista;
-  * [ ] match/foco altera reconciliação, tailoring, PDI e entrevista;
-  * [ ] tailoring altera PDI.
+  * [X] perfil altera vagas, cursos, match, reconciliação, tailoring, PDI e entrevista;
+  * [X] currículo altera match, reconciliação, tailoring, PDI e entrevista;
+  * [X] vaga altera match, reconciliação, tailoring, PDI e entrevista;
+  * [X] match/foco altera reconciliação, tailoring, PDI e entrevista;
+  * [X] tailoring altera PDI.
+* [X] Criar testes unitários do contrato do grafo.
 * [ ] Criar manifesto de artefatos.
 * [ ] Registrar:
 
@@ -643,7 +645,7 @@ LLM e Firecrawl são gargalos de custo, latência e instabilidade.
 
 ## Sprint 4 — Artefatos e invalidação
 
-* [ ] Grafo de dependências.
+* [X] Grafo de dependências.
 * [ ] Manifesto.
 * [ ] Hash de entradas.
 * [ ] Estado atual/obsoleto/corrompido.
