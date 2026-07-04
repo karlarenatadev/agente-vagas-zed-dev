@@ -32,6 +32,15 @@ class ArtifactContentError(ArtifactRegistryError):
     """Conteúdo de artefato indisponível para registro ou validação."""
 
 
+class ArtifactStateError(ArtifactRegistryError):
+    """Artefato registrado que não pode ser consumido no estado atual."""
+
+    def __init__(self, artifact_name: str, status: ArtifactStatus) -> None:
+        self.artifact_name = artifact_name
+        self.status = status
+        super().__init__(_artifact_state_message(artifact_name, status))
+
+
 @dataclass(frozen=True)
 class ArtifactMetadata:
     schema_version: int
@@ -123,7 +132,12 @@ def register_artifact(
     manifest = load_manifest(session_dir)
     manifest.legacy = False
     manifest.artifacts[artifact_name] = metadata
-    save_manifest(session_dir, manifest)
+    try:
+        save_manifest(session_dir, manifest)
+    except OSError as exc:
+        raise ArtifactManifestError(
+            "Não foi possível salvar o manifesto de artefatos."
+        ) from exc
     return metadata
 
 
@@ -165,6 +179,24 @@ def get_artifact_status(
     return metadata.status
 
 
+def ensure_artifact_consumable(
+    session_dir: Path,
+    artifact_name: str,
+    artifact_path: Path,
+    *,
+    current_input_hashes: Mapping[str, str] | None = None,
+) -> ArtifactStatus:
+    status = get_artifact_status(
+        session_dir,
+        artifact_name,
+        artifact_path=artifact_path,
+        current_input_hashes=current_input_hashes,
+    )
+    if status in {"stale", "corrupted"}:
+        raise ArtifactStateError(artifact_name, status)
+    return status
+
+
 def mark_dependents_stale(session_dir: Path, artifact_name: str) -> set[str]:
     manifest = load_manifest(session_dir)
     if manifest.legacy:
@@ -182,7 +214,12 @@ def mark_dependents_stale(session_dir: Path, artifact_name: str) -> set[str]:
             changed = True
 
     if changed:
-        save_manifest(session_dir, manifest)
+        try:
+            save_manifest(session_dir, manifest)
+        except OSError as exc:
+            raise ArtifactManifestError(
+                "Não foi possível salvar o manifesto de artefatos."
+            ) from exc
     return stale_dependents
 
 
@@ -282,3 +319,26 @@ def _is_sha256(value: str) -> bool:
         and len(digest) == 64
         and all(character in "0123456789abcdef" for character in digest)
     )
+
+
+def _artifact_state_message(artifact_name: str, status: ArtifactStatus) -> str:
+    labels = {
+        "match": "O relatório de match",
+        "reconciliation": "A reconciliação",
+        "tailoring": "O artefato de tailoring",
+        "pdi": "O PDI",
+        "interview": "A entrevista",
+    }
+    actions = {
+        "match": "Recalcule o match antes de continuar.",
+        "reconciliation": "Gere a reconciliação novamente.",
+        "tailoring": "Gere as sugestões de currículo novamente.",
+        "pdi": "Gere o PDI novamente.",
+        "interview": "Inicie uma nova entrevista.",
+    }
+    label = labels.get(artifact_name, f"O artefato {artifact_name}")
+    action = actions.get(artifact_name, "Gere a etapa novamente.")
+    state = "obsoleto" if status == "stale" else "corrompido"
+    if label.startswith("A "):
+        state = "obsoleta" if status == "stale" else "corrompida"
+    return f"{label} está {state}. {action}"

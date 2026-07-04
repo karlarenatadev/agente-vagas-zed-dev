@@ -12,7 +12,9 @@ from artifacts import (
     ArtifactManifest,
     ArtifactManifestError,
     ArtifactMetadata,
+    ArtifactStateError,
     calculate_content_hash,
+    ensure_artifact_consumable,
     get_artifact_status,
     load_manifest,
     mark_dependents_stale,
@@ -160,6 +162,36 @@ def test_hash_de_entrada_divergente_retorna_stale(tmp_path):
 
     assert status == "stale"
     assert artifact_path.exists()
+
+
+@pytest.mark.parametrize("status", ["stale", "corrupted"])
+def test_consumo_de_artefato_invalido_gera_erro_controlado(
+    tmp_path,
+    status,
+):
+    artifact_path = tmp_path / "resume-match-report.md"
+    artifact_path.write_text("match atual", encoding="utf-8")
+    manifest = ArtifactManifest(
+        artifacts={"match": _metadata("match atual", status=status)},
+    )
+    save_manifest(tmp_path, manifest)
+
+    with pytest.raises(ArtifactStateError) as error:
+        ensure_artifact_consumable(tmp_path, "match", artifact_path)
+
+    assert error.value.status == status
+    assert "match" in str(error.value).casefold()
+    assert artifact_path.exists()
+
+
+def test_consumo_de_artefato_legado_preserva_compatibilidade(tmp_path):
+    artifact_path = tmp_path / "resume-match-report.md"
+    artifact_path.write_text("match legado", encoding="utf-8")
+
+    status = ensure_artifact_consumable(tmp_path, "match", artifact_path)
+
+    assert status == "legacy"
+    assert artifact_path.read_text(encoding="utf-8") == "match legado"
 
 
 def test_alteracao_de_entrada_marca_dependentes_stale_sem_apagar(tmp_path):

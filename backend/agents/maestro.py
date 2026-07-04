@@ -14,6 +14,7 @@ import base64
 import json
 import re
 from datetime import datetime
+from pathlib import Path
 from typing import AsyncGenerator
 
 from agents.base import BaseAgent, LLMProviderError
@@ -53,6 +54,8 @@ from agents.reconciliation import (
 )
 from artifacts import (
     ArtifactRegistryError,
+    calculate_content_hash,
+    ensure_artifact_consumable,
     mark_dependents_stale,
     register_artifact,
 )
@@ -843,6 +846,18 @@ class MaestroAgent(BaseAgent):
         job_analysis = self._read_file(self.paths.JOB_DESCRIPTION_ANALYSIS_FILE)
         match_report = self._read_file(self.paths.RESUME_MATCH_REPORT_FILE)
 
+        if match_report.strip():
+            artifact_error = self._artifact_consumption_error(
+                "match",
+                self.paths.RESUME_MATCH_REPORT_FILE,
+            )
+            if artifact_error:
+                yield f"Aviso: {artifact_error}\n\n"
+                async for token in self._show_menu():
+                    yield token
+                yield "\n__STATE__:menu"
+                return
+
         has_scout = bool(job_results.strip()) and "habilidades_faltantes" in job_results
         has_job_analysis = bool(job_analysis.strip())
         if not has_scout and not has_job_analysis:
@@ -926,6 +941,18 @@ class MaestroAgent(BaseAgent):
             return
 
         # Extrai histórico do arquivo de sessão
+        if match_report.strip():
+            artifact_error = self._artifact_consumption_error(
+                "match",
+                self.paths.RESUME_MATCH_REPORT_FILE,
+            )
+            if artifact_error:
+                yield f"Aviso: {artifact_error}\n\n"
+                async for token in self._show_menu():
+                    yield token
+                yield "\n__STATE__:menu"
+                return
+
         history = self._parse_interview_history(session)
 
         # Registra resposta do usuário
@@ -1162,6 +1189,50 @@ class MaestroAgent(BaseAgent):
 
     # ─── Esteira de Candidatura (E–I) ─────────────────────────────────────────
 
+    def _artifact_consumption_error(
+        self,
+        artifact_name: str,
+        artifact_path: Path,
+        *,
+        current_input_hashes: dict[str, str] | None = None,
+    ) -> str | None:
+        try:
+            ensure_artifact_consumable(
+                self.paths.dir,
+                artifact_name,
+                artifact_path,
+                current_input_hashes=current_input_hashes,
+            )
+        except ArtifactRegistryError as exc:
+            return str(exc)
+        return None
+
+    async def _save_registered_artifact(
+        self,
+        artifact_name: str,
+        artifact_path: Path,
+        content: str,
+        *,
+        input_hashes: dict[str, str] | None = None,
+        generator_version: str,
+        invalidate_dependents: bool = False,
+    ) -> set[str]:
+        async with get_session_lock(self.paths.session_id):
+            stale_dependents = (
+                mark_dependents_stale(self.paths.dir, artifact_name)
+                if invalidate_dependents
+                else set()
+            )
+            register_artifact(
+                self.paths.dir,
+                artifact_name,
+                content=content,
+                input_hashes=input_hashes,
+                generator_version=generator_version,
+            )
+            self._write_file(artifact_path, content)
+        return stale_dependents
+
     async def _prompt_job_description(self) -> AsyncGenerator[str, None]:
         """E: pede ao usuário que cole a descrição da vaga."""
         yield "\n📝 **ANÁLISE DE VAGA** — Cole a descrição da vaga para eu analisar.\n\n"
@@ -1253,10 +1324,25 @@ class MaestroAgent(BaseAgent):
         yield "\n🎯 **MATCH** — Comparando vaga e currículo...\n\n"
 
         report = ResumeMatcher().match(job, resume)
-        self._write_file(
-            self.paths.RESUME_MATCH_REPORT_FILE,
-            match_report_to_markdown(report),
-        )
+        report_markdown = match_report_to_markdown(report)
+        try:
+            await self._save_registered_artifact(
+                "match",
+                self.paths.RESUME_MATCH_REPORT_FILE,
+                report_markdown,
+                input_hashes={
+                    "resume": calculate_content_hash(resume),
+                    "job_description": calculate_content_hash(job),
+                },
+                generator_version="match:v1",
+                invalidate_dependents=True,
+            )
+        except ArtifactRegistryError:
+            yield "Aviso: nao foi possivel atualizar o registro de artefatos da sessao.\n\n"
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
 
         score = report.get("overall_score", 0)
         readiness = report.get("readiness_level", "")
@@ -1307,13 +1393,45 @@ class MaestroAgent(BaseAgent):
             yield "\n__STATE__:menu"
             return
 
+        artifact_error = self._artifact_consumption_error(
+            "match",
+            self.paths.RESUME_MATCH_REPORT_FILE,
+            current_input_hashes={
+                "resume": calculate_content_hash(resume),
+                "job_description": calculate_content_hash(job),
+            },
+        )
+        if artifact_error:
+            yield f"Aviso: {artifact_error}\n\n"
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
+
         yield "\n✨ **SUGESTÕES DE CURRÍCULO** — Gerando orientações seguras...\n\n"
 
         result = ResumeTailor().generate(resume, job, match)
-        self._write_file(
-            self.paths.RESUME_TAILORING_SUGGESTIONS_FILE,
-            tailoring_to_markdown(result),
-        )
+        tailoring_markdown = tailoring_to_markdown(result)
+        try:
+            await self._save_registered_artifact(
+                "tailoring",
+                self.paths.RESUME_TAILORING_SUGGESTIONS_FILE,
+                tailoring_markdown,
+                input_hashes={
+                    "resume": calculate_content_hash(resume),
+                    "job_description": calculate_content_hash(job),
+                    "match": calculate_content_hash(match),
+                    "focus": calculate_content_hash("vaga"),
+                },
+                generator_version="tailoring:v1",
+                invalidate_dependents=True,
+            )
+        except ArtifactRegistryError:
+            yield "Aviso: nao foi possivel atualizar o registro de artefatos da sessao.\n\n"
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
 
         score = result.get("match_score", 0)
         summary_n = len(result.get("summary_suggestions", []))
@@ -1359,10 +1477,56 @@ class MaestroAgent(BaseAgent):
             yield "\n__STATE__:menu"
             return
 
+        artifact_error = self._artifact_consumption_error(
+            "match",
+            self.paths.RESUME_MATCH_REPORT_FILE,
+            current_input_hashes={
+                "resume": calculate_content_hash(resume),
+                "job_description": calculate_content_hash(job),
+            },
+        )
+        if not artifact_error:
+            artifact_error = self._artifact_consumption_error(
+                "tailoring",
+                self.paths.RESUME_TAILORING_SUGGESTIONS_FILE,
+                current_input_hashes={
+                    "resume": calculate_content_hash(resume),
+                    "job_description": calculate_content_hash(job),
+                    "match": calculate_content_hash(match),
+                    "focus": calculate_content_hash("vaga"),
+                },
+            )
+        if artifact_error:
+            yield f"Aviso: {artifact_error}\n\n"
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
+
         yield "\n📋 **PDI** — Gerando seu plano de desenvolvimento...\n\n"
 
         result = PdiGenerator().generate(resume, job, match, tailoring)
-        self._write_file(self.paths.PDI_PLAN_FILE, pdi_to_markdown(result))
+        pdi_markdown = pdi_to_markdown(result)
+        try:
+            await self._save_registered_artifact(
+                "pdi",
+                self.paths.PDI_PLAN_FILE,
+                pdi_markdown,
+                input_hashes={
+                    "resume": calculate_content_hash(resume),
+                    "job_description": calculate_content_hash(job),
+                    "match": calculate_content_hash(match),
+                    "tailoring": calculate_content_hash(tailoring),
+                    "focus": calculate_content_hash("vaga"),
+                },
+                generator_version="pdi:v1",
+            )
+        except ArtifactRegistryError:
+            yield "Nao foi possivel atualizar o registro de artefatos da sessao.\n\n"
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
 
         target = result.get("target_role", "")
         readiness = result.get("readiness_level", "")
@@ -1417,6 +1581,22 @@ class MaestroAgent(BaseAgent):
         yield "\n⚖ **RECONCILIAÇÃO** — Comparando perfil, currículo e vaga...\n\n"
 
         # match é opcional: o Reconciler recalcula a aderência se não vier.
+        if match.strip():
+            artifact_error = self._artifact_consumption_error(
+                "match",
+                self.paths.RESUME_MATCH_REPORT_FILE,
+                current_input_hashes={
+                    "resume": calculate_content_hash(resume),
+                    "job_description": calculate_content_hash(job),
+                },
+            )
+            if artifact_error:
+                yield f"Aviso: {artifact_error}\n\n"
+                async for token in self._show_menu():
+                    yield token
+                yield "\n__STATE__:menu"
+                return
+
         result = Reconciler().reconcile(
             profile,
             resume,
@@ -1424,10 +1604,29 @@ class MaestroAgent(BaseAgent):
             match_content=match if match.strip() else None,
             focus=None,
         )
-        self._write_file(
-            self.paths.RECONCILIATION_FILE,
-            reconciliation_to_markdown(result),
-        )
+        reconciliation_markdown = reconciliation_to_markdown(result)
+        input_hashes = {
+            "profile": calculate_content_hash(profile),
+            "resume": calculate_content_hash(resume),
+            "job_description": calculate_content_hash(job),
+            "focus": calculate_content_hash(result["focus"]),
+        }
+        if match.strip():
+            input_hashes["match"] = calculate_content_hash(match)
+        try:
+            await self._save_registered_artifact(
+                "reconciliation",
+                self.paths.RECONCILIATION_FILE,
+                reconciliation_markdown,
+                input_hashes=input_hashes,
+                generator_version="reconciliation:v1",
+            )
+        except ArtifactRegistryError:
+            yield "Nao foi possivel atualizar o registro de artefatos da sessao.\n\n"
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
 
         score = result.get("consistency_score", 0)
         level = result.get("consistency_level", "")

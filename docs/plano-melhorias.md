@@ -356,7 +356,7 @@ Pendências para M1-03:
 
 Prioridade: P0
 
-Status: M1-03A concluída em 2026-07-04; M1-03B pendente.
+Status: M1-03A e M1-03B concluídas em 2026-07-04; M1-03C pendente.
 
 M1-03A:
 
@@ -366,6 +366,17 @@ M1-03A:
 - [x] preservar arquivos derivados e sessões legadas/parciais;
 - [x] remover listas locais de invalidação dos produtores migrados;
 - [x] adicionar 8 testes de integração e falha.
+
+M1-03B:
+
+- [x] registrar match no REST e no Maestro e invalidar seus dependentes;
+- [x] registrar foco e invalidar reconciliação, tailoring, PDI e entrevista;
+- [x] registrar reconciliação, tailoring e PDI após geração bem-sucedida;
+- [x] bloquear match `stale` ou `corrupted` em reconciliação e tailoring;
+- [x] bloquear match ou tailoring inválido antes de gerar PDI;
+- [x] bloquear match inválido no Coach, preservando sessões `legacy`;
+- [x] adicionar 12 testes de registro, invalidação, compatibilidade e erro;
+- [x] validar o backend completo com 303 testes.
 
 Ordem:
 
@@ -390,16 +401,16 @@ Execução:
 Critérios de aceite:
 
 - [ ] Nenhum router mantém sua própria lista de invalidação.
-- [ ] Match antigo não alimenta tailoring ou PDI.
+- [x] Match antigo não alimenta tailoring ou PDI.
 - [ ] Reconciliação antiga não permanece concluída após mudar vaga/currículo.
 - [ ] Entrevista não reutiliza contexto obsoleto silenciosamente.
 
-Pendências para M1-03B:
+Pendências para M1-03C:
 
-1. Registrar match e invalidar seus dependentes no REST e no Maestro.
-2. Invalidar derivados ao alterar foco.
-3. Registrar reconciliação, tailoring, PDI e entrevista.
-4. Bloquear consumo de artefato `stale` ou `corrupted` com erro de domínio.
+1. Registrar a entrevista e validar suas demais entradas além do match.
+2. Migrar perfil, Scout e Curator sem ampliar listas locais.
+3. Proteger endpoints `latest` e expor estado para o frontend.
+4. Cobrir falha entre a escrita do conteúdo e a atualização do manifesto.
 
 #### M1-04 — Refletir atualidade no frontend
 

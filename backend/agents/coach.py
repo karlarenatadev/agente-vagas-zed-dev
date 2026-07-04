@@ -15,6 +15,7 @@ from typing import AsyncGenerator
 from agents.base import BaseAgent, LLMProviderError
 from agents.job_description_analyzer import analysis_from_markdown
 from agents.resume_matcher import match_report_from_markdown
+from artifacts import ArtifactRegistryError, ensure_artifact_consumable
 
 
 COACH_SYSTEM_PROMPT = """Voce e o Coach, agente especializado em entrevistas simuladas do sistema Recoloca IA.
@@ -506,6 +507,27 @@ LLM indisponivel durante avaliacao final ({type(error).__name__}). Usei avaliaca
         match_report = context.get("match_report", "") or self._read_context_file(self.paths.RESUME_MATCH_REPORT_FILE)
         interview_context = context.get("interview_context", "")
         history = context.get("history", [])
+
+        if match_report.strip():
+            try:
+                ensure_artifact_consumable(
+                    self.paths.dir,
+                    "match",
+                    self.paths.RESUME_MATCH_REPORT_FILE,
+                )
+            except ArtifactRegistryError as exc:
+                yield (
+                    "## RESPOSTA: COACH\n"
+                    "### estado\n"
+                    "erro\n\n"
+                    "### resumo\n"
+                    "Contexto de entrevista indisponivel.\n\n"
+                    "### dados\n\n"
+                    "### erros\n"
+                    f"{exc}\n"
+                )
+                return
+
         history_text = self._format_history(history)
         interview_brief = self._build_interview_brief(
             profile,

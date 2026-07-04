@@ -7,6 +7,12 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from artifacts import (
+    ArtifactRegistryError,
+    calculate_content_hash,
+    mark_dependents_stale,
+    register_artifact,
+)
 from session import SessionPaths, get_session_lock, get_session_paths, write_text_atomic_async
 from routers.common import read_optional_text, read_required, resolve_focus
 from agents.resume_matcher import (
@@ -124,10 +130,25 @@ async def analyze_resume_match(
     focus = resolve_focus(profile_content, request.focus)
 
     report = matcher.match(job_content, resume_content, focus=focus)
+    report_markdown = match_report_to_markdown(report)
     async with get_session_lock(paths.session_id):
+        try:
+            mark_dependents_stale(paths.dir, "match")
+            register_artifact(
+                paths.dir,
+                "match",
+                content=report_markdown,
+                input_hashes={
+                    "resume": calculate_content_hash(resume_content),
+                    "job_description": calculate_content_hash(job_content),
+                },
+                generator_version="match:v1",
+            )
+        except ArtifactRegistryError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         await write_text_atomic_async(
             paths.RESUME_MATCH_REPORT_FILE,
-            match_report_to_markdown(report),
+            report_markdown,
         )
 
     # Próxima etapa: usar este relatório para gerar sugestões de adaptação

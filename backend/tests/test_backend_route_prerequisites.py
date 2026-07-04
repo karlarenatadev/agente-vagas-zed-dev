@@ -14,7 +14,10 @@ from agents.resume_matcher import ResumeMatcher, match_report_to_markdown
 from agents.resume_tailor import ResumeTailor, tailoring_to_markdown
 from artifacts import (
     MANIFEST_FILENAME,
+    calculate_content_hash,
     get_artifact_status,
+    load_manifest,
+    mark_dependents_stale,
     register_artifact,
 )
 from main import app
@@ -258,7 +261,8 @@ def test_resume_upload_falha_ao_salvar_manifesto_preserva_entrada(
         files={"file": ("curriculo.txt", content.encode("utf-8"), "text/plain")},
     )
 
-    assert response.status_code == 500
+    assert response.status_code == 409
+    assert "manifesto" in response.json()["detail"].casefold()
     assert source_path.read_text(encoding="utf-8") == "currículo anterior"
     assert not (base / MANIFEST_FILENAME).exists()
 
@@ -303,11 +307,17 @@ def test_match_sem_vaga_valida_retorna_400(tmp_path, monkeypatch, resume_markdow
     base = _default_dir(tmp_path)
     _write(base / "job-description-analysis.md", "conteudo invalido")
     _write(base / "resume-analysis.md", resume_markdown)
+    pdi_path = base / "pdi-plan.md"
+    _write(pdi_path, "pdi anterior")
+    register_artifact(base, "pdi", pdi_path, generator_version="pdi:test")
+    manifest_path = base / MANIFEST_FILENAME
+    manifest_before = manifest_path.read_bytes()
 
     response = client.post("/api/resume-match/analyze", json={})
 
     assert response.status_code == 400
     assert "vaga" in response.json()["detail"].casefold()
+    assert manifest_path.read_bytes() == manifest_before
 
 
 def test_match_com_artefatos_validos_persiste_relatorio(
@@ -326,7 +336,48 @@ def test_match_com_artefatos_validos_persiste_relatorio(
     assert response.status_code == 200
     body = response.json()
     assert isinstance(body["overall_score"], int)
-    assert (base / "resume-match-report.md").exists()
+    match_path = base / "resume-match-report.md"
+    assert match_path.exists()
+    assert get_artifact_status(base, "match", artifact_path=match_path) == "current"
+    metadata = load_manifest(base).artifacts["match"]
+    assert metadata.generator_version == "match:v1"
+    assert metadata.input_hashes == {
+        "resume": calculate_content_hash(resume_markdown.strip()),
+        "job_description": calculate_content_hash(job_markdown.strip()),
+    }
+
+
+def test_match_marca_derivados_stale_sem_apagar(
+    tmp_path,
+    monkeypatch,
+    job_markdown,
+    resume_markdown,
+):
+    client = _client(tmp_path, monkeypatch)
+    base = _default_dir(tmp_path)
+    dependent_files = _seed_registered_dependents(base)
+    _write(base / "job-description-analysis.md", job_markdown)
+    _write(base / "resume-analysis.md", resume_markdown)
+
+    response = client.post("/api/resume-match/analyze", json={})
+
+    assert response.status_code == 200
+    assert get_artifact_status(
+        base,
+        "match",
+        artifact_path=dependent_files["match"],
+    ) == "current"
+    expected_stale = {"reconciliation", "tailoring", "pdi", "interview"}
+    assert all(dependent_files[name].exists() for name in expected_stale)
+    assert all(
+        get_artifact_status(
+            base,
+            name,
+            artifact_path=dependent_files[name],
+        )
+        == "stale"
+        for name in expected_stale
+    )
 
 
 def test_sugestoes_sem_relatorio_de_match_retorna_400(
@@ -363,7 +414,67 @@ def test_sugestoes_com_artefatos_validos_persistem_markdown(
     assert response.status_code == 200
     body = response.json()
     assert body["summary_suggestions"]
-    assert (base / "resume-tailoring-suggestions.md").exists()
+    tailoring_path = base / "resume-tailoring-suggestions.md"
+    assert tailoring_path.exists()
+    assert (
+        get_artifact_status(base, "tailoring", artifact_path=tailoring_path)
+        == "current"
+    )
+
+
+def test_sugestoes_bloqueiam_match_stale_sem_apagar(
+    tmp_path,
+    monkeypatch,
+    job_markdown,
+    resume_markdown,
+):
+    client = _client(tmp_path, monkeypatch)
+    base = _default_dir(tmp_path)
+    _write(base / "job-description-analysis.md", job_markdown)
+    _write(base / "resume-analysis.md", resume_markdown)
+    match_markdown = _write_match_report(tmp_path, job_markdown, resume_markdown)
+    match_path = base / "resume-match-report.md"
+    register_artifact(
+        base,
+        "match",
+        match_path,
+        input_hashes={
+            "resume": calculate_content_hash(resume_markdown.strip()),
+            "job_description": calculate_content_hash(job_markdown.strip()),
+        },
+        generator_version="match:v1",
+    )
+    mark_dependents_stale(base, "resume")
+
+    response = client.post("/api/resume-tailoring/generate", json={})
+
+    assert response.status_code == 409
+    assert "obsoleto" in response.json()["detail"].casefold()
+    assert match_path.read_text(encoding="utf-8") == match_markdown
+    assert not (base / "resume-tailoring-suggestions.md").exists()
+
+
+def test_sugestoes_bloqueiam_match_corrompido_sem_apagar(
+    tmp_path,
+    monkeypatch,
+    job_markdown,
+    resume_markdown,
+):
+    client = _client(tmp_path, monkeypatch)
+    base = _default_dir(tmp_path)
+    _write(base / "job-description-analysis.md", job_markdown)
+    _write(base / "resume-analysis.md", resume_markdown)
+    _write_match_report(tmp_path, job_markdown, resume_markdown)
+    match_path = base / "resume-match-report.md"
+    register_artifact(base, "match", match_path, generator_version="match:v1")
+    _write(match_path, match_path.read_text(encoding="utf-8") + "\nalterado")
+
+    response = client.post("/api/resume-tailoring/generate", json={})
+
+    assert response.status_code == 409
+    assert "corrompido" in response.json()["detail"].casefold()
+    assert match_path.read_text(encoding="utf-8").endswith("alterado")
+    assert not (base / "resume-tailoring-suggestions.md").exists()
 
 
 def test_pdi_sem_sugestoes_retorna_400(
@@ -422,7 +533,139 @@ def test_pdi_com_artefatos_validos_persiste_e_le_latest(
     assert body["main_goal"]
     persisted = (base / "pdi-plan.md").read_text(encoding="utf-8")
     assert pdi_from_markdown(persisted) is not None
+    assert (
+        get_artifact_status(base, "pdi", artifact_path=base / "pdi-plan.md")
+        == "current"
+    )
 
     latest = client.get("/api/pdi/latest")
     assert latest.status_code == 200
     assert latest.json()["main_goal"] == body["main_goal"]
+
+
+def test_pdi_bloqueia_tailoring_stale_sem_apagar(
+    tmp_path,
+    monkeypatch,
+    job_markdown,
+    resume_markdown,
+):
+    client = _client(tmp_path, monkeypatch)
+    base = _default_dir(tmp_path)
+    _write(base / "job-description-analysis.md", job_markdown)
+    _write(base / "resume-analysis.md", resume_markdown)
+    match_markdown = _write_match_report(tmp_path, job_markdown, resume_markdown)
+    tailoring_markdown = _write_tailoring(
+        tmp_path,
+        resume_markdown,
+        job_markdown,
+        match_markdown,
+    )
+    match_path = base / "resume-match-report.md"
+    tailoring_path = base / "resume-tailoring-suggestions.md"
+    register_artifact(
+        base,
+        "match",
+        match_path,
+        input_hashes={
+            "resume": calculate_content_hash(resume_markdown.strip()),
+            "job_description": calculate_content_hash(job_markdown.strip()),
+        },
+        generator_version="match:v1",
+    )
+    register_artifact(
+        base,
+        "tailoring",
+        tailoring_path,
+        input_hashes={
+            "resume": calculate_content_hash(resume_markdown.strip()),
+            "job_description": calculate_content_hash(job_markdown.strip()),
+            "match": calculate_content_hash(match_markdown.strip()),
+            "focus": calculate_content_hash("vaga"),
+        },
+        generator_version="tailoring:v1",
+    )
+    mark_dependents_stale(base, "focus")
+
+    response = client.post("/api/pdi/generate", json={})
+
+    assert response.status_code == 409
+    assert "tailoring" in response.json()["detail"].casefold()
+    assert "obsoleto" in response.json()["detail"].casefold()
+    assert tailoring_path.read_text(encoding="utf-8") == tailoring_markdown
+    assert not (base / "pdi-plan.md").exists()
+
+
+def test_reconciliacao_bloqueia_match_stale(
+    tmp_path,
+    monkeypatch,
+    job_markdown,
+    resume_markdown,
+):
+    client = _client(tmp_path, monkeypatch)
+    base = _default_dir(tmp_path)
+    profile = (
+        "Área de interesse: Dados\n"
+        "Nível de experiência: Pleno\n"
+        "Habilidades atuais: Python, SQL\n"
+        "Funções alvo: Analista de Dados\n"
+        "Concluído: true\n"
+    )
+    _write(base / "user-profile.md", profile)
+    _write(base / "job-description-analysis.md", job_markdown)
+    _write(base / "resume-analysis.md", resume_markdown)
+    match_markdown = _write_match_report(tmp_path, job_markdown, resume_markdown)
+    match_path = base / "resume-match-report.md"
+    register_artifact(
+        base,
+        "match",
+        match_path,
+        input_hashes={
+            "resume": calculate_content_hash(resume_markdown),
+            "job_description": calculate_content_hash(job_markdown),
+        },
+        generator_version="match:v1",
+    )
+    mark_dependents_stale(base, "resume")
+
+    response = client.post("/api/reconciliation/analyze", json={})
+
+    assert response.status_code == 409
+    assert "match" in response.json()["detail"].casefold()
+    assert "obsoleto" in response.json()["detail"].casefold()
+    assert match_path.read_text(encoding="utf-8") == match_markdown
+    assert not (base / "reconciliation.md").exists()
+
+
+def test_reconciliacao_legada_e_registrada_apos_geracao(
+    tmp_path,
+    monkeypatch,
+    job_markdown,
+    resume_markdown,
+):
+    client = _client(tmp_path, monkeypatch)
+    base = _default_dir(tmp_path)
+    profile = (
+        "Área de interesse: Dados\n"
+        "Nível de experiência: Pleno\n"
+        "Habilidades atuais: Python, SQL\n"
+        "Funções alvo: Analista de Dados\n"
+        "Concluído: true\n"
+    )
+    _write(base / "user-profile.md", profile)
+    _write(base / "job-description-analysis.md", job_markdown)
+    _write(base / "resume-analysis.md", resume_markdown)
+    _write_match_report(tmp_path, job_markdown, resume_markdown)
+
+    response = client.post("/api/reconciliation/analyze", json={})
+
+    assert response.status_code == 200
+    reconciliation_path = base / "reconciliation.md"
+    assert reconciliation_path.exists()
+    assert (
+        get_artifact_status(
+            base,
+            "reconciliation",
+            artifact_path=reconciliation_path,
+        )
+        == "current"
+    )

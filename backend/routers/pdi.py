@@ -7,8 +7,18 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from artifacts import (
+    ArtifactRegistryError,
+    calculate_content_hash,
+    register_artifact,
+)
 from session import SessionPaths, get_session_lock, get_session_paths, write_text_atomic_async
-from routers.common import read_optional_text, read_required, resolve_focus
+from routers.common import (
+    read_optional_text,
+    read_required,
+    require_consumable_artifact,
+    resolve_focus,
+)
 from agents.pdi_generator import (
     PdiGenerator,
     pdi_from_markdown,
@@ -138,6 +148,27 @@ async def generate_pdi(
         profile_content = None
     focus = resolve_focus(profile_content, request.focus)
 
+    require_consumable_artifact(
+        paths.dir,
+        "match",
+        paths.RESUME_MATCH_REPORT_FILE,
+        current_input_hashes={
+            "resume": calculate_content_hash(resume_content),
+            "job_description": calculate_content_hash(job_content),
+        },
+    )
+    require_consumable_artifact(
+        paths.dir,
+        "tailoring",
+        paths.RESUME_TAILORING_SUGGESTIONS_FILE,
+        current_input_hashes={
+            "resume": calculate_content_hash(resume_content),
+            "job_description": calculate_content_hash(job_content),
+            "match": calculate_content_hash(match_content),
+            "focus": calculate_content_hash(focus),
+        },
+    )
+
     result = generator.generate(
         resume_content,
         job_content,
@@ -145,8 +176,25 @@ async def generate_pdi(
         tailoring_content,
         focus=focus,
     )
+    pdi_markdown = pdi_to_markdown(result)
     async with get_session_lock(paths.session_id):
-        await write_text_atomic_async(paths.PDI_PLAN_FILE, pdi_to_markdown(result))
+        try:
+            register_artifact(
+                paths.dir,
+                "pdi",
+                content=pdi_markdown,
+                input_hashes={
+                    "resume": calculate_content_hash(resume_content),
+                    "job_description": calculate_content_hash(job_content),
+                    "match": calculate_content_hash(match_content),
+                    "tailoring": calculate_content_hash(tailoring_content),
+                    "focus": calculate_content_hash(focus),
+                },
+                generator_version="pdi:v1",
+            )
+        except ArtifactRegistryError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        await write_text_atomic_async(paths.PDI_PLAN_FILE, pdi_markdown)
 
     # Próxima etapa: usar este PDI no Coach para uma entrevista específica.
     # Exportação e geração de currículo final permanecem fora desta etapa.

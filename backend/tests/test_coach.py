@@ -11,6 +11,7 @@ from agents.base import LLMProviderError
 from agents.coach import CoachAgent
 from agents.job_description_analyzer import analysis_from_markdown
 from agents.resume_matcher import match_report_from_markdown
+from artifacts import mark_dependents_stale, register_artifact
 from session import SessionPaths
 
 
@@ -171,6 +172,50 @@ async def test_run_nao_bloqueia_com_vaga_analisada_sem_scout(coach, monkeypatch,
     assert "erro" not in estado
     # Mensagem de bloqueio antiga (que exigia Scout) não aparece.
     assert "Rode a busca do Scout" not in output
+
+
+@pytest.mark.asyncio
+async def test_run_bloqueia_match_stale_sem_chamar_llm(
+    tmp_path,
+    monkeypatch,
+    job_markdown,
+    match_markdown,
+):
+    paths = SessionPaths("coach-stale", base_dir=tmp_path)
+    paths.dir.mkdir(parents=True)
+    paths.RESUME_MATCH_REPORT_FILE.write_text(match_markdown, encoding="utf-8")
+    register_artifact(
+        paths.dir,
+        "match",
+        paths.RESUME_MATCH_REPORT_FILE,
+        generator_version="match:v1",
+    )
+    mark_dependents_stale(paths.dir, "resume")
+    agent = CoachAgent(paths)
+
+    async def _unexpected_call(_system_prompt, _prompt):
+        raise AssertionError("LLM nao deve ser chamado com match stale")
+        yield
+
+    monkeypatch.setattr(agent, "stream_llm", _unexpected_call)
+
+    chunks = []
+    async for chunk in agent.run(
+        {
+            "step": 1,
+            "profile": PROFILE,
+            "job_analysis": job_markdown,
+            "match_report": match_markdown,
+            "interview_context": "Analista de Dados",
+        }
+    ):
+        chunks.append(chunk)
+
+    output = "".join(chunks)
+    assert "### estado\nerro" in output
+    assert "match" in output.casefold()
+    assert "obsoleto" in output.casefold()
+    assert paths.RESUME_MATCH_REPORT_FILE.exists()
 
 
 # --- Rodada P1: calibração do feedback pelo contexto real (score/lacunas/evidências) ---

@@ -13,8 +13,18 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 
+from artifacts import (
+    ArtifactRegistryError,
+    calculate_content_hash,
+    mark_dependents_stale,
+    register_artifact,
+)
 from session import SessionPaths, get_session_lock, get_session_paths, write_text_atomic_async
-from routers.common import read_optional_text, read_required
+from routers.common import (
+    read_optional_text,
+    read_required,
+    require_consumable_artifact,
+)
 from agents.reconciliation import (
     Reconciler,
     normalize_focus,
@@ -151,6 +161,16 @@ async def analyze_reconciliation(
     # Relatório de aderência é opcional: se não existir, o reconciler recalcula
     # internamente via ResumeMatcher. Mas se existir, reusamos para consistência.
     match_content = _read_match_if_present(paths) if request.use_latest_match_report else None
+    if match_content is not None:
+        require_consumable_artifact(
+            paths.dir,
+            "match",
+            paths.RESUME_MATCH_REPORT_FILE,
+            current_input_hashes={
+                "resume": calculate_content_hash(resume_content),
+                "job_description": calculate_content_hash(job_content),
+            },
+        )
 
     result = reconciler.reconcile(
         profile_content,
@@ -160,10 +180,30 @@ async def analyze_reconciliation(
         focus=request.focus,
     )
 
+    reconciliation_markdown = reconciliation_to_markdown(result)
+    input_hashes = {
+        "profile": calculate_content_hash(profile_content),
+        "resume": calculate_content_hash(resume_content),
+        "job_description": calculate_content_hash(job_content),
+        "focus": calculate_content_hash(result["focus"]),
+    }
+    if match_content is not None:
+        input_hashes["match"] = calculate_content_hash(match_content)
+
     async with get_session_lock(paths.session_id):
+        try:
+            register_artifact(
+                paths.dir,
+                "reconciliation",
+                content=reconciliation_markdown,
+                input_hashes=input_hashes,
+                generator_version="reconciliation:v1",
+            )
+        except ArtifactRegistryError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         await write_text_atomic_async(
             paths.RECONCILIATION_FILE,
-            reconciliation_to_markdown(result),
+            reconciliation_markdown,
         )
 
     return result
@@ -206,5 +246,18 @@ async def set_candidacy_focus(
     )
     updated = upsert_focus_line(profile_content, body.focus)
     async with get_session_lock(paths.session_id):
+        try:
+            mark_dependents_stale(paths.dir, "focus")
+            register_artifact(
+                paths.dir,
+                "focus",
+                content=body.focus,
+                input_hashes={
+                    "profile": calculate_content_hash(updated),
+                },
+                generator_version="focus:v1",
+            )
+        except ArtifactRegistryError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         await write_text_atomic_async(paths.PROFILE_FILE, updated)
     return {"focus": body.focus}

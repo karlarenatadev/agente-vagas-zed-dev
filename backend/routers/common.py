@@ -7,6 +7,11 @@ from pathlib import Path
 from fastapi import HTTPException
 
 from agents.reconciliation import normalize_focus, parse_focus
+from artifacts import (
+    ArtifactRegistryError,
+    ArtifactStatus,
+    ensure_artifact_consumable,
+)
 from logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -81,3 +86,21 @@ def resolve_focus(profile_content: str | None, explicit: str | None = None) -> s
         if parsed:
             return parsed
     return "vaga"
+
+
+def require_consumable_artifact(
+    session_dir: Path,
+    artifact_name: str,
+    artifact_path: Path,
+    *,
+    current_input_hashes: dict[str, str] | None = None,
+) -> ArtifactStatus:
+    try:
+        return ensure_artifact_consumable(
+            session_dir,
+            artifact_name,
+            artifact_path,
+            current_input_hashes=current_input_hashes,
+        )
+    except ArtifactRegistryError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc

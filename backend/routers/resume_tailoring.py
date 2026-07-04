@@ -7,8 +7,19 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from artifacts import (
+    ArtifactRegistryError,
+    calculate_content_hash,
+    mark_dependents_stale,
+    register_artifact,
+)
 from session import SessionPaths, get_session_lock, get_session_paths, write_text_atomic_async
-from routers.common import read_optional_text, read_required, resolve_focus
+from routers.common import (
+    read_optional_text,
+    read_required,
+    require_consumable_artifact,
+    resolve_focus,
+)
 from agents.resume_tailor import (
     ResumeTailor,
     tailoring_from_markdown,
@@ -128,11 +139,38 @@ async def generate_resume_tailoring(
         profile_content = None
     focus = resolve_focus(profile_content, request.focus)
 
+    require_consumable_artifact(
+        paths.dir,
+        "match",
+        paths.RESUME_MATCH_REPORT_FILE,
+        current_input_hashes={
+            "resume": calculate_content_hash(resume_content),
+            "job_description": calculate_content_hash(job_content),
+        },
+    )
+
     result = tailor.generate(resume_content, job_content, match_content, focus=focus)
+    tailoring_markdown = tailoring_to_markdown(result)
     async with get_session_lock(paths.session_id):
+        try:
+            mark_dependents_stale(paths.dir, "tailoring")
+            register_artifact(
+                paths.dir,
+                "tailoring",
+                content=tailoring_markdown,
+                input_hashes={
+                    "resume": calculate_content_hash(resume_content),
+                    "job_description": calculate_content_hash(job_content),
+                    "match": calculate_content_hash(match_content),
+                    "focus": calculate_content_hash(focus),
+                },
+                generator_version="tailoring:v1",
+            )
+        except ArtifactRegistryError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         await write_text_atomic_async(
             paths.RESUME_TAILORING_SUGGESTIONS_FILE,
-            tailoring_to_markdown(result),
+            tailoring_markdown,
         )
 
     # Próxima etapa: combinar este artefato com o match para gerar pdi-plan.md.

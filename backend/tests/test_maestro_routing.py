@@ -14,7 +14,10 @@ import asyncio
 from agents.maestro import MaestroAgent
 from artifacts import (
     MANIFEST_FILENAME,
+    calculate_content_hash,
     get_artifact_status,
+    load_manifest,
+    mark_dependents_stale,
     register_artifact,
 )
 from session import SessionPaths
@@ -199,6 +202,14 @@ def test_match_com_prerequisitos_cria_artefato(tmp_path, resume_markdown, job_ma
 
     joined = "".join(tokens)
     assert paths.RESUME_MATCH_REPORT_FILE.exists()
+    assert (
+        get_artifact_status(
+            paths.dir,
+            "match",
+            artifact_path=paths.RESUME_MATCH_REPORT_FILE,
+        )
+        == "current"
+    )
     assert "overall_score" in joined.lower() or "/100" in joined
     assert "__STATE__:menu" in joined
 
@@ -216,6 +227,38 @@ def test_tailoring_sem_match_bloqueia(tmp_path, resume_markdown, job_markdown):
 
     joined = "".join(tokens)
     assert "__STATE__:menu" in joined
+    assert not paths.RESUME_TAILORING_SUGGESTIONS_FILE.exists()
+
+
+def test_tailoring_bloqueia_match_stale_no_maestro(
+    tmp_path,
+    resume_markdown,
+    job_markdown,
+    match_markdown,
+):
+    paths = SessionPaths("alice", base_dir=tmp_path)
+    _seed_resume(paths, resume_markdown)
+    paths.JOB_DESCRIPTION_ANALYSIS_FILE.write_text(job_markdown, encoding="utf-8")
+    paths.RESUME_MATCH_REPORT_FILE.write_text(match_markdown, encoding="utf-8")
+    register_artifact(
+        paths.dir,
+        "match",
+        paths.RESUME_MATCH_REPORT_FILE,
+        input_hashes={
+            "resume": calculate_content_hash(resume_markdown),
+            "job_description": calculate_content_hash(job_markdown),
+        },
+        generator_version="match:v1",
+    )
+    mark_dependents_stale(paths.dir, "resume")
+    agent = MaestroAgent(paths)
+
+    tokens = _collect(agent._dispatch_resume_tailoring())
+
+    joined = "".join(tokens)
+    assert "obsoleto" in joined.casefold()
+    assert "__STATE__:menu" in joined
+    assert paths.RESUME_MATCH_REPORT_FILE.exists()
     assert not paths.RESUME_TAILORING_SUGGESTIONS_FILE.exists()
 
 
@@ -301,3 +344,13 @@ def test_cadeia_completa_e_f_g_h_i(tmp_path, resume_markdown):
     i_tokens = _collect(agent._dispatch_reconciliation())
     assert paths.RECONCILIATION_FILE.exists()
     assert "__STATE__:menu" in "".join(i_tokens)
+    manifest = load_manifest(paths.dir)
+    assert {
+        name: manifest.artifacts[name].status
+        for name in ("match", "tailoring", "pdi", "reconciliation")
+    } == {
+        "match": "current",
+        "tailoring": "current",
+        "pdi": "current",
+        "reconciliation": "current",
+    }

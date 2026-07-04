@@ -17,6 +17,7 @@ from agents.reconciliation import parse_focus, upsert_focus_line
 from agents.resume_matcher import ResumeMatcher
 from agents.resume_tailor import ResumeTailor, tailoring_to_markdown
 from agents.pdi_generator import PdiGenerator
+from artifacts import get_artifact_status, load_manifest, register_artifact
 from routers.common import resolve_focus
 
 
@@ -92,15 +93,68 @@ def test_put_focus_persiste_no_perfil(tmp_path, monkeypatch):
     assert resp.json()["focus"] == "curriculo"
     saved = profile_path.read_text(encoding="utf-8")
     assert parse_focus(saved) == "curriculo"
+    assert load_manifest(_default_dir(tmp_path)).artifacts["focus"].status == "current"
+
+
+def test_put_focus_marca_derivados_stale_sem_apagar(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+    base = _default_dir(tmp_path)
+    profile_path = base / "user-profile.md"
+    profile_path.write_text(PROFILE_COMPLETO, encoding="utf-8")
+    dependent_paths = {
+        "reconciliation": base / "reconciliation.md",
+        "tailoring": base / "resume-tailoring-suggestions.md",
+        "pdi": base / "pdi-plan.md",
+        "interview": base / "interview-session.md",
+    }
+    for name, path in dependent_paths.items():
+        path.write_text(f"artefato anterior: {name}", encoding="utf-8")
+        if name != "interview":
+            register_artifact(
+                base,
+                name,
+                path,
+                generator_version=f"{name}:test",
+            )
+
+    resp = client.put("/api/reconciliation/focus", json={"focus": "curriculo"})
+
+    assert resp.status_code == 200
+    assert all(path.exists() for path in dependent_paths.values())
+    assert all(
+        get_artifact_status(base, name, artifact_path=path) == "stale"
+        for name, path in dependent_paths.items()
+        if name != "interview"
+    )
+    assert (
+        get_artifact_status(
+            base,
+            "interview",
+            artifact_path=dependent_paths["interview"],
+        )
+        == "legacy"
+    )
 
 
 def test_put_focus_invalido_retorna_422(tmp_path, monkeypatch):
     client = _client(tmp_path, monkeypatch)
-    (_default_dir(tmp_path) / "user-profile.md").write_text(PROFILE_COMPLETO, encoding="utf-8")
+    base = _default_dir(tmp_path)
+    (base / "user-profile.md").write_text(PROFILE_COMPLETO, encoding="utf-8")
+    reconciliation_path = base / "reconciliation.md"
+    reconciliation_path.write_text("reconciliacao anterior", encoding="utf-8")
+    register_artifact(
+        base,
+        "reconciliation",
+        reconciliation_path,
+        generator_version="reconciliation:test",
+    )
+    manifest_path = base / "artifact-manifest.json"
+    manifest_before = manifest_path.read_bytes()
 
     resp = client.put("/api/reconciliation/focus", json={"focus": "banana"})
 
     assert resp.status_code == 422
+    assert manifest_path.read_bytes() == manifest_before
 
 
 def test_put_focus_sem_perfil_retorna_400(tmp_path, monkeypatch):
