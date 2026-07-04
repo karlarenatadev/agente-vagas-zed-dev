@@ -170,6 +170,8 @@ Validação:
 
 Prioridade: P0
 
+Estado: concluída em 2026-07-04.
+
 Arquivos principais:
 
 - `backend/routers/chat.py`
@@ -190,15 +192,23 @@ Execução:
 
 Critérios de aceite:
 
-- [ ] Lista, número, `null`, objeto sem `content` e `content` não textual são
+- [x] Lista, número, `null`, objeto sem `content` e `content` não textual são
   rejeitados.
-- [ ] Mensagem excessiva não chega ao Maestro ou aos provedores.
-- [ ] Estado anterior permanece intacto após erro.
-- [ ] Testes cobrem conexão viva e encerramento controlado.
+- [x] Mensagem excessiva não chega ao Maestro ou aos provedores.
+- [x] Estado anterior permanece intacto após erro.
+- [x] Testes cobrem conexão viva e encerramento controlado.
+
+Validação:
+
+- WebSocket backend: 20 testes focalizados passando.
+- Suíte backend: 264 testes passando.
+- Frontend: 58 testes, lint e build passando.
 
 #### M0-04 — Incluir os testes frontend no CI
 
 Prioridade: P1, antecipada por baixo custo e efeito de proteção.
+
+Estado: concluída em 2026-07-04.
 
 Arquivos principais:
 
@@ -217,17 +227,25 @@ Execução:
 
 Critérios de aceite:
 
-- [ ] Um teste frontend quebrado bloqueia o pull request.
-- [ ] O CI instala exatamente o conteúdo do lockfile.
-- [ ] Testes, lint e build são jobs obrigatórios ou etapas bloqueantes.
+- [x] Um teste frontend quebrado bloqueia o pull request.
+- [x] O CI instala exatamente o conteúdo do lockfile.
+- [x] Testes, lint e build são jobs obrigatórios ou etapas bloqueantes.
+
+Validação:
+
+- Frontend: `npm ci`, 58 testes, lint e build passando.
+- Backend: 264 testes passando.
+- Data Guard: 8 testes e 159 arquivos verificados.
+- Workflows padronizados para `main`, com cache npm e `concurrency`.
 
 #### Gate da Fase 0
 
 - [x] M0-01 concluída.
 - [x] M0-02 concluída.
-- [ ] M0-03 e M0-04 concluídas.
-- [ ] Suítes backend e frontend aprovadas.
-- [ ] Nenhuma alteração de contrato sem teste.
+- [x] M0-03 concluída.
+- [x] M0-04 concluída.
+- [x] Suítes backend e frontend aprovadas.
+- [x] Nenhuma alteração de contrato sem teste.
 
 ### Fase 1 — Integridade e linhagem dos artefatos
 
@@ -895,7 +913,7 @@ Mitigação:
 
 - [x] Testes backend e frontend aprovados na entrega M0-01.
 - [x] Links/status de candidaturas validados.
-- [ ] Protocolo WebSocket limitado.
+- [x] Protocolo WebSocket limitado.
 - [x] Dados de runtime permanecem fora do Git e das imagens, protegidos por
   ignore e Data Guard.
 - [ ] Interface identifica fallback e dados simulados.
@@ -936,5 +954,5 @@ Ao concluir:
 4. revisar se a tarefa criou nova dependência;
 5. mover o próximo item desbloqueado para execução.
 
-Próxima ação recomendada: iniciar **M0-03 — Validar o protocolo de entrada do
-WebSocket**.
+Próxima ação recomendada: confirmar os workflows no GitHub após o próximo push
+ou pull request.

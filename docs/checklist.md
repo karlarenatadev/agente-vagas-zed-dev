@@ -23,13 +23,15 @@ A decisão inicial é manter Python/FastAPI no backend. O foco não é trocar li
 * [X] Frontend validado com 58 testes passando.
 * [X] Lint e build frontend aprovados.
 * [X] Data Guard aprovado com 8 testes.
+* [X] M0-03 validada com 20 testes WebSocket focalizados.
+* [X] M0-04 concluída com cache npm, branches e `concurrency` padronizados.
 * [ ] Confirmar execução real dos workflows após push/PR.
 
 ## Próxima ação imediata
 
 * [ ] Abrir PR da branch de qualidade.
 * [ ] Confirmar que todos os workflows passam no GitHub Actions.
-* [ ] Atualizar `docs/checklist.md` com os novos números:
+* [X] Atualizar `docs/checklist.md` com os novos números:
 
   * backend: 264 testes;
   * frontend: 58 testes;
@@ -617,15 +619,17 @@ LLM e Firecrawl são gargalos de custo, latência e instabilidade.
 * [X] PR template.
 * [X] CI frontend com Vitest.
 * [X] CI backend com pytest.
+* [X] Cache npm baseado em `frontend/package-lock.json`.
+* [X] Cancelamento de execuções antigas por workflow e ref.
 * [ ] Confirmar workflows no GitHub após push/PR.
-* [ ] Atualizar `docs/checklist.md` com os resultados novos.
+* [X] Atualizar `docs/checklist.md` com os resultados novos.
 
 ## Sprint 2 — WebSocket seguro
 
-* [ ] Schema de mensagem.
-* [ ] Limite de tamanho.
-* [ ] Erro controlado.
-* [ ] Testes backend.
+* [X] Schema de mensagem.
+* [X] Limite de tamanho.
+* [X] Erro controlado.
+* [X] Testes backend.
 * [ ] Testes frontend de reconexão.
 
 ## Sprint 3 — Identidade e modo público/local

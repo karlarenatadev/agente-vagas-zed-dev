@@ -6,6 +6,8 @@
 - [ ] Frontend lint
 - [ ] Frontend tests
 - [ ] Frontend build
+- [ ] Data Guard
+- [ ] Checklist/documentação atualizados, se aplicável
 - [ ] Teste manual, se aplicável
 
 ## Impacta contrato de API?
