@@ -1,457 +1,724 @@
-# Checklist técnico consolidado — Recoloca IA
-
-Última avaliação: 2026-06-27
-
-Branch e referência analisadas: `main` em `75c7fa1`
-
-Escopo revisto: backend FastAPI, frontend React, WebSocket, agentes, persistência
-Markdown/JSON, integração Firecrawl, Docker, workflows de CI e documentação.
-
-## 1. Diagnóstico executivo
-
-O projeto está em um estágio de **MVP local funcional e bem testado**, com boa
-separação de agentes, isolamento lógico por sessão, escrita atômica e tratamento
-de vários cenários de falha.
-
-O projeto **ainda não está pronto para exposição pública com dados reais**. Os
-principais bloqueadores são:
-
-1. ausência de autenticação e autorização sobre dados pessoais;
-2. artefatos derivados podem permanecer válidos visualmente após a alteração das
-   entradas que os originaram;
-3. ausência de limites, rate limiting, expiração e descarte completo por sessão;
-4. ausência de E2E automatizado e validação real do Firecrawl;
-5. proteções de CI ainda incompletas para testes frontend.
-
-Decisão de release: manter como aplicação local/controlada até concluir os itens
-P0. Para publicação, o cabeçalho `X-Session-Id` não pode ser tratado como
-mecanismo de identidade ou autorização.
-
-## 2. Validação reproduzida nesta avaliação
-
-1. Backend
-   - Estado: aprovado.
-   - Comando: `backend/.venv/Scripts/python.exe -m pytest backend/tests -q`.
-   - Resultado: **250 passed**, 1 warning, em 47,48 s.
-   - Warning: `PendingDeprecationWarning` do Starlette para `import multipart`.
-
-2. Frontend
-   - Estado: aprovado.
-   - Comando: `npm run test -- --run`.
-   - Resultado: **6 arquivos e 56 testes passando**.
-   - Comando: `npm run lint`.
-   - Resultado: sem erros.
-   - Comando: `npm run build`.
-   - Resultado: sem erros.
-   - Bundle principal: **379,67 kB**; gzip: **119,68 kB**.
-   - Chunk do chat: **174,28 kB**; gzip: **52,40 kB**.
-
-3. Dependências Python
-   - Estado: aprovado.
-   - Comando: `python -m pip check`.
-   - Resultado: nenhuma dependência quebrada.
-
-4. Cobertura
-   - Estado: não mensurada.
-   - Erro: o ambiente virtual atual não tem `pytest-cov` instalado, embora a
-     dependência esteja declarada em `backend/requirements-dev.txt`; o pytest
-     rejeitou `--cov`.
-   - Risco: não existe limiar de cobertura bloqueante no CI.
-
-5. Docker
-   - Estado: não reproduzido nesta máquina.
-   - Erro: executável `docker` indisponível no ambiente atual.
-   - Observação: Dockerfiles, `.dockerignore`, Nginx e Compose foram revisados
-     estaticamente; o `.dockerignore` raiz exclui `backend/.env`, `data/` e logs.
-
-6. Firecrawl e LLM reais
-   - Estado: bloqueado por ambiente externo.
-   - `OPENAI_API_KEY`, `FIRECRAWL_API_KEY` e `LLM_BASE_URL` não estão configurados
-     com valores utilizáveis neste ambiente.
-   - O roteiro está em `docs/firecrawl-validacao-manual.md`.
-
-7. Repositório e privacidade atual
-   - O worktree contém as entregas M0-01/M0-02 ainda não commitadas, sem
-     artefatos de runtime staged ou rastreados.
-   - Apenas `data/README.md` está rastreado em `data/`.
-   - `backend/.env` está ignorado pelo Git.
-   - Não foi encontrado `TODO`, `FIXME`, `XXX` ou `HACK` no código rastreado.
-
-8. Data Guard
-   - Estado: aprovado.
-   - Comando: `python -m unittest discover -s scripts/tests -p "test_*.py" -v`.
-   - Resultado: **8 testes passando**.
-   - Comando: `python scripts/validate_data_guard.py`.
-   - Resultado: **153 arquivos rastreados/staged verificados**, sem violação.
-   - Verificação adicional: **14 arquivos novos/modificados** da rodada
-     inspecionados pelo mesmo scanner, sem violação.
-
-## 3. Critério de criticidade
-
-1. P0 — bloqueia publicação ou pode expor dados, permitir abuso, quebrar a
-   integridade da jornada ou apresentar resultado obsoleto como atual.
-2. P1 — lacuna funcional relevante ou ausência de teste/contrato que reduz
-   significativamente a confiabilidade do MVP.
-3. P2 — qualidade, desempenho, observabilidade e manutenção.
-4. P3 — documentação e acabamento sem impacto imediato na execução.
-
-## 4. Pendências priorizadas
-
-### P0 — Bloqueadores de produção
-
-#### P0-01 — Implementar identidade, autenticação e autorização
-
-- [ ] Estado: não iniciado.
-- Evidência:
-  - todas as rotas REST confiam em `X-Session-Id` fornecido pelo cliente;
-  - o WebSocket recebe `session_id` pela query string;
-  - não existe autenticação, vínculo de propriedade ou autorização;
-  - chamadas sem ID compartilham `data/sessions/_default/`;
-  - IDs inválidos são transformados em vez de rejeitados, permitindo colisões
-    como IDs diferentes que resultam no mesmo nome sanitizado;
-  - o WebSocket aceita a conexão antes de validar identidade ou origem.
-- Risco: conhecimento ou colisão de um ID permite leitura e mutação dos
-  artefatos daquela sessão; a sessão default pode misturar clientes sem header.
-- Critérios de aceite:
-  - identidade emitida e validada no servidor;
-  - autorização aplicada a todas as rotas REST e ao WebSocket;
-  - sessão default desabilitada em ambiente público;
-  - IDs inválidos rejeitados, sem normalização que produza colisão;
-  - validação de `Origin` no WebSocket;
-  - testes negativos provando que uma identidade não acessa outra;
-  - modo local anônimo, se mantido, explicitamente separado por configuração.
-
-#### P0-02 — Corrigir linhagem e invalidação de artefatos derivados
-
-- [ ] Estado: falha funcional confirmada por inspeção.
-- Evidência:
-  - reanalisar currículo ou vaga remove match, tailoring e PDI, mas preserva
-    `reconciliation.md` e entrevista;
-  - recalcular match não invalida reconciliação, tailoring, PDI ou entrevista;
-  - aplicar sugestões ao perfil e alterar o foco não invalida relatórios
-    dependentes;
-  - `ApplicationPipeline` considera uma etapa concluída principalmente pela
-    existência/conteúdo do arquivo, sem provar que ele deriva das entradas atuais.
-- Risco: a interface pode apresentar score, foco, sugestões ou PDI antigos como
-  atuais depois que perfil, currículo, vaga ou match mudaram.
-- Critérios de aceite:
-  - definir a matriz de dependência:
-    - perfil → vagas, cursos, match, reconciliação, tailoring, PDI e entrevista;
-    - currículo → match, reconciliação, tailoring, PDI e entrevista;
-    - vaga → match, reconciliação, tailoring, PDI e entrevista;
-    - match/foco → reconciliação, tailoring, PDI e entrevista;
-    - tailoring → PDI;
-  - centralizar a invalidação em um único serviço;
-  - registrar versão, timestamp e hash das entradas em cada artefato derivado;
-  - impedir leitura/exibição de artefato cujo hash de origem não corresponda;
-  - cobrir cada transição com testes de rota e de pipeline frontend.
-
-#### P0-03 — Limitar abuso de recursos e definir ciclo de vida dos dados
-
-- [ ] Estado: não iniciado.
-- Evidência:
-  - não há rate limiting para REST, upload, LLM, Firecrawl ou WebSocket;
-  - mensagens WebSocket não têm schema nem limite explícito de tamanho;
-  - payload JSON que não seja objeto, ou `content` que não seja string, pode
-    gerar exceção fora dos casos controlados;
-  - listas de campos aprovados e outros inputs ainda não têm limites globais;
-    candidaturas já receberam limites na M0-01;
-  - qualquer cliente pode criar IDs de sessão e diretórios indefinidamente;
-  - `_session_locks` cresce por ID e não remove locks inativos;
-  - não há TTL, quota por sessão, coleta de sessões antigas ou exclusão completa
-    dos dados pelo usuário.
-- Critérios de aceite:
-  - schema estrito e tamanho máximo para mensagens WebSocket;
-  - limites de texto/listas em todos os modelos Pydantic;
-  - rate limit e quota por identidade/sessão;
-  - timeout e cancelamento propagados para operações externas;
-  - política de retenção, limpeza de locks e diretórios expirados;
-  - ação explícita para exportar e apagar todos os dados da pessoa;
-  - testes de payload excessivo, flood, sessão expirada e descarte.
-
-#### P0-04 — Fechar a validação de links no tracker de candidaturas
-
-- [x] Estado: concluído em 2026-06-27 pela tarefa M0-01.
-- Implementação:
-  - backend usa enum fechado para os sete status aceitos;
-  - criação aceita apenas link `http`, `https` ou vazio;
-  - `javascript:`, `data:`, URL sem esquema e status desconhecido retornam 422
-    antes de qualquer persistência;
-  - título, empresa, localização, link, salário, habilidades, contagem, notas e
-    data de aplicação possuem limites explícitos;
-  - update inválido não altera o arquivo existente;
-  - registros legados não são apagados ou reescritos automaticamente;
-  - frontend normaliza registros legados, sinaliza status/data inválidos e usa
-    `normalizeHttpLink`, sem renderizar `<a>` para link inseguro.
-- Evidência:
-  - `backend/tests/test_applications.py`: 32 testes direcionados;
-  - `frontend/src/components/ApplicationTracker.test.tsx`: 8 testes novos;
-  - suíte completa: backend 250; frontend 56; lint e build aprovados.
-
-#### P0-05 — Tornar a proteção de dados do CI baseada em allowlist
-
-- [x] Estado: concluído em 2026-06-27 pela tarefa M0-02.
-- Implementação:
-  - `scripts/validate_data_guard.py` verifica índice Git e conteúdo atual de
-    arquivos rastreados;
-  - allowlist de `data/` restrita a `data/README.md` e
-    `data/*.example.md` sanitizado;
-  - qualquer caminho sob `data/sessions/` é bloqueado, inclusive com `git add -f`;
-  - `.env`, variações perigosas, chaves privadas, API/access keys, tokens, JWT e
-    credenciais atribuídas em texto claro são bloqueados;
-  - placeholders, referências a variáveis e `.env.example` sanitizado são
-    permitidos para reduzir falsos positivos;
-  - cada erro informa o arquivo e, para segredo, a linha responsável;
-  - o workflow executa os testes do guard e o mesmo comando disponível localmente.
-- Evidência:
-  - 8 testes `unittest` com repositórios Git temporários;
-  - execução local aprovada sobre 153 arquivos rastreados/staged;
-  - 14 arquivos novos/modificados da rodada verificados separadamente;
-  - `data/README.md` segue como único arquivo atualmente rastreado em `data/`;
-  - arquivos locais existentes em `data/` foram preservados.
-
-#### P0-06 — Criar E2E automatizado do caminho crítico e de recuperação
-
-- [ ] Estado: não iniciado.
-- Escopo mínimo:
-  - currículo → confirmação de perfil → vaga → match → foco/reconciliação →
-    tailoring → PDI → entrevista → candidatura;
-  - reload durante quiz e entrevista;
-  - queda física do backend durante streaming e reconexão;
-  - falha 400/409/422/500, timeout e resposta vazia;
-  - invalidação visual após alterar perfil, currículo, vaga e match;
-  - isolamento entre dois contextos de navegador.
-- Critérios de aceite:
-  - suíte Playwright ou equivalente executada contra processos reais;
-  - dados isolados em diretório temporário;
-  - artefatos, estado visual e ausência de vazamento entre sessões verificados;
-  - execução bloqueante no CI.
-
-#### P0-07 — Validar Firecrawl com chave e créditos reais
-
-- [ ] Estado: bloqueado por credenciais/créditos externos.
-- Já concluído no código:
-  - origem formalizada para vagas: `real`, `llm` ou `simulated`;
-  - origem formalizada para cursos: `real` ou `interna`;
-  - estados de sucesso, vazio, degradado, sem créditos, erro e timeout;
-  - normalização de salário, benefícios e requisitos;
-  - links do Scout/Curator protegidos por validação `http(s)`;
-  - roteiro manual versionado e testes determinísticos.
-- Falta executar:
-  - Scout real com resultados e busca vazia;
-  - Curator real e complemento interno;
-  - salários, benefícios e requisitos em amostra real;
-  - links reais no navegador;
-  - cenários sem crédito, erro, timeout e busca degradada;
-  - preencher o registro de execução em
-    `docs/firecrawl-validacao-manual.md`.
-
-### P1 — Alta prioridade funcional e de confiabilidade
-
-#### P1-01 — Completar a criação de candidaturas na interface
-
-- [ ] Estado: backend pronto, frontend ausente.
-- Evidência: existe `POST /api/applications/`, mas não há chamada POST para essa
-  rota no frontend e o `ScoutReport` não oferece ação de salvar.
-- Critérios de aceite:
-  - botão “Salvar candidatura” apenas para vaga real;
-  - feedback de salvamento, duplicidade e erro;
-  - atualização imediata do tracker;
-  - teste integrado Scout → salvar → tracker.
-
-#### P1-02 — Endurecer schemas e leitura de todos os artefatos
-
-- [ ] Estado: parcial.
-- Já coberto:
-  - match, tailoring, PDI e reconciliação tratam ausente/vazio e parte dos casos
-    corrompidos por `read_required`/`read_optional_text`;
-  - validações estruturais específicas existem para os principais relatórios.
-- Lacunas:
-  - `profile`, `data_files`, `job-description/latest` e `resume/latest` não usam
-    o mesmo contrato de corrupção;
-  - alguns artefatos inválidos retornam 404, outros 400/409;
-  - o Markdown não tem versão de schema nem migração;
-  - leituras raw de `data_files` não validam estrutura.
-- Critérios de aceite:
-  - schema versionado por tipo de artefato;
-  - parser único com erro consistente: ausente, vazio, incompatível e corrompido;
-  - nenhum artefato inválido tratado como “não encontrado”;
-  - matriz de testes cobrindo todas as rotas de leitura e geração.
-
-#### P1-03 — Corrigir e ampliar o CI
-
-- [ ] Estado: parcial.
-- Evidência:
-  - frontend CI usa `npm install`, roda lint/build, mas não roda Vitest;
-  - backend CI cobre apenas `main`; outros workflows cobrem `main` e `develop`;
-  - `pytest-cov` está declarado, mas nenhuma meta de cobertura é aplicada;
-  - não há E2E no CI.
-- Critérios de aceite:
-  - usar `npm ci`;
-  - executar os 56+ testes frontend;
-  - unificar branches e eventos;
-  - medir cobertura backend/frontend com limiar inicial realista e crescente;
-  - publicar relatórios de falha e duração.
-
-#### P1-04 — Cobrir fluxos frontend hoje sem teste dedicado
-
-- [ ] Testar `useWebSocket`: streaming, erro, queda, reconexão, replay e cleanup.
-- [ ] Testar `apiRequest`: timeout, rede, 400, 409, 413, 422, 500, HTML e vazio.
-- [ ] Testar `ApplicationTracker`: links, status, notas, exclusão e estado inválido.
-- [ ] Testar pré-preenchimento do quiz a partir da análise do currículo.
-- [ ] Testar auto-scroll em sucesso e erro.
-- [ ] Testar loading, vazio, erro e sucesso dos componentes restantes.
-
-#### P1-05 — Explicar conflitos e precedência de fontes
-
-- [ ] Estado: comportamento existe, comunicação insuficiente.
-- Critérios de aceite:
-  - explicar quando prevalece perfil, currículo ou vaga;
-  - mostrar efeito da escolha sobre match, tailoring, PDI e entrevista;
-  - pedir confirmação antes de trocar foco;
-  - rejeitar foco inválido de forma consistente, em vez de fallback silencioso
-    em algumas rotas;
-  - recalcular ou invalidar derivados após a confirmação.
-
-#### P1-06 — Refinar o PDI e cursos pagos
-
-- [ ] Permitir opção paga somente quando houver ganho explícito sobre alternativas
-  gratuitas.
-- [ ] Identificar claramente preço/origem e manter alternativa gratuita.
-- [ ] Não promover curso interno como resultado real do Firecrawl.
-- [ ] Cobrir a regra com testes do Curator e do PDI.
-
-#### P1-07 — Definir suporte de concorrência do deploy
-
-- [ ] Estado: seguro apenas no processo atual.
-- Evidência: locks são mantidos em memória e não coordenam múltiplos processos ou
-  réplicas.
-- Critérios de aceite:
-  - declarar e impor execução com um worker, ou
-  - migrar coordenação/persistência para mecanismo multiprocesso;
-  - testar concorrência entre processos antes de escalar horizontalmente.
-
-### P2 — Qualidade técnica e manutenção
-
-- [ ] Instalar e validar o ambiente de desenvolvimento a partir de
-  `requirements-dev.txt`; evitar ambiente local divergente.
-- [ ] Remover pacotes `extraneous` de `frontend/node_modules` com instalação
-  limpa e reproduzível.
-- [ ] Concluir lazy loading; o bundle principal cresceu de 376,81 kB para
-  379,68 kB e o chat de 174,29 kB para 174,47 kB.
-- [ ] Definir orçamento de bundle no CI e revisar imports/tree-shaking.
-- [ ] Mover leituras e `unlink` síncronos restantes para helpers assíncronos ou
-  thread, especialmente em rotas `async`.
-- [ ] Eliminar checagens defensivas de mojibake após garantir UTF-8 na entrada e
-  persistência.
-- [ ] Acompanhar o warning `python_multipart` da cadeia Starlette/FastAPI.
-- [ ] Eliminar duplicações de tipos TypeScript e validar respostas REST em
-  runtime antes de fazer cast.
-- [ ] Revisar responsabilidades de componentes e o CSS monolítico.
-- [ ] Remover locks inativos e definir limite/rotação para backups de corrupção.
-- [ ] Adicionar readiness check separado de liveness, incluindo diretório de
-  dados gravável e estado dos provedores sem expor segredos.
-- [ ] Tornar CORS, hosts confiáveis e headers de segurança configuráveis por
-  ambiente; documentar terminação TLS no proxy de produção.
-- [ ] Avaliar varredura de dependências no CI; segredos já são cobertos pelo
-  Data Guard da M0-02.
-
-### P3 — Documentação e acabamento
-
-- [ ] Reescrever `plano.md`: ele descreve apenas a persona/MoE original e não a
-  arquitetura FastAPI + React + WebSocket + sessões atual.
-- [x] README atualizado para 250 testes backend e 56 testes frontend após M0-01.
-- [ ] Enumerar no README as rotas REST e o contrato do WebSocket.
-- [ ] Corrigir a afirmação de criação de candidaturas na UI enquanto P1-01 não
-  estiver concluído.
-- [ ] Consolidar ou marcar `docs/avaliacao-20-06.md` e as seções históricas de
-  `docs/project-update-report.md` como snapshots, pois contêm achados já
-  resolvidos e contagens antigas.
-- [ ] Criar ADRs para isolamento por sessão, escrita atômica, fallback de
-  provedores, foco da candidatura e linhagem de artefatos.
-- [ ] Criar diagrama do fluxo frontend → rotas → agentes → artefatos.
-- [ ] Documentar schemas, versões e dependências de todos os arquivos em `data/`.
-- [ ] Adicionar capturas de tela apenas após estabilização visual.
-
-## 5. Entregas confirmadas no código
-
-### Backend e resiliência
-
-- [x] FastAPI com rotas REST, WebSocket e agentes especializados.
-- [x] Logging JSON e tratamento global seguro de 422/500.
-- [x] Erros de LLM e Firecrawl convertidos em falhas de domínio.
-- [x] Escrita atômica, locks por sessão e stress test de 50 escritas.
-- [x] Isolamento de caminhos em `data/sessions/{session_id}/`.
-- [x] Tentativas de path traversal não escapam do diretório base.
-- [x] `applications.json` corrompido gera 409, backup e preservação do original.
-- [x] Upload limitado a 5 MB, com extensão, Content-Type e Magic Number.
-- [x] Confirmação explícita antes de aplicar sugestões do currículo ao perfil.
-- [x] Candidaturas validam enum de status, links `http(s)` e limites de texto
-  antes de persistir.
-
-### Jornada e agentes
-
-- [x] Quiz de sete perguntas com retomada e perfil consolidado.
-- [x] Menu e roteamento A–I.
-- [x] Scout com match, filtro de data, proveniência e fallback em camadas.
-- [x] Curator com trilha, proveniência e base interna identificada.
-- [x] Coach com cinco perguntas, feedback contextual e retomada.
-- [x] Análise de vaga, match, reconciliação, tailoring e PDI.
-- [x] Foco de candidatura persistido e consumido pelas etapas derivadas.
-
-### Frontend
-
-- [x] React 19, TypeScript 6 e Vite.
-- [x] Helper central de API com timeout e mensagens amigáveis.
-- [x] Recuperação visual no primeiro load via `replay=1`.
-- [x] Reconexão transitória sem duplicar o prompt.
-- [x] Confirmação seletiva das sugestões de perfil.
-- [x] Links do Scout e Curator restritos a `http(s)`.
-- [x] Tracker normaliza links e registros legados sem renderizar URL insegura.
-- [x] Responsividade, navegação por teclado, redução de movimento e fallback de
-  cópia documentados na rodada de QA.
-
-### Infraestrutura e testes
-
-- [x] Dockerfiles para backend/frontend, Nginx e Compose com mock opcional.
-- [x] `.dockerignore` impede inclusão de `.env`, dados e logs na imagem backend.
-- [x] GitHub Actions para backend, frontend, documentação e proteção de dados.
-- [x] Data Guard baseado em allowlist, reutilizável localmente e no CI.
-- [x] Backend: 250 testes passando nesta avaliação.
-- [x] Frontend: 56 testes, lint e build passando nesta avaliação.
-
-## 6. Ordem recomendada de execução
-
-1. Segurança e integridade imediatas
-   - P0-01 identidade/autorização;
-   - P0-02 linhagem/invalidação;
-   - P0-03 limites/retenção;
-
-2. Gate de release
-   - P0-06 E2E;
-   - P0-07 Firecrawl real;
-   - P1-03 CI com testes frontend e cobertura.
-
-3. Fechamento funcional
-   - P1-01 salvar candidatura;
-   - P1-02 schemas;
-   - P1-04 cobertura frontend;
-   - P1-05 precedência;
-   - P1-06 PDI;
-   - P1-07 concorrência de deploy.
-
-4. Sustentação
-   - itens P2;
-   - sincronização documental P3.
-
-## 7. Definição de pronto para publicação
-
-- [ ] Todos os P0 concluídos ou formalmente removidos do escopo público.
-- [ ] Nenhum dado de uma identidade acessível por outra.
-- [ ] Nenhum artefato obsoleto exibido como atual.
-- [ ] Limites, rate limiting, retenção e exclusão de dados operacionais.
-- [ ] E2E crítico e CI completos passando.
-- [ ] Firecrawl real validado e evidenciado.
-- [ ] Backup, restauração e observabilidade testados.
-- [ ] Política de privacidade e operação com dados pessoais revisadas antes de
-  receber currículos reais em ambiente público.
+# Checklist de Escalabilidade — import-vagas
+
+## Objetivo
+
+Preparar o `import-vagas` para escalar sem trocar Python, evoluindo a arquitetura atual com FastAPI, React, persistência estruturada, filas, limites, autenticação, observabilidade e testes de produção.
+
+A decisão inicial é manter Python/FastAPI no backend. O foco não é trocar linguagem, e sim corrigir os pontos arquiteturais que impedem escala: estado local, ausência de identidade, ausência de limites, processamento síncrono pesado, falta de filas, pouca observabilidade produtiva e ausência de estratégia clara para múltiplas instâncias.
+
+---
+
+# 0. Fundação de qualidade
+
+## Status atual
+
+* [X] README atualizado com comandos de validação local.
+* [X] Checklist/template de PR criado.
+* [X] Backend CI alinhado com `pytest -v`.
+* [X] Frontend CI usando `npm ci`.
+* [X] Frontend CI executando Vitest.
+* [X] Data Guard preservado.
+* [X] Docs Check preservado.
+* [X] Backend validado com 264 testes passando.
+* [X] Frontend validado com 58 testes passando.
+* [X] Lint e build frontend aprovados.
+* [X] Data Guard aprovado com 8 testes.
+* [ ] Confirmar execução real dos workflows após push/PR.
+
+## Próxima ação imediata
+
+* [ ] Abrir PR da branch de qualidade.
+* [ ] Confirmar que todos os workflows passam no GitHub Actions.
+* [ ] Atualizar `docs/checklist.md` com os novos números:
+
+  * backend: 264 testes;
+  * frontend: 58 testes;
+  * Data Guard: 8 testes;
+  * build/lint: aprovados.
+
+---
+
+# 1. Escala de identidade e acesso
+
+## Problema
+
+O projeto não deve escalar com sessão baseada apenas em header ou query string. Para ambiente público, cada dado precisa estar vinculado a uma identidade real e autorizada.
+
+## Checklist
+
+* [ ] Definir modos de execução:
+
+  * [ ] `APP_MODE=local`;
+  * [ ] `APP_MODE=public`.
+* [ ] Em modo local, permitir sessão anônima apenas explicitamente.
+* [ ] Em modo público, bloquear uso sem autenticação.
+* [ ] Escolher provedor de identidade:
+
+  * [ ] Auth gerenciado;
+  * [ ] JWT próprio;
+  * [ ] OAuth;
+  * [ ] outro.
+* [ ] Criar `UserContext` no backend.
+* [ ] Aplicar autorização em todas as rotas REST.
+* [ ] Aplicar autorização no WebSocket.
+* [ ] Remover confiança em `X-Session-Id` como identidade pública.
+* [ ] Impedir que o frontend escolha diretamente o dono dos dados.
+* [ ] Validar `Origin` no WebSocket.
+* [ ] Criar testes negativos:
+
+  * [ ] usuário A não acessa dados de B;
+  * [ ] usuário A não altera dados de B;
+  * [ ] troca manual de header/query não troca identidade efetiva;
+  * [ ] sessão default é proibida em modo público.
+
+## Critério de pronto
+
+* [ ] Nenhum dado pessoal fica acessível sem identidade validada.
+* [ ] REST e WebSocket usam a mesma identidade.
+* [ ] Modo local e modo público estão claramente separados.
+* [ ] Testes de autorização passam no CI.
+
+---
+
+# 2. Escala de persistência
+
+## Problema
+
+Persistência em Markdown local é boa para MVP, demo e portfólio, mas não escala bem para múltiplas instâncias. Cada container teria seus próprios arquivos.
+
+## Caminho recomendado
+
+Não migrar tudo de uma vez.
+
+Evoluir em etapas:
+
+1. manter Markdown local para ambiente local;
+2. criar camada abstrata de armazenamento;
+3. adicionar PostgreSQL para dados estruturados;
+4. usar storage externo para arquivos grandes, se necessário;
+5. manter Markdown como exportação/artefato legível, não como fonte principal de verdade em produção.
+
+## Checklist
+
+### 2.1 Camada de armazenamento
+
+* [ ] Criar interface de persistência.
+* [ ] Separar regra de negócio de leitura/escrita em arquivo.
+* [ ] Centralizar acesso a sessões, artefatos e candidaturas.
+* [ ] Evitar `open`, `unlink`, `read_text` e `write_text` espalhados em routers.
+* [ ] Criar testes da camada de storage.
+
+### 2.2 PostgreSQL
+
+* [ ] Definir tabelas iniciais:
+
+  * [ ] users;
+  * [ ] sessions;
+  * [ ] resumes;
+  * [ ] job_descriptions;
+  * [ ] matches;
+  * [ ] application_focus;
+  * [ ] applications;
+  * [ ] artifacts;
+  * [ ] audit_events.
+* [ ] Definir migrations.
+* [ ] Criar conexão com pooling.
+* [ ] Criar configuração por ambiente.
+* [ ] Criar testes com banco temporário.
+* [ ] Definir backup e restore.
+
+### 2.3 Artefatos Markdown
+
+* [ ] Decidir quais artefatos continuam como Markdown.
+* [ ] Salvar metadados dos artefatos no banco.
+* [ ] Salvar conteúdo grande em storage adequado, se necessário.
+* [ ] Manter exportação em Markdown para leitura humana.
+* [ ] Não depender apenas da existência do arquivo para considerar etapa concluída.
+
+## Critério de pronto
+
+* [ ] O backend não depende de disco local para dados críticos em modo público.
+* [ ] Múltiplas instâncias conseguem acessar o mesmo estado.
+* [ ] Dados estruturados têm schema claro.
+* [ ] Markdown vira artefato/exportação, não fonte única de verdade produtiva.
+
+---
+
+# 3. Escala de artefatos e invalidação
+
+## Problema
+
+Se currículo, vaga, perfil ou match mudam, relatórios derivados podem ficar obsoletos. Em escala, isso vira risco de exibir recomendação antiga como se fosse atual.
+
+## Checklist
+
+* [ ] Criar grafo central de dependências.
+* [ ] Definir dependências:
+
+  * [ ] perfil altera vagas, cursos, match, reconciliação, tailoring, PDI e entrevista;
+  * [ ] currículo altera match, reconciliação, tailoring, PDI e entrevista;
+  * [ ] vaga altera match, reconciliação, tailoring, PDI e entrevista;
+  * [ ] match/foco altera reconciliação, tailoring, PDI e entrevista;
+  * [ ] tailoring altera PDI.
+* [ ] Criar manifesto de artefatos.
+* [ ] Registrar:
+
+  * [ ] versão do schema;
+  * [ ] data de geração;
+  * [ ] hash do conteúdo;
+  * [ ] hash das entradas;
+  * [ ] versão do gerador;
+  * [ ] status: atual, obsoleto ou corrompido.
+* [ ] Impedir consumo de artefato obsoleto.
+* [ ] Atualizar frontend para mostrar:
+
+  * [ ] etapa ausente;
+  * [ ] etapa atual;
+  * [ ] etapa obsoleta;
+  * [ ] etapa corrompida.
+* [ ] Criar testes de invalidação por rota.
+* [ ] Criar testes de pipeline frontend.
+
+## Critério de pronto
+
+* [ ] Nenhum relatório derivado é exibido como atual sem validar suas entradas.
+* [ ] A interface informa qual entrada mudou.
+* [ ] O usuário sabe qual etapa precisa recalcular.
+* [ ] Invalidação é centralizada, não espalhada em routers.
+
+---
+
+# 4. Escala de processamento assíncrono
+
+## Problema
+
+Análise de currículo, busca de vagas, Firecrawl, LLM, PDI e entrevista podem demorar. Não devem depender apenas de request síncrona.
+
+## Arquitetura alvo
+
+```text
+Frontend
+   ↓
+FastAPI
+   ↓
+Fila de jobs
+   ↓
+Worker Python
+   ↓
+PostgreSQL / Redis / Storage
+   ↓
+Frontend acompanha status
+```
+
+## Checklist
+
+* [ ] Identificar tarefas demoradas:
+
+  * [ ] análise de currículo;
+  * [ ] análise de vaga;
+  * [ ] match;
+  * [ ] Scout;
+  * [ ] Curator;
+  * [ ] Coach;
+  * [ ] PDI;
+  * [ ] tailoring.
+* [ ] Escolher fila:
+
+  * [ ] Celery;
+  * [ ] RQ;
+  * [ ] Arq;
+  * [ ] Dramatiq.
+* [ ] Escolher broker:
+
+  * [ ] Redis;
+  * [ ] RabbitMQ.
+* [ ] Criar modelo de job:
+
+  * [ ] id;
+  * [ ] tipo;
+  * [ ] status;
+  * [ ] usuário;
+  * [ ] sessão;
+  * [ ] payload;
+  * [ ] erro;
+  * [ ] criado em;
+  * [ ] atualizado em.
+* [ ] Criar endpoint para iniciar job.
+* [ ] Criar endpoint para consultar status.
+* [ ] Criar atualização em tempo real via WebSocket/SSE.
+* [ ] Criar retry com limite.
+* [ ] Criar timeout por tarefa.
+* [ ] Evitar reprocessamento duplicado.
+* [ ] Criar idempotência para tarefas críticas.
+* [ ] Criar testes de job:
+
+  * [ ] sucesso;
+  * [ ] erro;
+  * [ ] retry;
+  * [ ] timeout;
+  * [ ] cancelamento;
+  * [ ] duplicidade.
+
+## Critério de pronto
+
+* [ ] Tarefa longa não trava request principal.
+* [ ] Usuário acompanha progresso.
+* [ ] Worker pode ser escalado separado da API.
+* [ ] Falha de provedor externo não derruba a API inteira.
+* [ ] Jobs possuem rastreabilidade.
+
+---
+
+# 5. Escala de WebSocket
+
+## Problema
+
+WebSocket precisa de protocolo claro, limite de mensagem, autenticação, reconexão e controle de estado.
+
+## Checklist
+
+* [ ] Validar schema de entrada.
+* [ ] Aceitar apenas payload JSON esperado.
+* [ ] Exigir `type="message"`.
+* [ ] Exigir `content` string.
+* [ ] Definir tamanho máximo de mensagem.
+* [ ] Restringir filtros e parâmetros aceitos.
+* [ ] Responder erro controlado sem derrubar conexão quando possível.
+* [ ] Encerrar conexão com código adequado em violação grave.
+* [ ] Garantir que payload inválido não persiste estado.
+* [ ] Implementar autenticação no handshake.
+* [ ] Validar `Origin`.
+* [ ] Criar heartbeat/ping.
+* [ ] Criar reconexão no frontend com backoff.
+* [ ] Evitar duplicação de mensagem após reconexão.
+* [ ] Criar testes:
+
+  * [ ] payload lista;
+  * [ ] payload número;
+  * [ ] payload `null`;
+  * [ ] objeto sem `content`;
+  * [ ] `content` não textual;
+  * [ ] mensagem excessiva;
+  * [ ] conexão viva após erro recuperável;
+  * [ ] encerramento controlado;
+  * [ ] reconexão frontend.
+
+## Critério de pronto
+
+* [ ] WebSocket não aceita payload livre.
+* [ ] Mensagem inválida não chega ao Maestro.
+* [ ] WebSocket funciona com múltiplas instâncias ou tem limitação documentada.
+* [ ] Reconexão não duplica ações.
+
+---
+
+# 6. Escala de limites, quotas e custo
+
+## Problema
+
+LLM, Firecrawl, upload, WebSocket e armazenamento têm custo. Sem limite, um usuário ou script pode consumir recursos demais.
+
+## Checklist
+
+### 6.1 Limites de entrada
+
+* [ ] Definir limite global de payload REST.
+* [ ] Definir limite de upload.
+* [ ] Definir limite de mensagem WebSocket.
+* [ ] Definir limite de campos textuais.
+* [ ] Definir limite de listas.
+* [ ] Definir limite de candidaturas por usuário.
+* [ ] Definir limite de sessões por usuário.
+* [ ] Definir limite de artefatos por sessão.
+
+### 6.2 Rate limiting
+
+* [ ] Rate limit para leitura REST.
+* [ ] Rate limit para mutação REST.
+* [ ] Rate limit para upload.
+* [ ] Rate limit para WebSocket.
+* [ ] Rate limit para LLM.
+* [ ] Rate limit para Firecrawl.
+* [ ] Resposta padronizada para limite excedido.
+* [ ] Header ou mensagem com orientação de retry.
+
+### 6.3 Quotas
+
+* [ ] Quota diária por usuário.
+* [ ] Quota mensal por usuário.
+* [ ] Quota por tipo de operação.
+* [ ] Quota para chamadas externas.
+* [ ] Quota de armazenamento.
+* [ ] Bloqueio de abuso sem afetar outros usuários.
+
+## Critério de pronto
+
+* [ ] Input excessivo é rejeitado antes de chamar LLM ou Firecrawl.
+* [ ] Uma identidade não consome quota de outra.
+* [ ] Custo externo fica controlado.
+* [ ] Bloqueios são rastreáveis nos logs/métricas.
+
+---
+
+# 7. Escala de observabilidade
+
+## Problema
+
+Em produção, não basta ter log local dentro do container. É preciso enxergar erro, latência, custo, fallback, volume, uso e falhas externas.
+
+## Checklist
+
+### 7.1 Logs
+
+* [ ] Garantir logs em stdout/stderr para ambiente container.
+* [ ] Manter logs estruturados em JSON.
+* [ ] Adicionar correlation id/request id.
+* [ ] Não logar currículo, prompt completo, token ou dado sensível.
+* [ ] Registrar eventos importantes:
+
+  * [ ] início/fim de job;
+  * [ ] erro externo;
+  * [ ] fallback;
+  * [ ] rate limit;
+  * [ ] quota excedida;
+  * [ ] invalidação de artefato;
+  * [ ] exclusão de dados.
+
+### 7.2 Métricas
+
+* [ ] Latência por endpoint.
+* [ ] Taxa de erro por endpoint.
+* [ ] Quantidade de conexões WebSocket.
+* [ ] Tempo médio de job.
+* [ ] Uso de Firecrawl.
+* [ ] Uso de LLM.
+* [ ] Fallbacks acionados.
+* [ ] Jobs em fila.
+* [ ] Jobs com erro.
+* [ ] Armazenamento por usuário/sessão.
+
+### 7.3 Healthcheck
+
+* [ ] Manter `/health` como liveness.
+* [ ] Criar `/ready` como readiness.
+* [ ] Verificar banco.
+* [ ] Verificar Redis/broker.
+* [ ] Verificar diretório/storage gravável.
+* [ ] Verificar configuração obrigatória.
+* [ ] Não derrubar app inteiro por provedor opcional indisponível.
+* [ ] Sinalizar modo degradado.
+
+## Critério de pronto
+
+* [ ] É possível investigar erro sem acessar container manualmente.
+* [ ] É possível saber se o sistema está saudável.
+* [ ] É possível medir custo e gargalo.
+* [ ] Logs não expõem dados pessoais.
+
+---
+
+# 8. Escala de segurança e privacidade
+
+## Problema
+
+O projeto lida com currículo, vaga, perfil e dados de candidatura. Isso exige cuidado com privacidade antes de ambiente público.
+
+## Checklist
+
+* [ ] Documentar dados coletados.
+* [ ] Documentar finalidade de uso.
+* [ ] Documentar tempo de retenção.
+* [ ] Criar exportação dos dados do usuário.
+* [ ] Criar exclusão completa dos dados.
+* [ ] Apagar artefatos derivados na exclusão.
+* [ ] Apagar backups relacionados.
+* [ ] Apagar temporários.
+* [ ] Criar auditoria mínima sem conteúdo sensível.
+* [ ] Definir política de retenção.
+* [ ] Criar limpeza automática de sessões antigas.
+* [ ] Configurar CORS por ambiente.
+* [ ] Configurar trusted hosts.
+* [ ] Configurar headers de segurança.
+* [ ] Forçar HTTPS em produção.
+* [ ] Usar secrets manager ou variáveis seguras.
+* [ ] Não versionar `.env`.
+* [ ] Não enviar token duradouro em query string.
+* [ ] Revisar riscos de prompt injection em conteúdos de currículo/vagas.
+
+## Critério de pronto
+
+* [ ] Usuário consegue exportar e apagar seus dados.
+* [ ] Dados sensíveis não aparecem em logs.
+* [ ] Ambiente público não sobe sem configuração segura.
+* [ ] Secrets não ficam no Git nem na imagem Docker.
+
+---
+
+# 9. Escala de deploy
+
+## Problema
+
+Antes de escalar horizontalmente, é preciso declarar qual topologia é suportada. Múltiplas instâncias com estado em memória ou disco local podem quebrar sessão, locks e WebSocket.
+
+## Checklist
+
+### 9.1 Deploy inicial seguro
+
+* [ ] Definir ambiente alvo:
+
+  * [ ] Render;
+  * [ ] Railway;
+  * [ ] AWS ECS;
+  * [ ] AWS EC2;
+  * [ ] Kubernetes;
+  * [ ] outro.
+* [ ] Criar `.env.example` completo.
+* [ ] Criar Dockerfile de produção.
+* [ ] Criar compose de produção, se fizer sentido.
+* [ ] Separar configuração local e pública.
+* [ ] Documentar comandos de deploy.
+* [ ] Documentar rollback.
+
+### 9.2 Concorrência
+
+* [ ] Declarar se o backend suporta um ou múltiplos workers.
+* [ ] Se for um worker:
+
+  * [ ] documentar limitação;
+  * [ ] impedir configuração insegura.
+* [ ] Se forem múltiplos workers:
+
+  * [ ] remover estado crítico da memória;
+  * [ ] usar PostgreSQL/Redis;
+  * [ ] coordenar locks fora do processo;
+  * [ ] testar concorrência multiprocesso.
+* [ ] Definir estratégia de WebSocket com load balancer.
+* [ ] Definir sticky session ou estado externo.
+
+### 9.3 Escala horizontal
+
+* [ ] API escalável separada dos workers.
+* [ ] Workers escaláveis por fila.
+* [ ] Banco com pool configurado.
+* [ ] Redis/broker monitorado.
+* [ ] Storage externo para arquivos.
+* [ ] Health/readiness usados pelo orquestrador.
+
+## Critério de pronto
+
+* [ ] A topologia documentada corresponde ao que foi testado.
+* [ ] O deploy não depende de disco local para estado crítico.
+* [ ] Múltiplas instâncias não corrompem dados.
+* [ ] Rollback está documentado.
+
+---
+
+# 10. Escala de testes
+
+## Problema
+
+Para escalar com segurança, os testes precisam validar jornada real, autorização, dados, falhas externas e recuperação.
+
+## Checklist
+
+### 10.1 Backend
+
+* [ ] Testar autorização por usuário.
+* [ ] Testar invalidação de artefatos.
+* [ ] Testar rate limit.
+* [ ] Testar quotas.
+* [ ] Testar jobs assíncronos.
+* [ ] Testar banco/storage.
+* [ ] Testar WebSocket.
+* [ ] Testar erros externos.
+* [ ] Medir cobertura com `pytest-cov`.
+
+### 10.2 Frontend
+
+* [ ] Testar `useWebSocket`.
+* [ ] Testar `apiRequest`.
+* [ ] Testar pipeline de etapas.
+* [ ] Testar tracker de candidaturas.
+* [ ] Testar estados loading/vazio/erro/sucesso.
+* [ ] Testar reconexão.
+* [ ] Testar artefato obsoleto na UI.
+
+### 10.3 E2E
+
+* [ ] Configurar Playwright.
+* [ ] Subir backend e frontend reais no runner.
+* [ ] Usar diretório/banco temporário.
+* [ ] Usar provedores externos fake no E2E comum.
+* [ ] Testar jornada:
+
+  * [ ] currículo;
+  * [ ] perfil;
+  * [ ] vaga;
+  * [ ] match;
+  * [ ] foco;
+  * [ ] tailoring;
+  * [ ] PDI;
+  * [ ] entrevista;
+  * [ ] candidatura.
+* [ ] Testar isolamento entre dois usuários.
+* [ ] Testar alteração de entrada invalidando derivados.
+* [ ] Testar reload no meio da jornada.
+* [ ] Testar queda do backend durante streaming.
+* [ ] Rodar E2E no CI.
+
+## Critério de pronto
+
+* [ ] Falha crítica bloqueia PR.
+* [ ] CI roda backend, frontend, Data Guard, build e E2E.
+* [ ] Cobertura é medida.
+* [ ] Testes não dependem de chave real para passar.
+
+---
+
+# 11. Escala de integrações externas
+
+## Problema
+
+LLM e Firecrawl são gargalos de custo, latência e instabilidade.
+
+## Checklist
+
+* [ ] Criar camada única para provedores externos.
+* [ ] Padronizar timeout.
+* [ ] Padronizar retry com backoff.
+* [ ] Padronizar fallback.
+* [ ] Padronizar erro de domínio.
+* [ ] Criar cache de respostas quando seguro.
+* [ ] Identificar origem da resposta:
+
+  * [ ] real;
+  * [ ] llm;
+  * [ ] simulated;
+  * [ ] interna.
+* [ ] Separar teste determinístico de teste real.
+* [ ] Criar validação manual controlada do Firecrawl.
+* [ ] Criar limite de custo por usuário.
+* [ ] Criar métrica de chamadas externas.
+
+## Critério de pronto
+
+* [ ] Falha externa não derruba jornada inteira.
+* [ ] Usuário sabe quando resultado é real, simulado ou interno.
+* [ ] Custo externo é rastreável.
+* [ ] Teste de CI não depende de crédito externo.
+
+---
+
+# 12. Ordem recomendada de implementação
+
+## Sprint 1 — Fechar base atual
+
+* [X] README de validação local.
+* [X] PR template.
+* [X] CI frontend com Vitest.
+* [X] CI backend com pytest.
+* [ ] Confirmar workflows no GitHub após push/PR.
+* [ ] Atualizar `docs/checklist.md` com os resultados novos.
+
+## Sprint 2 — WebSocket seguro
+
+* [ ] Schema de mensagem.
+* [ ] Limite de tamanho.
+* [ ] Erro controlado.
+* [ ] Testes backend.
+* [ ] Testes frontend de reconexão.
+
+## Sprint 3 — Identidade e modo público/local
+
+* [ ] ADR de autenticação.
+* [ ] `APP_MODE`.
+* [ ] `UserContext`.
+* [ ] Autorização REST.
+* [ ] Autorização WebSocket.
+* [ ] Testes negativos de acesso cruzado.
+
+## Sprint 4 — Artefatos e invalidação
+
+* [ ] Grafo de dependências.
+* [ ] Manifesto.
+* [ ] Hash de entradas.
+* [ ] Estado atual/obsoleto/corrompido.
+* [ ] Pipeline frontend refletindo atualidade.
+
+## Sprint 5 — Persistência produtiva
+
+* [ ] Interface de storage.
+* [ ] PostgreSQL.
+* [ ] Migrations.
+* [ ] Pool de conexão.
+* [ ] Testes de integração.
+* [ ] Estratégia para Markdown como exportação.
+
+## Sprint 6 — Jobs e filas
+
+* [ ] Redis/broker.
+* [ ] Worker.
+* [ ] Modelo de job.
+* [ ] Status de job.
+* [ ] Retry/timeout.
+* [ ] Frontend acompanhando progresso.
+
+## Sprint 7 — Limites e quotas
+
+* [ ] Rate limiting.
+* [ ] Quotas.
+* [ ] Limite de storage.
+* [ ] Limpeza de sessão.
+* [ ] Exportação/exclusão de dados.
+
+## Sprint 8 — E2E e release público piloto
+
+* [ ] Playwright.
+* [ ] Jornada crítica.
+* [ ] Dois usuários isolados.
+* [ ] Falha/reconexão.
+* [ ] Firecrawl real validado separadamente.
+* [ ] Documentação de deploy.
+
+---
+
+# Definição de pronto para escala inicial
+
+O projeto estará pronto para uma escala inicial controlada quando:
+
+* [ ] CI completo passar em todo PR.
+* [ ] E2E crítico estiver bloqueando merge.
+* [ ] Usuários tiverem identidade e autorização.
+* [ ] Dados críticos não dependerem de disco local.
+* [ ] Tarefas longas rodarem em workers.
+* [ ] WebSocket tiver autenticação, schema e reconexão.
+* [ ] Rate limit e quotas estiverem ativos.
+* [ ] Artefatos obsoletos não forem exibidos como atuais.
+* [ ] Logs e métricas permitirem diagnóstico.
+* [ ] Exportação e exclusão de dados estiverem funcionando.
+* [ ] Topologia de produção estiver documentada e testada.
+
+---
+
+# Decisão técnica
+
+Não trocar Python neste momento.
+
+Manter:
+
+* FastAPI para API;
+* Python para workers;
+* React para frontend;
+* PostgreSQL para dados estruturados;
+* Redis para cache, sessão curta, rate limit e fila;
+* storage externo para arquivos/artefatos grandes, se necessário.
+
+Trocar linguagem só deve ser considerado se houver evidência real de gargalo após medir:
+
+* latência;
+* CPU;
+* memória;
+* concorrência;
+* custo;
+* throughput;
+* tempo de job.

@@ -40,4 +40,5 @@ jobs:
         working-directory: backend
 
       - name: Run backend test suite
-        run: pytest backend/tests/ -v
+        run: pytest -v
+        working-directory: backend

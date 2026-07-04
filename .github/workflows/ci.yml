@@ -20,11 +20,15 @@ jobs:
           node-version: 20
 
       - name: Instalar dependências
-        run: npm install
+        run: npm ci
         working-directory: frontend
 
       - name: Rodar lint
         run: npm run lint
+        working-directory: frontend
+
+      - name: Rodar testes
+        run: npm run test
         working-directory: frontend
 
       - name: Rodar build

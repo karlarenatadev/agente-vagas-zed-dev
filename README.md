@@ -285,6 +285,32 @@ npm run dev
 
 ---
 
+## Validação local
+
+Backend:
+
+```bash
+cd backend
+pip install -r requirements.txt -r requirements-dev.txt
+pytest -v
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm install
+npm run lint
+npm run test
+npm run build
+```
+
+Não versione `.env`, chaves, currículos ou artefatos gerados em `data/`.
+Os mesmos controles são executados pelos workflows `Backend CI`, `Frontend CI`,
+`Data Guard` e `Docs Check` em `.github/workflows/`.
+
+---
+
 ## Testando sem API keys
 
 Para explorar a interface sem configurar chaves de API, use o servidor mock:
