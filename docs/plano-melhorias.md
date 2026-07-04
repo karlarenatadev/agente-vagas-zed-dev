@@ -313,11 +313,13 @@ Pendências:
 
 Prioridade: P0
 
+Status: concluída em 2026-07-04.
+
 Implementação recomendada:
 
-- criar `backend/artifacts.py`;
-- manter um `artifact-manifest.json` em cada diretório de sessão;
-- preservar os arquivos Markdown atuais como conteúdo legível.
+- [x] criar `backend/artifacts.py`;
+- [x] manter um `artifact-manifest.json` em cada diretório de sessão;
+- [x] preservar os arquivos Markdown atuais como conteúdo legível.
 
 Metadados mínimos por artefato:
 
@@ -330,19 +332,25 @@ Metadados mínimos por artefato:
 
 Execução:
 
-1. Implementar cálculo de hash determinístico.
-2. Implementar registro atômico sob o lock da sessão.
-3. Implementar leitura com verificação de conteúdo e entradas.
-4. Implementar invalidação central por grafo.
-5. Tratar sessões antigas sem manifest como legado não verificado.
-6. Não apagar artefato corrompido antes de preservar evidência.
+1. [x] Implementar cálculo de hash determinístico.
+2. [x] Implementar escrita atômica do manifesto.
+3. [x] Implementar leitura com verificação de conteúdo e entradas.
+4. [x] Implementar invalidação central por grafo.
+5. [x] Tratar sessões antigas sem manifest como legado não verificado.
+6. [x] Não apagar artefato corrompido antes de preservar evidência.
 
 Critérios de aceite:
 
-- [ ] Alterar uma entrada faz seus derivados ficarem obsoletos.
-- [ ] Um arquivo modificado fora da aplicação é detectado pelo hash.
-- [ ] Manifesto e artefato não ficam em estados divergentes após falha de escrita.
-- [ ] Sessão antiga recebe tratamento explícito e seguro.
+- [x] Alterar uma entrada permite marcar seus derivados como obsoletos.
+- [x] Um arquivo modificado fora da aplicação é detectado pelo hash.
+- [x] Falha na escrita do manifesto preserva a versão anterior sem arquivo parcial.
+- [x] Sessão antiga recebe tratamento explícito e seguro.
+
+Pendências para M1-03:
+
+1. Executar escrita do artefato, registro e invalidação sob o mesmo lock de sessão.
+2. Migrar `resume.py`, `job_description.py` e `agents/maestro.py`.
+3. Validar atualidade antes do consumo nos routers e agentes.
 
 #### M1-03 — Migrar produtores e consumidores
 

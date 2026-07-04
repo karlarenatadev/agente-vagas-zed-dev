@@ -19,13 +19,14 @@ A decisão inicial é manter Python/FastAPI no backend. O foco não é trocar li
 * [X] Frontend CI executando Vitest.
 * [X] Data Guard preservado.
 * [X] Docs Check preservado.
-* [X] Backend validado com 272 testes passando.
+* [X] Backend validado com 283 testes passando.
 * [X] Frontend validado com 58 testes passando.
 * [X] Lint e build frontend aprovados.
 * [X] Data Guard aprovado com 8 testes.
 * [X] M0-03 validada com 20 testes WebSocket focalizados.
 * [X] M0-04 concluída com cache npm, branches e `concurrency` padronizados.
 * [X] M1-01 concluída com ADR, grafo central e testes unitários de linhagem.
+* [X] M1-02 concluída com manifesto, hashes e estados de atualidade.
 * [X] Confirmar execução real dos workflows após push/PR.
 
 ## Próxima ação imediata
@@ -34,7 +35,7 @@ A decisão inicial é manter Python/FastAPI no backend. O foco não é trocar li
 * [X] Confirmar que todos os workflows passam no GitHub Actions.
 * [X] Atualizar `docs/checklist.md` com os novos números:
 
-  * backend: 272 testes;
+  * backend: 283 testes;
   * frontend: 58 testes;
   * Data Guard: 8 testes;
   * build/lint: aprovados.
@@ -164,15 +165,17 @@ Se currículo, vaga, perfil ou match mudam, relatórios derivados podem ficar ob
   * [X] match/foco altera reconciliação, tailoring, PDI e entrevista;
   * [X] tailoring altera PDI.
 * [X] Criar testes unitários do contrato do grafo.
-* [ ] Criar manifesto de artefatos.
-* [ ] Registrar:
+* [X] Criar manifesto de artefatos.
+* [X] Registrar:
 
-  * [ ] versão do schema;
-  * [ ] data de geração;
-  * [ ] hash do conteúdo;
-  * [ ] hash das entradas;
-  * [ ] versão do gerador;
-  * [ ] status: atual, obsoleto ou corrompido.
+  * [X] versão do schema;
+  * [X] data de geração;
+  * [X] hash do conteúdo;
+  * [X] hash das entradas;
+  * [X] versão do gerador;
+  * [X] status: atual, obsoleto, corrompido ou legado.
+* [X] Detectar divergência de conteúdo e entradas sem apagar artefatos.
+* [X] Criar testes unitários do registro e do manifesto.
 * [ ] Impedir consumo de artefato obsoleto.
 * [ ] Atualizar frontend para mostrar:
 
@@ -646,9 +649,9 @@ LLM e Firecrawl são gargalos de custo, latência e instabilidade.
 ## Sprint 4 — Artefatos e invalidação
 
 * [X] Grafo de dependências.
-* [ ] Manifesto.
-* [ ] Hash de entradas.
-* [ ] Estado atual/obsoleto/corrompido.
+* [X] Manifesto.
+* [X] Hash de entradas.
+* [X] Estado atual/obsoleto/corrompido.
 * [ ] Pipeline frontend refletindo atualidade.
 
 ## Sprint 5 — Persistência produtiva
