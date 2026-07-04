@@ -302,12 +302,12 @@ Critérios de aceite:
 - [x] O contrato do grafo possui uma única definição central.
 - [x] A política diferencia invalidar, recalcular e preservar.
 
-Pendências:
+Entregas subsequentes:
 
-1. M1-02 deve criar o registro central e o estado de atualidade sem apagar os
+1. [x] M1-02 criou o registro central e o estado de atualidade sem apagar os
    artefatos Markdown existentes.
-2. M1-03 deve substituir as listas locais de invalidação em routers e no Maestro
-   pelo serviço central, com testes por rota.
+2. [x] M1-03A migrou currículo e análise de vaga para o serviço central, com
+   testes por rota.
 
 #### M1-02 — Criar um registro central de artefatos
 
@@ -348,13 +348,24 @@ Critérios de aceite:
 
 Pendências para M1-03:
 
-1. Executar escrita do artefato, registro e invalidação sob o mesmo lock de sessão.
-2. Migrar `resume.py`, `job_description.py` e `agents/maestro.py`.
+1. Replicar escrita, registro e invalidação sob o mesmo lock nos demais produtores.
+2. Migrar match, foco, reconciliação, tailoring, PDI, Scout, Curator e Coach.
 3. Validar atualidade antes do consumo nos routers e agentes.
 
 #### M1-03 — Migrar produtores e consumidores
 
 Prioridade: P0
+
+Status: M1-03A concluída em 2026-07-04; M1-03B pendente.
+
+M1-03A:
+
+- [x] registrar currículo como `current`;
+- [x] registrar análise de vaga REST e Maestro como `current`;
+- [x] marcar dependentes registrados como `stale` pelo grafo central;
+- [x] preservar arquivos derivados e sessões legadas/parciais;
+- [x] remover listas locais de invalidação dos produtores migrados;
+- [x] adicionar 8 testes de integração e falha.
 
 Ordem:
 
@@ -382,6 +393,13 @@ Critérios de aceite:
 - [ ] Match antigo não alimenta tailoring ou PDI.
 - [ ] Reconciliação antiga não permanece concluída após mudar vaga/currículo.
 - [ ] Entrevista não reutiliza contexto obsoleto silenciosamente.
+
+Pendências para M1-03B:
+
+1. Registrar match e invalidar seus dependentes no REST e no Maestro.
+2. Invalidar derivados ao alterar foco.
+3. Registrar reconciliação, tailoring, PDI e entrevista.
+4. Bloquear consumo de artefato `stale` ou `corrupted` com erro de domínio.
 
 #### M1-04 — Refletir atualidade no frontend
 

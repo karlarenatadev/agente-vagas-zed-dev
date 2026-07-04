@@ -5,6 +5,11 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException
 
+from artifacts import (
+    ArtifactRegistryError,
+    mark_dependents_stale,
+    register_artifact,
+)
 from session import SessionPaths, get_session_lock, get_session_paths, write_text_atomic_async
 from agents.job_description_analyzer import (
     JobDescriptionAnalyzer,
@@ -14,15 +19,6 @@ from agents.job_description_analyzer import (
 
 router = APIRouter()
 analyzer = JobDescriptionAnalyzer()
-
-
-def _invalidate_downstream_artifacts(paths: SessionPaths) -> None:
-    for path in (
-        paths.RESUME_MATCH_REPORT_FILE,
-        paths.RESUME_TAILORING_SUGGESTIONS_FILE,
-        paths.PDI_PLAN_FILE,
-    ):
-        path.unlink(missing_ok=True)
 
 
 class JobDescriptionRequest(BaseModel):
@@ -76,12 +72,22 @@ async def analyze_job_description(
         )
 
     analysis = analyzer.analyze(description)
+    analysis_markdown = analysis_to_markdown(analysis)
     async with get_session_lock(paths.session_id):
+        try:
+            register_artifact(
+                paths.dir,
+                "job_description",
+                content=analysis_markdown,
+                generator_version="job-description-analysis:v1",
+            )
+            mark_dependents_stale(paths.dir, "job_description")
+        except ArtifactRegistryError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         await write_text_atomic_async(
             paths.JOB_DESCRIPTION_ANALYSIS_FILE,
-            analysis_to_markdown(analysis),
+            analysis_markdown,
         )
-        _invalidate_downstream_artifacts(paths)
 
     # Próxima etapa: combinar este resultado com RESUME_ANALYSIS_FILE para
     # produzir resume-match-report.md e, depois, um pdi-plan.md.

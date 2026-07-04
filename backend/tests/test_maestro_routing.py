@@ -12,6 +12,11 @@ Cobre:
 import asyncio
 
 from agents.maestro import MaestroAgent
+from artifacts import (
+    MANIFEST_FILENAME,
+    get_artifact_status,
+    register_artifact,
+)
 from session import SessionPaths
 
 
@@ -81,13 +86,31 @@ def test_colar_vaga_curta_reexibe_instrucao(tmp_path):
     assert not paths.JOB_DESCRIPTION_ANALYSIS_FILE.exists()
 
 
-def test_colar_vaga_valida_analisa_e_invalida_downstream(tmp_path, resume_markdown, job_markdown):
+def test_colar_vaga_valida_marca_downstream_stale_sem_apagar(
+    tmp_path,
+    resume_markdown,
+    job_markdown,
+):
     paths = SessionPaths("alice", base_dir=tmp_path)
     _seed_resume(paths, resume_markdown)
-    # Pré-existe um match/tailoring/pdi que deve ser invalidado ao reanalisar.
-    paths.RESUME_MATCH_REPORT_FILE.write_text(job_markdown, encoding="utf-8")
-    paths.RESUME_TAILORING_SUGGESTIONS_FILE.write_text("velho", encoding="utf-8")
-    paths.PDI_PLAN_FILE.write_text("velho", encoding="utf-8")
+    dependent_paths = {
+        "match": paths.RESUME_MATCH_REPORT_FILE,
+        "reconciliation": paths.RECONCILIATION_FILE,
+        "tailoring": paths.RESUME_TAILORING_SUGGESTIONS_FILE,
+        "pdi": paths.PDI_PLAN_FILE,
+        "interview": paths.INTERVIEW_FILE,
+    }
+    for name, path in dependent_paths.items():
+        path.write_text(
+            job_markdown if name == "match" else f"velho: {name}",
+            encoding="utf-8",
+        )
+        register_artifact(
+            paths.dir,
+            name,
+            path,
+            generator_version=f"{name}:test",
+        )
     agent = MaestroAgent(paths)
     agent.mode = "await_job_description"
 
@@ -98,10 +121,44 @@ def test_colar_vaga_valida_analisa_e_invalida_downstream(tmp_path, resume_markdo
     assert "Vaga analisada" in joined  # resumo do dispatcher
     assert "Senioridade" in joined  # campo do resumo
     assert "__STATE__:menu" in joined
-    # Invalidação downstream.
-    assert not paths.RESUME_MATCH_REPORT_FILE.exists()
-    assert not paths.RESUME_TAILORING_SUGGESTIONS_FILE.exists()
-    assert not paths.PDI_PLAN_FILE.exists()
+    assert "preservou os relatórios anteriores" in joined
+    assert get_artifact_status(
+        paths.dir,
+        "job_description",
+        artifact_path=paths.JOB_DESCRIPTION_ANALYSIS_FILE,
+    ) == "current"
+    assert all(path.exists() for path in dependent_paths.values())
+    assert all(
+        get_artifact_status(paths.dir, name, artifact_path=path) == "stale"
+        for name, path in dependent_paths.items()
+    )
+
+
+def test_colar_vaga_manifesto_corrompido_preserva_entrada_e_retorna_menu(
+    tmp_path,
+):
+    paths = SessionPaths("alice", base_dir=tmp_path)
+    paths.dir.mkdir(parents=True)
+    paths.JOB_DESCRIPTION_ANALYSIS_FILE.write_text(
+        "vaga anterior",
+        encoding="utf-8",
+    )
+    manifest_path = paths.dir / MANIFEST_FILENAME
+    invalid_manifest = '{"schema_version": 1, "artifacts":'
+    manifest_path.write_text(invalid_manifest, encoding="utf-8")
+    agent = MaestroAgent(paths)
+    agent.mode = "await_job_description"
+
+    tokens = _collect(agent._handle_job_description_paste(VALID_JOB_DESCRIPTION))
+
+    joined = "".join(tokens)
+    assert "registro de artefatos" in joined
+    assert "__STATE__:menu" in joined
+    assert (
+        paths.JOB_DESCRIPTION_ANALYSIS_FILE.read_text(encoding="utf-8")
+        == "vaga anterior"
+    )
+    assert manifest_path.read_text(encoding="utf-8") == invalid_manifest
 
 
 def test_colar_vaga_comando_menu_cancela(tmp_path):

@@ -10,6 +10,11 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 import config
+from artifacts import (
+    ArtifactRegistryError,
+    mark_dependents_stale,
+    register_artifact,
+)
 from routers.common import read_required
 from session import (
     SessionPaths,
@@ -201,15 +206,6 @@ def _error(message: str, status_code: int = 400) -> JSONResponse:
             "message": message,
         },
     )
-
-
-def _invalidate_downstream_artifacts(paths: SessionPaths) -> None:
-    for path in (
-        paths.RESUME_MATCH_REPORT_FILE,
-        paths.RESUME_TAILORING_SUGGESTIONS_FILE,
-        paths.PDI_PLAN_FILE,
-    ):
-        path.unlink(missing_ok=True)
 
 
 def _validate_upload_signature(
@@ -805,13 +801,23 @@ async def upload_resume(
         return _error("Não foi possível extrair texto suficiente do currículo.")
 
     analysis = _analyze_resume(extracted_text)
+    analysis_markdown = _analysis_to_markdown(analysis)
 
     async with get_session_lock(paths.session_id):
+        try:
+            register_artifact(
+                paths.dir,
+                "resume",
+                content=analysis_markdown,
+                generator_version="resume-analysis:v1",
+            )
+            mark_dependents_stale(paths.dir, "resume")
+        except ArtifactRegistryError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         await write_text_atomic_async(
             paths.RESUME_ANALYSIS_FILE,
-            _analysis_to_markdown(analysis),
+            analysis_markdown,
         )
-        _invalidate_downstream_artifacts(paths)
 
         try:
             existing_profile = paths.PROFILE_FILE.read_text(encoding="utf-8")

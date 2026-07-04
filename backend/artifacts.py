@@ -78,8 +78,9 @@ def save_manifest(session_dir: Path, manifest: ArtifactManifest) -> None:
 def register_artifact(
     session_dir: Path,
     artifact_name: str,
-    artifact_path: Path,
+    artifact_path: Path | None = None,
     *,
+    content: str | bytes | None = None,
     input_hashes: Mapping[str, str] | None = None,
     generator_version: str,
     schema_version: int = 1,
@@ -95,17 +96,26 @@ def register_artifact(
     normalized_inputs = dict(input_hashes or {})
     _validate_hashes(normalized_inputs, "input_hashes")
 
-    try:
-        content = Path(artifact_path).read_bytes()
-    except OSError as exc:
+    if (artifact_path is None) == (content is None):
         raise ArtifactContentError(
-            f"Não foi possível ler o artefato '{artifact_name}'."
-        ) from exc
+            "Informe exatamente um caminho ou conteúdo para registrar o artefato."
+        )
+    if content is None:
+        try:
+            artifact_content: str | bytes = Path(artifact_path).read_text(
+                encoding="utf-8"
+            )
+        except (OSError, UnicodeDecodeError) as exc:
+            raise ArtifactContentError(
+                f"Não foi possível ler o artefato '{artifact_name}'."
+            ) from exc
+    else:
+        artifact_content = content
 
     metadata = ArtifactMetadata(
         schema_version=schema_version,
         status="current",
-        content_hash=calculate_content_hash(content),
+        content_hash=calculate_content_hash(artifact_content),
         input_hashes=normalized_inputs,
         generator_version=generator_version,
         generated_at=generated_at or _utc_now(),
@@ -134,8 +144,10 @@ def get_artifact_status(
 
     if artifact_path is not None:
         try:
-            content = Path(artifact_path).read_bytes()
+            content = Path(artifact_path).read_text(encoding="utf-8")
         except FileNotFoundError:
+            return "corrupted"
+        except UnicodeDecodeError:
             return "corrupted"
         except OSError as exc:
             raise ArtifactContentError(

@@ -51,7 +51,13 @@ from agents.reconciliation import (
     reconciliation_to_markdown,
     validate_profile,
 )
+from artifacts import (
+    ArtifactRegistryError,
+    mark_dependents_stale,
+    register_artifact,
+)
 from logging_config import get_logger
+from session import get_session_lock
 
 
 logger = get_logger(__name__)
@@ -1156,15 +1162,6 @@ class MaestroAgent(BaseAgent):
 
     # ─── Esteira de Candidatura (E–I) ─────────────────────────────────────────
 
-    def _invalidate_job_downstream(self) -> None:
-        """Apaga match/tailoring/PDI ao (re)analisar a vaga (espelha job_description.py)."""
-        for path in (
-            self.paths.RESUME_MATCH_REPORT_FILE,
-            self.paths.RESUME_TAILORING_SUGGESTIONS_FILE,
-            self.paths.PDI_PLAN_FILE,
-        ):
-            path.unlink(missing_ok=True)
-
     async def _prompt_job_description(self) -> AsyncGenerator[str, None]:
         """E: pede ao usuário que cole a descrição da vaga."""
         yield "\n📝 **ANÁLISE DE VAGA** — Cole a descrição da vaga para eu analisar.\n\n"
@@ -1187,19 +1184,29 @@ class MaestroAgent(BaseAgent):
             return
 
         analysis = JobDescriptionAnalyzer().analyze(description)
-        self._write_file(
-            self.paths.JOB_DESCRIPTION_ANALYSIS_FILE,
-            analysis_to_markdown(analysis),
-        )
-        had_downstream = any(
-            path.exists()
-            for path in (
-                self.paths.RESUME_MATCH_REPORT_FILE,
-                self.paths.RESUME_TAILORING_SUGGESTIONS_FILE,
-                self.paths.PDI_PLAN_FILE,
-            )
-        )
-        self._invalidate_job_downstream()
+        analysis_markdown = analysis_to_markdown(analysis)
+        try:
+            async with get_session_lock(self.paths.session_id):
+                register_artifact(
+                    self.paths.dir,
+                    "job_description",
+                    content=analysis_markdown,
+                    generator_version="job-description-analysis:v1",
+                )
+                stale_dependents = mark_dependents_stale(
+                    self.paths.dir,
+                    "job_description",
+                )
+                self._write_file(
+                    self.paths.JOB_DESCRIPTION_ANALYSIS_FILE,
+                    analysis_markdown,
+                )
+        except ArtifactRegistryError:
+            yield "⚠ Não foi possível atualizar o registro de artefatos da sessão.\n\n"
+            async for token in self._show_menu():
+                yield token
+            yield "\n__STATE__:menu"
+            return
 
         title = analysis.get("title") or "Não identificado"
         company = analysis.get("company") or "Não identificado"
@@ -1216,8 +1223,8 @@ class MaestroAgent(BaseAgent):
         if alerts:
             yield f"• Alertas: {len(alerts)}\n"
         yield "\nPróximos passos: compare com seu currículo (**F**) e gere sugestões (**G**) e PDI (**H**).\n"
-        if had_downstream:
-            yield "\nℹ Reanalisar a vaga apagou o match, o tailoring e o PDI anteriores — rode **F**, **G** e **H** de novo.\n"
+        if stale_dependents:
+            yield "\nℹ Reanalisar a vaga preservou os relatórios anteriores e marcou os registrados como obsoletos — rode **F**, **G** e **H** de novo.\n"
         async for token in self._show_menu():
             yield token
         yield "\n__STATE__:menu"

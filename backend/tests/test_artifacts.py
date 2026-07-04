@@ -99,6 +99,22 @@ def test_registro_cria_metadados_esperados(tmp_path):
     assert load_manifest(tmp_path).artifacts["match"] == metadata
 
 
+def test_registro_aceita_conteudo_antes_da_escrita_do_artefato(tmp_path):
+    artifact_path = tmp_path / "resume-analysis.md"
+
+    metadata = register_artifact(
+        tmp_path,
+        "resume",
+        content="currículo analisado",
+        generator_version="resume-analysis:v1",
+        generated_at=GENERATED_AT,
+    )
+
+    assert metadata.content_hash == calculate_content_hash("currículo analisado")
+    assert load_manifest(tmp_path).artifacts["resume"] == metadata
+    assert not artifact_path.exists()
+
+
 def test_conteudo_alterado_fora_da_aplicacao_e_detectado_sem_apagar(tmp_path):
     artifact_path = tmp_path / "resume-match-report.md"
     artifact_path.write_text("match original", encoding="utf-8")

@@ -19,7 +19,7 @@ A decisão inicial é manter Python/FastAPI no backend. O foco não é trocar li
 * [X] Frontend CI executando Vitest.
 * [X] Data Guard preservado.
 * [X] Docs Check preservado.
-* [X] Backend validado com 283 testes passando.
+* [X] Backend validado com 291 testes passando.
 * [X] Frontend validado com 58 testes passando.
 * [X] Lint e build frontend aprovados.
 * [X] Data Guard aprovado com 8 testes.
@@ -27,6 +27,7 @@ A decisão inicial é manter Python/FastAPI no backend. O foco não é trocar li
 * [X] M0-04 concluída com cache npm, branches e `concurrency` padronizados.
 * [X] M1-01 concluída com ADR, grafo central e testes unitários de linhagem.
 * [X] M1-02 concluída com manifesto, hashes e estados de atualidade.
+* [X] M1-03A concluída para currículo e análise de vaga.
 * [X] Confirmar execução real dos workflows após push/PR.
 
 ## Próxima ação imediata
@@ -35,7 +36,7 @@ A decisão inicial é manter Python/FastAPI no backend. O foco não é trocar li
 * [X] Confirmar que todos os workflows passam no GitHub Actions.
 * [X] Atualizar `docs/checklist.md` com os novos números:
 
-  * backend: 283 testes;
+  * backend: 291 testes;
   * frontend: 58 testes;
   * Data Guard: 8 testes;
   * build/lint: aprovados.
@@ -176,6 +177,9 @@ Se currículo, vaga, perfil ou match mudam, relatórios derivados podem ficar ob
   * [X] status: atual, obsoleto, corrompido ou legado.
 * [X] Detectar divergência de conteúdo e entradas sem apagar artefatos.
 * [X] Criar testes unitários do registro e do manifesto.
+* [X] Migrar currículo e análise de vaga para registro e invalidação central.
+* [X] Preservar arquivos derivados ao marcá-los como obsoletos.
+* [X] Criar testes de invalidação para as rotas migradas.
 * [ ] Impedir consumo de artefato obsoleto.
 * [ ] Atualizar frontend para mostrar:
 
@@ -183,7 +187,7 @@ Se currículo, vaga, perfil ou match mudam, relatórios derivados podem ficar ob
   * [ ] etapa atual;
   * [ ] etapa obsoleta;
   * [ ] etapa corrompida.
-* [ ] Criar testes de invalidação por rota.
+* [ ] Criar testes de invalidação para as rotas restantes.
 * [ ] Criar testes de pipeline frontend.
 
 ## Critério de pronto

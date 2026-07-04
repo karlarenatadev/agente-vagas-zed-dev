@@ -7,10 +7,16 @@ real e nenhum caminho depende de OpenAI/Firecrawl.
 
 from fastapi.testclient import TestClient
 
+import artifacts
 import config
 from agents.pdi_generator import PdiGenerator, pdi_from_markdown
 from agents.resume_matcher import ResumeMatcher, match_report_to_markdown
 from agents.resume_tailor import ResumeTailor, tailoring_to_markdown
+from artifacts import (
+    MANIFEST_FILENAME,
+    get_artifact_status,
+    register_artifact,
+)
 from main import app
 
 
@@ -28,6 +34,25 @@ def _client(tmp_path, monkeypatch) -> TestClient:
 
 def _write(path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
+
+
+def _seed_registered_dependents(base) -> dict[str, object]:
+    paths = {
+        "match": base / "resume-match-report.md",
+        "reconciliation": base / "reconciliation.md",
+        "tailoring": base / "resume-tailoring-suggestions.md",
+        "pdi": base / "pdi-plan.md",
+        "interview": base / "interview-session.md",
+    }
+    for name, path in paths.items():
+        _write(path, f"artefato antigo: {name}")
+        register_artifact(
+            base,
+            name,
+            path,
+            generator_version=f"{name}:test",
+        )
+    return paths
 
 
 def _write_match_report(tmp_path, job_markdown: str, resume_markdown: str) -> str:
@@ -73,16 +98,10 @@ def test_resume_upload_txt_persiste_analise_em_tmp_path(tmp_path, monkeypatch):
     assert "Python" in latest.json()["technical_skills"]
 
 
-def test_resume_upload_invalida_artefatos_dependentes(tmp_path, monkeypatch):
+def test_resume_upload_marca_dependentes_stale_sem_apagar(tmp_path, monkeypatch):
     client = _client(tmp_path, monkeypatch)
     base = _default_dir(tmp_path)
-    dependent_files = [
-        base / "resume-match-report.md",
-        base / "resume-tailoring-suggestions.md",
-        base / "pdi-plan.md",
-    ]
-    for path in dependent_files:
-        _write(path, "artefato antigo")
+    dependent_files = _seed_registered_dependents(base)
 
     content = (
         "Nome: Pessoa Teste\n"
@@ -97,11 +116,84 @@ def test_resume_upload_invalida_artefatos_dependentes(tmp_path, monkeypatch):
 
     assert response.status_code == 200
     assert (base / "resume-analysis.md").exists()
-    assert all(not path.exists() for path in dependent_files)
+    assert get_artifact_status(
+        base,
+        "resume",
+        artifact_path=base / "resume-analysis.md",
+    ) == "current"
+    assert all(path.exists() for path in dependent_files.values())
+    assert all(
+        get_artifact_status(base, name, artifact_path=path) == "stale"
+        for name, path in dependent_files.items()
+    )
+
+
+def test_resume_upload_sessao_legada_preserva_derivados(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+    base = _default_dir(tmp_path)
+    dependent_path = base / "resume-match-report.md"
+    _write(dependent_path, "match legado")
+    content = (
+        "Nome: Pessoa Teste\n"
+        "Analista de dados junior com experiencia em Python, SQL, Excel e Power BI.\n"
+        "Boa comunicacao, trabalho em equipe e projetos de dashboards."
+    )
+
+    response = client.post(
+        "/api/resume/upload",
+        files={"file": ("curriculo.txt", content.encode("utf-8"), "text/plain")},
+    )
+
+    assert response.status_code == 200
+    assert dependent_path.read_text(encoding="utf-8") == "match legado"
+    assert get_artifact_status(base, "match", artifact_path=dependent_path) == "legacy"
+    assert get_artifact_status(
+        base,
+        "resume",
+        artifact_path=base / "resume-analysis.md",
+    ) == "current"
+
+
+def test_resume_upload_manifesto_parcial_preserva_nao_registrados(
+    tmp_path,
+    monkeypatch,
+):
+    client = _client(tmp_path, monkeypatch)
+    base = _default_dir(tmp_path)
+    match_path = base / "resume-match-report.md"
+    interview_path = base / "interview-session.md"
+    _write(match_path, "match registrado")
+    _write(interview_path, "entrevista legada")
+    register_artifact(base, "match", match_path, generator_version="match:test")
+    content = (
+        "Nome: Pessoa Teste\n"
+        "Analista de dados junior com experiencia em Python, SQL, Excel e Power BI.\n"
+        "Boa comunicacao, trabalho em equipe e projetos de dashboards."
+    )
+
+    response = client.post(
+        "/api/resume/upload",
+        files={"file": ("curriculo.txt", content.encode("utf-8"), "text/plain")},
+    )
+
+    assert response.status_code == 200
+    assert get_artifact_status(base, "match", artifact_path=match_path) == "stale"
+    assert (
+        get_artifact_status(base, "interview", artifact_path=interview_path)
+        == "legacy"
+    )
+    assert match_path.exists()
+    assert interview_path.exists()
 
 
 def test_resume_upload_recusa_extensao_invalida(tmp_path, monkeypatch):
     client = _client(tmp_path, monkeypatch)
+    base = _default_dir(tmp_path)
+    source_path = base / "resume-analysis.md"
+    _write(source_path, "currículo anterior")
+    register_artifact(base, "resume", source_path, generator_version="resume:test")
+    manifest_path = base / MANIFEST_FILENAME
+    manifest_before = manifest_path.read_bytes()
 
     response = client.post(
         "/api/resume/upload",
@@ -110,6 +202,65 @@ def test_resume_upload_recusa_extensao_invalida(tmp_path, monkeypatch):
 
     assert response.status_code == 400
     assert response.json()["success"] is False
+    assert manifest_path.read_bytes() == manifest_before
+    assert source_path.read_text(encoding="utf-8") == "currículo anterior"
+
+
+def test_resume_upload_manifesto_corrompido_retorna_409_sem_alterar_entrada(
+    tmp_path,
+    monkeypatch,
+):
+    client = _client(tmp_path, monkeypatch)
+    base = _default_dir(tmp_path)
+    source_path = base / "resume-analysis.md"
+    _write(source_path, "currículo anterior")
+    manifest_path = base / MANIFEST_FILENAME
+    invalid_manifest = '{"schema_version": 1, "artifacts":'
+    _write(manifest_path, invalid_manifest)
+    content = (
+        "Nome: Pessoa Teste\n"
+        "Analista de dados junior com experiencia em Python, SQL, Excel e Power BI.\n"
+        "Boa comunicacao, trabalho em equipe e projetos de dashboards."
+    )
+
+    response = client.post(
+        "/api/resume/upload",
+        files={"file": ("curriculo.txt", content.encode("utf-8"), "text/plain")},
+    )
+
+    assert response.status_code == 409
+    assert source_path.read_text(encoding="utf-8") == "currículo anterior"
+    assert manifest_path.read_text(encoding="utf-8") == invalid_manifest
+
+
+def test_resume_upload_falha_ao_salvar_manifesto_preserva_entrada(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    client = TestClient(app, raise_server_exceptions=False)
+    base = _default_dir(tmp_path)
+    source_path = base / "resume-analysis.md"
+    _write(source_path, "currículo anterior")
+    content = (
+        "Nome: Pessoa Teste\n"
+        "Analista de dados junior com experiencia em Python, SQL, Excel e Power BI.\n"
+        "Boa comunicacao, trabalho em equipe e projetos de dashboards."
+    )
+
+    def fail_manifest_write(path, manifest_content):
+        raise OSError("falha simulada no manifesto")
+
+    monkeypatch.setattr(artifacts, "write_text_atomic", fail_manifest_write)
+
+    response = client.post(
+        "/api/resume/upload",
+        files={"file": ("curriculo.txt", content.encode("utf-8"), "text/plain")},
+    )
+
+    assert response.status_code == 500
+    assert source_path.read_text(encoding="utf-8") == "currículo anterior"
+    assert not (base / MANIFEST_FILENAME).exists()
 
 
 def test_resume_upload_recusa_pdf_sem_assinatura_valida(tmp_path, monkeypatch):
